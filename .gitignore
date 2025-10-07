@@ -1,0 +1,23 @@
+/*.egg-info
+/.claude
+/build
+/dist
+.envrc
+
+.venv
+__pycache__
+.DS_Store
+
+# Rust/Maturin artifacts
+target/
+debug/
+*.so
+*.dylib
+*.dll
+*.pyd
+
+# hello Sully
+.envrc
+.dir-locals.el
+
+/.direnv
