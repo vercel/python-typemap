@@ -58,27 +58,6 @@ def _eval_types_impl(obj: typing.Any, ctx: EvalContext):
     return obj
 
 
-def _resolve_type_aliases(owner: typing.Type) -> dict[str, typing.Type]:
-    if not issubclass(owner, typing.Generic):
-        return {}
-
-    try:
-        ob = owner.__orig_bases__
-    except AttributeError:
-        return {}
-
-    vars = {}
-    for base in ob:
-        if isinstance(base, typing._GenericAlias):
-            for i, name in enumerate(base.__origin__.__type_params__):
-                if name.__name__ not in vars:
-                    vars[name.__name__] = base.__args__[i]
-
-            vars = _resolve_type_aliases(base.__origin__) | vars
-
-    return vars
-
-
 @_eval_types_impl.register
 def _eval_func(func: types.FunctionType | types.MethodType, ctx: EvalContext):
     root = inspect.unwrap(func)
