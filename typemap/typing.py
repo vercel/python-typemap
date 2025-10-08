@@ -16,7 +16,8 @@ class CallSpec:
 class _CallSpecWrapper:
     _args: tuple[typing.Any]
     _kwargs: dict[str, typing.Any]
-    _func: types.FunctionType | types.MethodType
+    # TODO: Support MethodType!
+    _func: types.FunctionType  # | types.MethodType
 
     @property
     def args(self) -> None:
@@ -32,7 +33,7 @@ class _CallKwarg:
     name: str
 
 
-@typing._SpecialForm
+@typing._SpecialForm  # type: ignore[call-arg]
 def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[_CallKwarg]:
     ff = types.FunctionType(
         spec._func.__code__,
@@ -85,7 +86,7 @@ class DirProperties(metaclass=DirPropertiesMeta):
 
 class NewProtocolMeta(type):
     def __getitem__(cls, val: list[Property]):
-        dct = {}
+        dct: dict[str, object] = {}
         dct["__annotations__"] = {prop.name: prop.type for prop in val}
 
         module_name = __name__
@@ -99,7 +100,7 @@ class NewProtocolMeta(type):
 
         dct["__module__"] = module_name
 
-        mcls = type(typing.Protocol)
+        mcls: type = type(typing.cast(type, typing.Protocol))
         cls = mcls(name, (typing.Protocol,), dct)
         return cls
 

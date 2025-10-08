@@ -77,7 +77,7 @@ def box(cls: type[Any]) -> Boxed:
 
         return Boxed(cls, boxed_bases, args)
 
-    if isinstance(cls, (typing._GenericAlias, types.GenericAlias)):
+    if isinstance(cls, (typing._GenericAlias, types.GenericAlias)):  # type: ignore[attr-defined]
         # XXX this feels out of place, `box()` needs to only accept types.
         args = dict(
             zip(cls.__origin__.__parameters__, cls.__args__, strict=True)
@@ -184,7 +184,7 @@ def apply(cls: type[Any]) -> dict[str, Any]:
             annos.update(af)
 
         for name, stuff in boxed.cls.__dict__.items():
-            if name in typing.EXCLUDED_ATTRIBUTES:
+            if name in typing.EXCLUDED_ATTRIBUTES:  # type: ignore[attr-defined]
                 continue
 
             stuff = inspect.unwrap(stuff)

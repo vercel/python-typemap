@@ -29,7 +29,7 @@ def test_cqa_ruff_check(project_root):
 
 def test_cqa_ruff_format_check(project_root):
     """Test that code is properly formatted according to ruff."""
-    # Ruff format respects pyproject.toml exclusions (_vendor is excluded)
+    # Ruff format respects pyproject.toml exclusions
     result = subprocess.run(
         [sys.executable, "-m", "ruff", "format", "--check", "."],
         capture_output=True,
@@ -43,12 +43,11 @@ def test_cqa_ruff_format_check(project_root):
         )
 
 
-@pytest.mark.skip(reason="Mypy is not working yet")
 def test_cqa_mypy(project_root):
     """Test that code passes mypy type checking."""
     # Mypy uses configuration from pyproject.toml
-    # Run on the whole project (pi package and tests), excluding _vendor
-    for subdir in ["pi", "tests/fixtures"]:
+    # Run on typemap -- tests not ready yet
+    for subdir in ["typemap"]:
         result = subprocess.run(
             [
                 sys.executable,
