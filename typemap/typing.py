@@ -88,9 +88,24 @@ class NewProtocolMeta(type):
         dct = {}
         dct["__annotations__"] = {prop.name: prop.type for prop in val}
 
+        frame = inspect.currentframe()
+
+        module_name = __name__
+        name = "Protocol"
+
+        # Peak at the calling frame and use that to produce
+        # a better name than Protocol.
+        # This is probably a 3.14 special?
+        if frame and (prev := frame.f_back):
+            name = prev.f_code.co_name
+            module_name = inspect.getmodule(prev.f_code).__name__
+            # qualname??
+
+        dct["__module__"] = module_name
+
         mcls = type(typing.Protocol)
-        # TODO: Replace the "Protocol" name with the type alias name
-        return mcls("Protocol", (typing.Protocol,), dct)
+        cls = mcls(name, (typing.Protocol,), dct)
+        return cls
 
 
 class NewProtocol(metaclass=NewProtocolMeta):
