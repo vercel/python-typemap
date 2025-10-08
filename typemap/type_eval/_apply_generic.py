@@ -61,7 +61,9 @@ def box(cls: type[Any]) -> Boxed:
                 if issubclass(base, typing.Generic):
                     if base_params := getattr(base, "__parameters__", None):
                         boxed_args = {}
-                        for param, arg in zip(base_params, obase.__args__, strict=True):
+                        for param, arg in zip(
+                            base_params, obase.__args__, strict=True
+                        ):
                             if arg in args:
                                 boxed_args[param] = args[arg]
                             else:
@@ -77,7 +79,9 @@ def box(cls: type[Any]) -> Boxed:
 
     if isinstance(cls, (typing._GenericAlias, types.GenericAlias)):
         # XXX this feels out of place, `box()` needs to only accept types.
-        args = dict(zip(cls.__origin__.__parameters__, cls.__args__, strict=True))
+        args = dict(
+            zip(cls.__origin__.__parameters__, cls.__args__, strict=True)
+        )
         cls = cls.__origin__
     else:
         if params := getattr(cls, "__parameters__", None):
@@ -115,7 +119,9 @@ def merge_boxed_mro(seqs: list[list[Boxed]]) -> list[Boxed]:
 
 
 def _compute_mro(C: Boxed) -> list[Boxed]:
-    return merge_boxed_mro([[C]] + list(map(_compute_mro, C.bases)) + [list(C.bases)])
+    return merge_boxed_mro(
+        [[C]] + list(map(_compute_mro, C.bases)) + [list(C.bases)]
+    )
 
 
 def compute_mro(C: type[Any]) -> list[Boxed]:
@@ -157,13 +163,16 @@ def apply(cls: type[Any]) -> dict[str, Any]:
                 for name in af.__code__.co_freevars
             )
 
-            ff = types.FunctionType(af.__code__, af.__globals__, af.__name__, None, args)
+            ff = types.FunctionType(
+                af.__code__, af.__globals__, af.__name__, None, args
+            )
             rr = ff(annotationlib.Format.VALUE)
 
             if rr:
                 for k, v in rr.items():
                     if isinstance(v, str):
-                        # Handle cases where annotation is explicitly a string, e.g.:
+                        # Handle cases where annotation is explicitly a string,
+                        # e.g.:
                         #
                         #   class Foo[X]:
                         #       x: "Foo[X | None]"

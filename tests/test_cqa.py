@@ -38,7 +38,9 @@ def test_cqa_ruff_format_check(project_root):
     )
 
     if result.returncode != 0:
-        pytest.fail(f"ruff format check failed:\n{result.stdout}\n{result.stderr}")
+        pytest.fail(
+            f"ruff format check failed:\n{result.stdout}\n{result.stderr}"
+        )
 
 
 @pytest.mark.skip(reason="Mypy is not working yet")

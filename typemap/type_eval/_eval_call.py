@@ -25,9 +25,13 @@ def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
     except AttributeError:
         raise ValueError("func has no __annotate__ attribute")
 
-    af_args = tuple(types.CellType(vars[name]) for name in af.__code__.co_freevars)
+    af_args = tuple(
+        types.CellType(vars[name]) for name in af.__code__.co_freevars
+    )
 
-    ff = types.FunctionType(af.__code__, af.__globals__, af.__name__, None, af_args)
+    ff = types.FunctionType(
+        af.__code__, af.__globals__, af.__name__, None, af_args
+    )
     rr = ff(annotationlib.Format.VALUE)
 
     return _eval_typing.eval_typing(rr["return"])

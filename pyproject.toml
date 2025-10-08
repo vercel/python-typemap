@@ -65,6 +65,6 @@ extend-ignore = [
 ]
 
 [tool.ruff]
-line-length = 90
+line-length = 80
 indent-width = 4
 include = ["pyproject.toml", "typemap/**/*.py", "tests/**/*.py"]

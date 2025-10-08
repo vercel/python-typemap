@@ -24,8 +24,8 @@ class EvalContext:
 
 
 # `eval_types()` calls can be nested, context must be preserved
-_current_context: contextvars.ContextVar[EvalContext | None] = contextvars.ContextVar(
-    "_current_context", default=None
+_current_context: contextvars.ContextVar[EvalContext | None] = (
+    contextvars.ContextVar("_current_context", default=None)
 )
 
 
