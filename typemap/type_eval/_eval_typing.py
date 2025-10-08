@@ -21,6 +21,7 @@ __all__ = ("eval_typing",)
 @dataclasses.dataclass
 class EvalContext:
     seen: dict[Any, Any]
+    current_alias: types.GenericAlias | None = None
 
 
 # `eval_types()` calls can be nested, context must be preserved
@@ -131,15 +132,21 @@ def _eval_generic(obj: types.GenericAlias, ctx: EvalContext):
 
     args = tuple(types.CellType(_eval_types(arg, ctx)) for arg in obj.__args__)
     mod = sys.modules[obj.__module__]
-    ff = types.FunctionType(func.__code__, mod.__dict__, None, None, args)
-    unpacked = ff(annotationlib.Format.VALUE)
 
-    ctx.seen[obj] = unpacked
+    old_obj = ctx.current_alias
+    ctx.current_alias = obj
+
     try:
+        ff = types.FunctionType(func.__code__, mod.__dict__, None, None, args)
+        unpacked = ff(annotationlib.Format.VALUE)
+
+        ctx.seen[obj] = unpacked
         evaled = _eval_types(unpacked, ctx)
     except Exception:
-        ctx.seen.pop(obj)
+        ctx.seen.pop(obj, None)
         raise
+    finally:
+        ctx.current_alias = old_obj
 
     return evaled
 

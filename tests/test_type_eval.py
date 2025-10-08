@@ -52,11 +52,11 @@ def test_eval_types_2():
     assert evaled.__annotations__["a"].__args__[0] is evaled
 
     assert format_helper.format_class(evaled) == textwrap.dedent("""\
-        class MapRecursive:
+        class MapRecursive[tests.test_type_eval.Recursive]:
             n: int | typing.Literal['gotcha!']
             m: str | typing.Literal['gotcha!']
             t: typing.Literal[False] | typing.Literal['gotcha!']
-            a: tests.test_type_eval.MapRecursive | typing.Literal['gotcha!']
+            a: tests.test_type_eval.MapRecursive[tests.test_type_eval.Recursive] | typing.Literal['gotcha!']
             fff: int | typing.Literal['gotcha!']
             control: float
         """)

@@ -81,12 +81,10 @@ def test_type_dir_1():
 def test_type_dir_2():
     d = eval_typing(OptionalFinal)
 
-    # XXX: should the class name be further mangled to something like
-    #      "AllOptional__T"?
     # XXX: `DirProperties` skips methods, true to its name. Perhaps we just need
     #      `Dir` that would iterate over everything
     assert format_helper.format_class(d) == textwrap.dedent("""\
-        class AllOptional:
+        class AllOptional[tests.test_type_dir.Final]:
             last: int | typing.Literal[True] | None
             iii: str | int | typing.Literal['gotcha!'] | None
             t: dict[str, str | int | typing.Literal['gotcha!']] | None

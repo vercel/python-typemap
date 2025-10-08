@@ -88,18 +88,14 @@ class NewProtocolMeta(type):
         dct = {}
         dct["__annotations__"] = {prop.name: prop.type for prop in val}
 
-        frame = inspect.currentframe()
-
         module_name = __name__
-        name = "Protocol"
+        name = "NewProtocol"
 
-        # Peak at the calling frame and use that to produce
-        # a better name than Protocol.
-        # This is probably a 3.14 special?
-        if frame and (prev := frame.f_back):
-            name = prev.f_code.co_name
-            module_name = inspect.getmodule(prev.f_code).__name__
-            # qualname??
+        # If the type evaluation context
+        ctx = type_eval._current_context.get()
+        if ctx and ctx.current_alias:
+            name = str(ctx.current_alias)
+            module_name = ctx.current_alias.__module__
 
         dct["__module__"] = module_name
 
