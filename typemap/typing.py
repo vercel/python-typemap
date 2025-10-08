@@ -92,8 +92,8 @@ class NewProtocolMeta(type):
         name = "NewProtocol"
 
         # If the type evaluation context
-        ctx = type_eval._current_context.get()
-        if ctx and ctx.current_alias:
+        ctx = type_eval._get_current_context()
+        if ctx.current_alias:
             name = str(ctx.current_alias)
             module_name = ctx.current_alias.__module__
 

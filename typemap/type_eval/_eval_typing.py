@@ -1,5 +1,6 @@
 import annotationlib
 
+import contextlib
 import contextvars
 import dataclasses
 import functools
@@ -30,7 +31,8 @@ _current_context: contextvars.ContextVar[EvalContext | None] = (
 )
 
 
-def eval_typing(obj: typing.Any):
+@contextlib.contextmanager
+def _ensure_context() -> typing.Iterator[EvalContext]:
     ctx = _current_context.get()
     ctx_set = False
     if ctx is None:
@@ -41,10 +43,24 @@ def eval_typing(obj: typing.Any):
         ctx_set = True
 
     try:
-        return _eval_types(obj, ctx)
+        yield ctx
     finally:
         if ctx_set:
             _current_context.set(None)
+
+
+def _get_current_context() -> EvalContext:
+    ctx = _current_context.get()
+    if not ctx:
+        raise RuntimeError(
+            "type_eval._get_current_context() called outside of eval_types()"
+        )
+    return ctx
+
+
+def eval_typing(obj: typing.Any):
+    with _ensure_context() as ctx:
+        return _eval_types(obj, ctx)
 
 
 def _eval_types(obj: typing.Any, ctx: EvalContext):

@@ -11,6 +11,11 @@ from . import _eval_typing
 
 
 def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
+    with _eval_typing._ensure_context():
+        return _eval_call(func, *args, **kwargs)
+
+
+def _eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
     vars = {}
 
     params = func.__type_params__
