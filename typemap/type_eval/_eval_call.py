@@ -16,11 +16,11 @@ def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
 
 
 def _eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
-    vars = {}
+    vars: dict[str, Any] = {}
 
     params = func.__type_params__
     for p in params:
-        if p.__bound__ is next.CallSpec:
+        if hasattr(p, "__bound__") and p.__bound__ is next.CallSpec:
             vars[p.__name__] = next._CallSpecWrapper(args, kwargs, func)
         else:
             vars[p.__name__] = p
@@ -28,6 +28,8 @@ def _eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
     try:
         af = func.__annotate__
     except AttributeError:
+        raise ValueError("func has no __annotate__ attribute")
+    if not af:
         raise ValueError("func has no __annotate__ attribute")
 
     af_args = tuple(

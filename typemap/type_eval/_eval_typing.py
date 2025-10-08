@@ -99,7 +99,7 @@ def _eval_type_type(obj: type, ctx: EvalContext):
     if isinstance(obj, type) and issubclass(obj, typing.Generic):
         ret = type(
             obj.__name__,
-            (typing.Protocol,),
+            (typing.cast(type, typing.Protocol),),
             {
                 "__module__": obj.__module__,
                 "__name__": obj.__name__,
@@ -129,6 +129,7 @@ def _eval_type_var(obj: typing.TypeVar, ctx: EvalContext):
 
 @_eval_types_impl.register
 def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
+    assert obj.__module__  # FIXME: or can this really happen?
     func = obj.evaluate_value
     mod = sys.modules[obj.__module__]
     ff = types.FunctionType(func.__code__, mod.__dict__, None, None, ())
@@ -142,7 +143,7 @@ def _eval_generic(obj: types.GenericAlias, ctx: EvalContext):
         # This is a GenericAlias over a Python class, e.g. `dict[str, int]`
         # Let's reconstruct it by evaluating all arguments
         new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
-        return obj.__origin__[new_args]
+        return obj.__origin__[new_args]  # type: ignore[index]
 
     func = obj.evaluate_value
 
@@ -169,5 +170,6 @@ def _eval_generic(obj: types.GenericAlias, ctx: EvalContext):
 
 @_eval_types_impl.register
 def _eval_union(obj: typing.Union, ctx: EvalContext):  # type: ignore
-    new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
+    args: typing.Sequence[typing.Any] = obj.__args__
+    new_args = tuple(_eval_types(arg, ctx) for arg in args)
     return typing.Union[new_args]
