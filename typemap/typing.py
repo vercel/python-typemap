@@ -88,9 +88,20 @@ class NewProtocolMeta(type):
         dct = {}
         dct["__annotations__"] = {prop.name: prop.type for prop in val}
 
+        module_name = __name__
+        name = "NewProtocol"
+
+        # If the type evaluation context
+        ctx = type_eval._get_current_context()
+        if ctx.current_alias:
+            name = str(ctx.current_alias)
+            module_name = ctx.current_alias.__module__
+
+        dct["__module__"] = module_name
+
         mcls = type(typing.Protocol)
-        # TODO: Replace the "Protocol" name with the type alias name
-        return mcls("Protocol", (typing.Protocol,), dct)
+        cls = mcls(name, (typing.Protocol,), dct)
+        return cls
 
 
 class NewProtocol(metaclass=NewProtocolMeta):

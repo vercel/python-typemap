@@ -1,5 +1,6 @@
 import annotationlib
 
+import contextlib
 import contextvars
 import dataclasses
 import functools
@@ -21,6 +22,7 @@ __all__ = ("eval_typing",)
 @dataclasses.dataclass
 class EvalContext:
     seen: dict[Any, Any]
+    current_alias: types.GenericAlias | None = None
 
 
 # `eval_types()` calls can be nested, context must be preserved
@@ -29,7 +31,8 @@ _current_context: contextvars.ContextVar[EvalContext | None] = (
 )
 
 
-def eval_typing(obj: typing.Any):
+@contextlib.contextmanager
+def _ensure_context() -> typing.Iterator[EvalContext]:
     ctx = _current_context.get()
     ctx_set = False
     if ctx is None:
@@ -40,10 +43,24 @@ def eval_typing(obj: typing.Any):
         ctx_set = True
 
     try:
-        return _eval_types(obj, ctx)
+        yield ctx
     finally:
         if ctx_set:
             _current_context.set(None)
+
+
+def _get_current_context() -> EvalContext:
+    ctx = _current_context.get()
+    if not ctx:
+        raise RuntimeError(
+            "type_eval._get_current_context() called outside of eval_types()"
+        )
+    return ctx
+
+
+def eval_typing(obj: typing.Any):
+    with _ensure_context() as ctx:
+        return _eval_types(obj, ctx)
 
 
 def _eval_types(obj: typing.Any, ctx: EvalContext):
@@ -131,15 +148,21 @@ def _eval_generic(obj: types.GenericAlias, ctx: EvalContext):
 
     args = tuple(types.CellType(_eval_types(arg, ctx)) for arg in obj.__args__)
     mod = sys.modules[obj.__module__]
-    ff = types.FunctionType(func.__code__, mod.__dict__, None, None, args)
-    unpacked = ff(annotationlib.Format.VALUE)
 
-    ctx.seen[obj] = unpacked
+    old_obj = ctx.current_alias
+    ctx.current_alias = obj
+
     try:
+        ff = types.FunctionType(func.__code__, mod.__dict__, None, None, args)
+        unpacked = ff(annotationlib.Format.VALUE)
+
+        ctx.seen[obj] = unpacked
         evaled = _eval_types(unpacked, ctx)
     except Exception:
-        ctx.seen.pop(obj)
+        ctx.seen.pop(obj, None)
         raise
+    finally:
+        ctx.current_alias = old_obj
 
     return evaled
 

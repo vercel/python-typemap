@@ -17,8 +17,9 @@ def test_call_1():
     ret = eval_call(func, a=1, b=2, c="aaa")
     fmt = format_helper.format_class(ret)
 
+    # XXX: We want better than this for a name
     assert fmt == textwrap.dedent("""\
-        class Protocol:
+        class NewProtocol:
             a: int
             b: int
             c: int
