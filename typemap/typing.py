@@ -84,6 +84,21 @@ class DirProperties(metaclass=DirPropertiesMeta):
 ##################################################################
 
 
+class IterUnionMeta(type):
+    def __getitem__(cls, tp):
+        if isinstance(tp, types.UnionType):
+            return tp.__args__
+        else:
+            return [tp]
+
+
+class IterUnion(metaclass=IterUnionMeta):
+    pass
+
+
+##################################################################
+
+
 class NewProtocolMeta(type):
     def __getitem__(cls, val: list[Property]):
         dct: dict[str, object] = {}
