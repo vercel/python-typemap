@@ -22,7 +22,9 @@ __all__ = ("eval_typing",)
 @dataclasses.dataclass
 class EvalContext:
     seen: dict[Any, Any]
-    current_alias: types.GenericAlias | None = None
+    # The typing.Any is really a types.FunctionType, but mypy gets
+    # confused and wants to treat it as a MethodType.
+    current_alias: types.GenericAlias | typing.Any | None = None
 
 
 # `eval_types()` calls can be nested, context must be preserved
