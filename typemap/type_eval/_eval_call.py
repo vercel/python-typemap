@@ -11,11 +11,17 @@ from . import _eval_typing
 
 
 def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
-    with _eval_typing._ensure_context():
-        return _eval_call(func, *args, **kwargs)
+    with _eval_typing._ensure_context() as ctx:
+        return _eval_call(func, ctx, *args, **kwargs)
 
 
-def _eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
+def _eval_call(
+    func: types.FunctionType,
+    ctx: _eval_typing.EvalContext,
+    /,
+    *args: Any,
+    **kwargs: Any,
+) -> Any:
     vars: dict[str, Any] = {}
 
     params = func.__type_params__
@@ -39,6 +45,11 @@ def _eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
     ff = types.FunctionType(
         af.__code__, af.__globals__, af.__name__, None, af_args
     )
-    rr = ff(annotationlib.Format.VALUE)
 
-    return _eval_typing.eval_typing(rr["return"])
+    old_obj = ctx.current_alias
+    ctx.current_alias = func
+    try:
+        rr = ff(annotationlib.Format.VALUE)
+        return _eval_typing.eval_typing(rr["return"])
+    finally:
+        ctx.current_alias = old_obj
