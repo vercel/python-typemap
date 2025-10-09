@@ -21,3 +21,6 @@ debug/
 .dir-locals.el
 
 /.direnv
+
+.dmypy.json
+*~
