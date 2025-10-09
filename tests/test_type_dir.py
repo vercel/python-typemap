@@ -61,6 +61,21 @@ type AllOptional[T] = next.NewProtocol[
 type OptionalFinal = AllOptional[Final]
 
 
+type Capitalize[T] = next.NewProtocol[
+    # Will .upper() be in our type  evaluation language??
+    [next.Property[p.name.upper(), p.type] for p in next.DirProperties[T]]
+]
+
+type Prims[T] = next.NewProtocol[
+    [
+        next.Property[p.name, p.type]
+        for p in next.DirProperties[T]
+        if isinstance(p.type, type)
+        if issubclass(p.type, (int, str))
+    ]
+]
+
+
 def test_type_dir_1():
     d = eval_typing(Final)
 
@@ -91,4 +106,27 @@ def test_type_dir_2():
             kkk: ~K | None
             x: tests.test_type_dir.Wrapper[int | None] | None
             ordinary: str | None
+    """)
+
+
+def test_type_dir_3():
+    d = eval_typing(Capitalize[Final])
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class Capitalize[tests.test_type_dir.Final]:
+            LAST: int | typing.Literal[True]
+            III: str | int | typing.Literal['gotcha!']
+            T: dict[str, str | int | typing.Literal['gotcha!']]
+            KKK: ~K
+            X: tests.test_type_dir.Wrapper[int | None]
+            ORDINARY: str
+    """)
+
+
+def test_type_dir_4():
+    d = eval_typing(Prims[Final])
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class Prims[tests.test_type_dir.Final]:
+            ordinary: str
     """)
