@@ -76,6 +76,24 @@ type Prims[T] = next.NewProtocol[
 ]
 
 
+type NoLiterals[T] = next.NewProtocol[
+    [
+        next.Property[
+            p.name,
+            typing.Union[
+                *[
+                    t
+                    for t in next.IterUnion[p.type]
+                    # XXX: Need a real way to check this??
+                    if not isinstance(t, typing._LiteralGenericAlias)
+                ]
+            ],
+        ]
+        for p in next.DirProperties[T]
+    ]
+]
+
+
 def test_type_dir_1():
     d = eval_typing(Final)
 
@@ -128,5 +146,19 @@ def test_type_dir_4():
 
     assert format_helper.format_class(d) == textwrap.dedent("""\
         class Prims[tests.test_type_dir.Final]:
+            ordinary: str
+    """)
+
+
+def test_type_dir_5():
+    d = eval_typing(NoLiterals[Final])
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class NoLiterals[tests.test_type_dir.Final]:
+            last: int
+            iii: str | int
+            t: dict[str, str | int | typing.Literal['gotcha!']]
+            kkk: ~K
+            x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
     """)
