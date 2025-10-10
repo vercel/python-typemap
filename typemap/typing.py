@@ -99,6 +99,20 @@ class IterUnion(metaclass=IterUnionMeta):
 ##################################################################
 
 
+class GetAttrMeta(type):
+    def __getitem__(cls, arg):
+        lhs, prop = arg
+        # XXX: extras?
+        return typing.get_type_hints(lhs)[prop]
+
+
+class GetAttr(metaclass=GetAttrMeta):
+    pass
+
+
+##################################################################
+
+
 class NewProtocolMeta(type):
     def __getitem__(cls, val: list[Property]):
         dct: dict[str, object] = {}
