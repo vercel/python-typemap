@@ -78,12 +78,18 @@ class Property(metaclass=PropertyMeta):
 ##################################################################
 
 
+# I want to experiment with this being a tuple.
+class _OutProperty(typing.NamedTuple):
+    name: str
+    type: type
+
+
 class DirPropertiesMeta(type):
     def __getitem__(cls, tp):
         # TODO: Support unions
         o = type_eval.eval_typing(tp)
         hints = typing.get_type_hints(o, include_extras=True)
-        return [Property(typing.Literal[n], t) for n, t in hints.items()]
+        return [_OutProperty(typing.Literal[n], t) for n, t in hints.items()]
 
 
 class DirProperties(metaclass=DirPropertiesMeta):

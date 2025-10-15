@@ -70,11 +70,11 @@ type Capitalize[T] = next.NewProtocol[
 
 type Prims[T] = next.NewProtocol[
     [
-        next.Property[p.name, p.type]
-        for p in next.DirProperties[T]
+        next.Property[name, typ]
+        for name, typ in next.DirProperties[T]
         # XXX: type language -- check it better
-        if isinstance(p.type, type)
-        if issubclass(p.type, (int, str))
+        if isinstance(typ, type)
+        if issubclass(typ, (int, str))
     ]
 ]
 
