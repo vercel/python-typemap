@@ -72,9 +72,7 @@ type Prims[T] = next.NewProtocol[
     [
         next.Property[name, typ]
         for name, typ in next.DirProperties[T]
-        # XXX: type language -- check it better
-        if isinstance(typ, type)
-        if issubclass(typ, (int, str))
+        if next.IsSubtype[typ, int | str]
     ]
 ]
 
@@ -87,10 +85,9 @@ type NoLiterals[T] = next.NewProtocol[
                 *[
                     t
                     for t in next.IterUnion[p.type]
-                    # XXX: type language -- check it better
-                    # maybe this one can't actually work well now?
-                    # no way to do Literal[...]?
-                    if not isinstance(t, typing._LiteralGenericAlias)
+                    # XXX: 'typing.Literal' is not *really* a type...
+                    # Maybe we can't do this, which maybe is fine.
+                    if not next.IsSubtype[t, typing.Literal]
                 ]
             ],
         ]
@@ -151,6 +148,7 @@ def test_type_dir_4():
 
     assert format_helper.format_class(d) == textwrap.dedent("""\
         class Prims[tests.test_type_dir.Final]:
+            last: int | typing.Literal[True]
             ordinary: str
     """)
 

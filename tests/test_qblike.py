@@ -1,5 +1,4 @@
 import textwrap
-import typing
 
 from typemap.type_eval import eval_call, eval_typing
 from typemap import typing as next
@@ -15,28 +14,19 @@ class Link[T]:
     pass
 
 
-# XXX: We need to be able to check against _GenericAlias for our qb
-# stuff, but this can't be how we do it.
-def _is_alias_of(typ, cls):
-    return isinstance(typ, typing._GenericAlias) and issubclass(
-        typ.__origin__, cls
-    )
-
-
 type PropsOnly[T] = next.NewProtocol[
     [
         next.Property[p.name, p.type]
         for p in next.DirProperties[T]
-        # XXX: type language -- _is_alias_of
-        if _is_alias_of(p.type, Property)
+        if next.IsSubtype[p.type, Property]
     ]
 ]
 
 # XXX: How do we feel about a pure conditional type alias???
 # We could inline it if needed
 type FilterLinks[T] = (
-    # XXX: type language -- _is_alias_of and __args__
-    Link[PropsOnly[T.__args__[0]]] if _is_alias_of(T, Link) else T
+    # XXX: type language -- __args__
+    Link[PropsOnly[T.__args__[0]]] if next.IsSubtype[T, Link] else T
 )
 
 

@@ -26,9 +26,10 @@ type MapRecursive[A] = next.NewProtocol[
     [
         (
             next.Property[p.name, OrGotcha[p.type]]
-            if p.type is not A  # XXX -- hm!
+            if not next.IsSubtype[p.type, A]
             else next.Property[p.name, OrGotcha[MapRecursive[A]]]
         )
+        # XXX: type language - concatenating DirProperties is sketchy
         for p in (next.DirProperties[A] + next.DirProperties[F_int])
     ]
     + [next.Property["control", float]]  # noqa: F821

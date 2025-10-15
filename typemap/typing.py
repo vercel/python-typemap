@@ -121,12 +121,29 @@ class IterUnion(metaclass=IterUnionMeta):
 
 class GetAttrMeta(type):
     def __getitem__(cls, arg):
+        # TODO: Unions, the prop missing, etc!
         lhs, prop = arg
         # XXX: extras?
         return typing.get_type_hints(lhs)[prop]
 
 
 class GetAttr(metaclass=GetAttrMeta):
+    pass
+
+
+##################################################################
+
+
+class IsSubtypeMeta(type):
+    def __getitem__(cls, arg):
+        lhs, rhs = arg
+        # return type_eval.issubtype(
+        #     type_eval.eval_typing(lhs), type_eval.eval_typing(rhs)
+        # )
+        return type_eval.issubtype(lhs, rhs)
+
+
+class IsSubtype(metaclass=IsSubtypeMeta):
     pass
 
 
