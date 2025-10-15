@@ -122,6 +122,16 @@ def GetAttr(self, arg):
     return typing.get_type_hints(lhs)[prop]
 
 
+@_SpecialForm
+def GetArg(self, arg):
+    tp, idx = arg
+    args = typing.get_args(tp)
+    try:
+        return args[idx]
+    except IndexError:
+        return typing.Never
+
+
 ##################################################################
 
 

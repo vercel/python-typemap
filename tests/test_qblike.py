@@ -22,11 +22,9 @@ type PropsOnly[T] = next.NewProtocol[
     ]
 ]
 
-# XXX: How do we feel about a pure conditional type alias???
-# We could inline it if needed
+# Conditional type alias!
 type FilterLinks[T] = (
-    # XXX: type language -- __args__
-    Link[PropsOnly[T.__args__[0]]] if next.IsSubtype[T, Link] else T
+    Link[PropsOnly[next.GetArg[T, 0]]] if next.IsSubtype[T, Link] else T
 )
 
 
