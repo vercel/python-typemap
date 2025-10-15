@@ -7,6 +7,9 @@ import typing
 from typemap import type_eval
 
 
+_SpecialForm: typing.Any = typing._SpecialForm
+
+
 @dataclass(frozen=True)
 class CallSpec:
     pass
@@ -33,7 +36,7 @@ class _CallKwarg:
     name: str
 
 
-@typing._SpecialForm  # type: ignore[call-arg]
+@_SpecialForm
 def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[_CallKwarg]:
     ff = types.FunctionType(
         spec._func.__code__,
@@ -84,16 +87,12 @@ class _OutProperty(typing.NamedTuple):
     type: type
 
 
-class DirPropertiesMeta(type):
-    def __getitem__(cls, tp):
-        # TODO: Support unions
-        o = type_eval.eval_typing(tp)
-        hints = typing.get_type_hints(o, include_extras=True)
-        return [_OutProperty(typing.Literal[n], t) for n, t in hints.items()]
-
-
-class DirProperties(metaclass=DirPropertiesMeta):
-    pass
+@_SpecialForm
+def DirProperties(self, tp):
+    # TODO: Support unions
+    o = type_eval.eval_typing(tp)
+    hints = typing.get_type_hints(o, include_extras=True)
+    return [_OutProperty(typing.Literal[n], t) for n, t in hints.items()]
 
 
 ##################################################################
@@ -104,53 +103,38 @@ class DirProperties(metaclass=DirPropertiesMeta):
 # instead...
 
 
-class IterUnionMeta(type):
-    def __getitem__(cls, tp):
-        if isinstance(tp, types.UnionType):
-            return tp.__args__
-        else:
-            return [tp]
-
-
-class IterUnion(metaclass=IterUnionMeta):
-    pass
+@_SpecialForm
+def IterUnion(self, tp):
+    if isinstance(tp, types.UnionType):
+        return tp.__args__
+    else:
+        return [tp]
 
 
 ##################################################################
 
 
-class GetAttrMeta(type):
-    def __getitem__(cls, arg):
-        # TODO: Unions, the prop missing, etc!
-        lhs, prop = arg
-        # XXX: extras?
-        return typing.get_type_hints(lhs)[prop]
-
-
-class GetAttr(metaclass=GetAttrMeta):
-    pass
+@_SpecialForm
+def GetAttr(self, arg):
+    # TODO: Unions, the prop missing, etc!
+    lhs, prop = arg
+    # XXX: extras?
+    return typing.get_type_hints(lhs)[prop]
 
 
 ##################################################################
 
 
-class IsSubtypeMeta(type):
-    def __getitem__(cls, arg):
-        lhs, rhs = arg
-        # return type_eval.issubtype(
-        #     type_eval.eval_typing(lhs), type_eval.eval_typing(rhs)
-        # )
-        return type_eval.issubtype(lhs, rhs)
-
-
-class IsSubtype(metaclass=IsSubtypeMeta):
-    pass
+@_SpecialForm
+def IsSubtype(self, arg):
+    lhs, rhs = arg
+    # return type_eval.issubtype(
+    #     type_eval.eval_typing(lhs), type_eval.eval_typing(rhs)
+    # )
+    return type_eval.issubtype(lhs, rhs)
 
 
 ##################################################################
-
-# The type operators don't really need to be types...
-# Maybe we should make all of them like this.
 
 
 class _StringLiteralOp:
@@ -170,29 +154,25 @@ Uncapitalize = _StringLiteralOp(op=lambda s: s[0:1].lower() + s[1:])
 ##################################################################
 
 
-class NewProtocolMeta(type):
-    def __getitem__(cls, val: typing.Sequence[Property]):
-        dct: dict[str, object] = {}
-        dct["__annotations__"] = {prop.name: prop.type for prop in val}
+@_SpecialForm
+def NewProtocol(self, val: typing.Sequence[Property]):
+    dct: dict[str, object] = {}
+    dct["__annotations__"] = {prop.name: prop.type for prop in val}
 
-        module_name = __name__
-        name = "NewProtocol"
+    module_name = __name__
+    name = "NewProtocol"
 
-        # If the type evaluation context
-        ctx = type_eval._get_current_context()
-        if ctx.current_alias:
-            if isinstance(ctx.current_alias, types.GenericAlias):
-                name = str(ctx.current_alias)
-            else:
-                name = f"{ctx.current_alias.__name__}[...]"
-            module_name = ctx.current_alias.__module__
+    # If the type evaluation context
+    ctx = type_eval._get_current_context()
+    if ctx.current_alias:
+        if isinstance(ctx.current_alias, types.GenericAlias):
+            name = str(ctx.current_alias)
+        else:
+            name = f"{ctx.current_alias.__name__}[...]"
+        module_name = ctx.current_alias.__module__
 
-        dct["__module__"] = module_name
+    dct["__module__"] = module_name
 
-        mcls: type = type(typing.cast(type, typing.Protocol))
-        cls = mcls(name, (typing.Protocol,), dct)
-        return cls
-
-
-class NewProtocol(metaclass=NewProtocolMeta):
-    pass
+    mcls: type = type(typing.cast(type, typing.Protocol))
+    cls = mcls(name, (typing.Protocol,), dct)
+    return cls
