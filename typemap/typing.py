@@ -171,7 +171,7 @@ Uncapitalize = _StringLiteralOp(op=lambda s: s[0:1].lower() + s[1:])
 
 
 class NewProtocolMeta(type):
-    def __getitem__(cls, val: list[Property]):
+    def __getitem__(cls, val: typing.Sequence[Property]):
         dct: dict[str, object] = {}
         dct["__annotations__"] = {prop.name: prop.type for prop in val}
 

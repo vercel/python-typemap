@@ -55,7 +55,7 @@ class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
 
 
 type AllOptional[T] = next.NewProtocol[
-    [next.Property[p.name, p.type | None] for p in next.DirProperties[T]]
+    *[next.Property[p.name, p.type | None] for p in next.DirProperties[T]]
 ]
 
 type OptionalFinal = AllOptional[Final]
@@ -69,7 +69,7 @@ type Capitalize[T] = next.NewProtocol[
 ]
 
 type Prims[T] = next.NewProtocol[
-    [
+    *[
         next.Property[name, typ]
         for name, typ in next.DirProperties[T]
         if next.IsSubtype[typ, int | str]
@@ -78,7 +78,7 @@ type Prims[T] = next.NewProtocol[
 
 
 type NoLiterals[T] = next.NewProtocol[
-    [
+    *[
         next.Property[
             p.name,
             typing.Union[
