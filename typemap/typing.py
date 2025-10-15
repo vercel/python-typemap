@@ -56,9 +56,17 @@ def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[_CallKwarg]:
 ##################################################################
 
 
+def _from_literal(val):
+    if isinstance(val, typing._LiteralGenericAlias):  # type: ignore[attr-defined]
+        val = val.__args__[0]
+    return val
+
+
 class PropertyMeta(type):
-    def __getitem__(cls, val: tuple[str, type]):
-        return cls(name=val[0], type=val[1])
+    def __getitem__(cls, val: tuple[str | types.GenericAlias, type]):
+        name, type = val
+        # We allow str or Literal so that string literals work too
+        return cls(name=_from_literal(name), type=type)
 
 
 @dataclass(frozen=True)
@@ -72,9 +80,10 @@ class Property(metaclass=PropertyMeta):
 
 class DirPropertiesMeta(type):
     def __getitem__(cls, tp):
+        # TODO: Support unions
         o = type_eval.eval_typing(tp)
         hints = typing.get_type_hints(o, include_extras=True)
-        return [Property(n, t) for n, t in hints.items()]
+        return [Property(typing.Literal[n], t) for n, t in hints.items()]
 
 
 class DirProperties(metaclass=DirPropertiesMeta):
@@ -82,6 +91,11 @@ class DirProperties(metaclass=DirPropertiesMeta):
 
 
 ##################################################################
+
+# IDEA: If we wanted to be more like typescript, we could make this
+# the only acceptable argument to an `in` loop (and possibly rename it
+# Iter?). We'd maybe drop DirProperties and use KeyOf or something
+# instead...
 
 
 class IterUnionMeta(type):
@@ -108,6 +122,26 @@ class GetAttrMeta(type):
 
 class GetAttr(metaclass=GetAttrMeta):
     pass
+
+
+##################################################################
+
+# The type operators don't really need to be types...
+# Maybe we should make all of them like this.
+
+
+class _StringLiteralOp:
+    def __init__(self, op: typing.Callable[[str], str]):
+        self.op = op
+
+    def __getitem__(self, arg):
+        return typing.Literal[self.op(_from_literal(arg))]
+
+
+Uppercase = _StringLiteralOp(op=str.upper)
+Lowercase = _StringLiteralOp(op=str.lower)
+Capitalize = _StringLiteralOp(op=str.capitalize)
+Uncapitalize = _StringLiteralOp(op=lambda s: s[0:1].lower() + s[1:])
 
 
 ##################################################################

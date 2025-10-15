@@ -62,14 +62,17 @@ type OptionalFinal = AllOptional[Final]
 
 
 type Capitalize[T] = next.NewProtocol[
-    # Will .upper() be in our type  evaluation language??
-    [next.Property[p.name.upper(), p.type] for p in next.DirProperties[T]]
+    [
+        next.Property[next.Uppercase[p.name], p.type]
+        for p in next.DirProperties[T]
+    ]
 ]
 
 type Prims[T] = next.NewProtocol[
     [
         next.Property[p.name, p.type]
         for p in next.DirProperties[T]
+        # XXX: type language -- check it better
         if isinstance(p.type, type)
         if issubclass(p.type, (int, str))
     ]
@@ -84,7 +87,9 @@ type NoLiterals[T] = next.NewProtocol[
                 *[
                     t
                     for t in next.IterUnion[p.type]
-                    # XXX: Need a real way to check this??
+                    # XXX: type language -- check it better
+                    # maybe this one can't actually work well now?
+                    # no way to do Literal[...]?
                     if not isinstance(t, typing._LiteralGenericAlias)
                 ]
             ],

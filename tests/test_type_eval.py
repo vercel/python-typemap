@@ -1,5 +1,6 @@
 import textwrap
 import typing
+import unittest
 
 from typemap import typing as next
 from typemap.type_eval import eval_typing
@@ -25,7 +26,7 @@ type MapRecursive[A] = next.NewProtocol[
     [
         (
             next.Property[p.name, OrGotcha[p.type]]
-            if p.type is not A
+            if p.type is not A  # XXX -- hm!
             else next.Property[p.name, OrGotcha[MapRecursive[A]]]
         )
         for p in (next.DirProperties[A] + next.DirProperties[F_int])
@@ -59,4 +60,16 @@ def test_eval_types_2():
             a: tests.test_type_eval.MapRecursive[tests.test_type_eval.Recursive] | typing.Literal['gotcha!']
             fff: int | typing.Literal['gotcha!']
             control: float
+        """)
+
+
+# XXX: should this work???
+# probably not?
+@unittest.skip
+def test_eval_types_3():
+    evaled = eval_typing(F[bool])
+
+    assert format_helper.format_class(evaled) == textwrap.dedent("""\
+        class F[bool]:
+            fff: bool
         """)

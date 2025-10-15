@@ -27,9 +27,7 @@ type PropsOnly[T] = next.NewProtocol[
     [
         next.Property[p.name, p.type]
         for p in next.DirProperties[T]
-        # Do we feel good about issubclass here?
-        # Argh! Stupid _GenericAlias crap!
-        # XXX: This is quite bad
+        # XXX: type language -- _is_alias_of
         if _is_alias_of(p.type, Property)
     ]
 ]
@@ -37,9 +35,7 @@ type PropsOnly[T] = next.NewProtocol[
 # XXX: How do we feel about a pure conditional type alias???
 # We could inline it if needed
 type FilterLinks[T] = (
-    # XXX: Arg access bad also...
-    # PropsOnly[T.__args__[0]] if _is_alias_of(T, Link) else T
-    # XXX: this fails -- attr error on __annotations__ in format_class
+    # XXX: type language -- _is_alias_of and __args__
     Link[PropsOnly[T.__args__[0]]] if _is_alias_of(T, Link) else T
 )
 
