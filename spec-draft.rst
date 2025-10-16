@@ -29,15 +29,14 @@ Big Q: what should be an error and what should return Never?
    # Type conditional checks are just boolean compositions of
    # subtype checking.
    <type-bool> =
-         IsSubtype[<type>, <type>]
+         Is[<type>, <type>]
        | not <type-bool>
        | <type-bool> and <type-bool>
        | <type-bool> or <type-bool>
-       # Do we want these next two?
+
+       # Do we want these next two? Probably not.
        | Any[<type-for(<type-bool>)>]
        | All[<type-for(<type-bool>)>]
-
-   <prop-spec> = Property[<type>, <type>]
 
    <variadic-type-arg(T)> =
          T ,
@@ -59,7 +58,7 @@ different types. Not sure if we actually want this though.
 
 # TODO: NewProtocol needs a way of doing bases also...
 # TODO: New TypedDict setup
-* ``NewProtocol[*Ps: Property]``
+* ``NewProtocol[*Ps: Member]``
 
 * ``Member[N: Literal & str, T]``
 # These names are too long -- but we can't do ``Type`` !!

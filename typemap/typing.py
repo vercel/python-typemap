@@ -135,7 +135,7 @@ def GetArg(self, arg):
 
 
 @_SpecialForm
-def IsSubtype(self, arg):
+def Is(self, arg):
     lhs, rhs = arg
     return type_eval.issubtype(
         type_eval.eval_typing(lhs),

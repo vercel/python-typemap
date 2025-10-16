@@ -72,7 +72,7 @@ type Capitalize[T] = next.NewProtocol[
 ]
 
 type Prims[T] = next.NewProtocol[
-    *[p for p in next.Attrs[T] if next.IsSubtype[next.GetType[p], int | str]]
+    *[p for p in next.Attrs[T] if next.Is[next.GetType[p], int | str]]
 ]
 
 type NoLiterals1[T] = next.NewProtocol[
@@ -85,7 +85,7 @@ type NoLiterals1[T] = next.NewProtocol[
                     for t in next.IterUnion[next.GetType[p]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
-                    if not next.IsSubtype[t, typing.Literal]
+                    if not next.Is[t, typing.Literal]
                 ]
             ],
         ]
@@ -100,10 +100,10 @@ type NoLiterals1[T] = next.NewProtocol[
 type IsLiteral[T] = (
     typing.Literal[True]
     if (
-        (next.IsSubtype[T, str] and not next.IsSubtype[str, T])
-        or (next.IsSubtype[T, bytes] and not next.IsSubtype[bytes, T])
-        or (next.IsSubtype[T, bool] and not next.IsSubtype[bool, T])
-        or (next.IsSubtype[T, int] and not next.IsSubtype[int, T])
+        (next.Is[T, str] and not next.Is[str, T])
+        or (next.Is[T, bytes] and not next.Is[bytes, T])
+        or (next.Is[T, bool] and not next.Is[bool, T])
+        or (next.Is[T, int] and not next.Is[int, T])
         # XXX: enum, None
     )
     else typing.Literal[False]
@@ -120,7 +120,7 @@ type NoLiterals2[T] = next.NewProtocol[
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     # if not next.IsSubtype[t, typing.Literal]
-                    if not next.IsSubtype[IsLiteral[t], typing.Literal[True]]
+                    if not next.Is[IsLiteral[t], typing.Literal[True]]
                 ]
             ],
         ]
