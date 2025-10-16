@@ -4,10 +4,7 @@ Grammar specification of the extensions to the type language.
 It's important that there be a clearly specified type language for the type-level computation---we can't just be using some poorly specified subset of all Python.
 
 TODO:
-- Drop DirProperties - make it Members or something
-- IsSubtype -> Is?
 - Look into TupleTypeVar stuff for iteration
-- Move some to a "primitives" section
 
 Big Q: what should be an error and what should return Never?
 

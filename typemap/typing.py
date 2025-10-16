@@ -97,12 +97,6 @@ def Attrs(self, tp):
 
 ##################################################################
 
-# IDEA: If we wanted to be more like typescript, we could make this
-# the only acceptable argument to an `in` loop (and possibly rename it
-# Iter?). We'd maybe drop DirProperties and use KeyOf or something
-# instead...
-
-
 @_SpecialForm
 def Iter(self, tp):
     tp = type_eval.eval_typing(tp)
