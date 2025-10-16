@@ -31,13 +31,8 @@ class _CallSpecWrapper:
         pass
 
 
-@dataclass(frozen=True)
-class _CallKwarg:
-    _name: str
-
-
 @_SpecialForm
-def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[_CallKwarg]:
+def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[type[Member]]:
     ff = types.FunctionType(
         spec._func.__code__,
         spec._func.__globals__,
@@ -53,39 +48,32 @@ def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[_CallKwarg]:
     sig = inspect.signature(ff)
     bound = sig.bind(*spec._args, **spec._kwargs)
 
-    return [_CallKwarg(_name=name) for name in bound.kwargs]
+    # TODO: Get the real type instead of Never
+    return [
+        Member[
+            typing.Literal[name],  # type: ignore[valid-type]
+            typing.Never,
+        ]
+        for name in bound.kwargs
+    ]
 
 
 ##################################################################
 
 
 def _from_literal(val):
+    val = type_eval.eval_typing(val)
     if isinstance(val, typing._LiteralGenericAlias):  # type: ignore[attr-defined]
         val = val.__args__[0]
     return val
 
 
-class MemberMeta(type):
-    def __getitem__(cls, val: tuple[str | types.GenericAlias, type]):
-        name, type = val
-        # We allow str or Literal so that string literals work too
-        return cls(_name=_from_literal(name), _type=type)
+class Member[N: str, T]:
+    pass
 
 
-@dataclass(frozen=True)
-class Member(metaclass=MemberMeta):
-    _name: str
-    _type: type
-
-
-@_SpecialForm
-def GetName(self, tp):
-    return tp._name
-
-
-@_SpecialForm
-def GetType(self, tp):
-    return tp._type
+type GetName[T: Member] = GetArg[T, 0]  # type: ignore[valid-type]
+type GetType[T: Member] = GetArg[T, 1]  # type: ignore[valid-type]
 
 
 ##################################################################
@@ -96,7 +84,7 @@ def Attrs(self, tp):
     # TODO: Support unions
     o = type_eval.eval_typing(tp)
     hints = typing.get_type_hints(o, include_extras=True)
-    return [Member(typing.Literal[n], t) for n, t in hints.items()]
+    return [Member[typing.Literal[n], t] for n, t in hints.items()]
 
 
 ##################################################################
@@ -109,6 +97,7 @@ def Attrs(self, tp):
 
 @_SpecialForm
 def IterUnion(self, tp):
+    tp = type_eval.eval_typing(tp)
     if isinstance(tp, types.UnionType):
         return tp.__args__
     else:
@@ -123,13 +112,14 @@ def GetAttr(self, arg):
     # TODO: Unions, the prop missing, etc!
     lhs, prop = arg
     # XXX: extras?
-    return typing.get_type_hints(lhs)[prop]
+    name = _from_literal(type_eval.eval_typing(prop))
+    return typing.get_type_hints(type_eval.eval_typing(lhs))[name]
 
 
 @_SpecialForm
 def GetArg(self, arg):
     tp, idx = arg
-    args = typing.get_args(tp)
+    args = typing.get_args(type_eval.eval_typing(tp))
     try:
         return args[idx]
     except IndexError:
@@ -142,10 +132,14 @@ def GetArg(self, arg):
 @_SpecialForm
 def IsSubtype(self, arg):
     lhs, rhs = arg
-    # return type_eval.issubtype(
-    #     type_eval.eval_typing(lhs), type_eval.eval_typing(rhs)
-    # )
-    return type_eval.issubtype(lhs, rhs)
+    return type_eval.issubtype(
+        type_eval.eval_typing(lhs),
+        # XXX: This is solidly wrong, we need to eval both sides...
+        # But eval_typing currently expands generic types out into
+        # something broken...
+        # type_eval.eval_typing(rhs),
+        rhs,
+    )
 
 
 ##################################################################
@@ -173,9 +167,17 @@ def NewProtocol(self, val: Member | tuple[Member, ...]):
     if not isinstance(val, tuple):
         val = (val,)
 
+    etyps = [type_eval.eval_typing(t) for t in val]
+
     dct: dict[str, object] = {}
     dct["__annotations__"] = {
-        _from_literal(GetName[prop]): GetType[prop] for prop in val
+        # XXX: Should eval_typing on the etyps evaluate the arguments??
+        _from_literal(type_eval.eval_typing(typing.get_args(prop)[0])):
+        # XXX: We maybe (probably?) want to eval_typing the RHS, but
+        # we have infinite recursion issues in test_eval_types_2...
+        # type_eval.eval_typing(typing.get_args(prop)[1])
+        typing.get_args(prop)[1]
+        for prop in etyps
     }
 
     module_name = __name__
