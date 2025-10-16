@@ -9,30 +9,22 @@ TODO:
 - Look into TupleTypeVar stuff for iteration
 - Move some to a "primitives" section
 
+Big Q: what should be an error and what should return Never?
+
 
 ::
 
    <type> = ...
         | <type> if <type-bool> else <type>
 
-        # Create NewProtocols and Unions using for loops.
-        # They can take either a single list comprehension as an
-        # argument, or starred list comprehensions can be included
-        # in the argument list.
+        # Types with variadic arguments can have
+        # *[... for t in ...] arguments
+        | <ident>[<variadic-type-arg(<type>)> +]
 
-        # TODO: NewProtocol needs a way of doing bases also...
-        # TODO: Should probably support Callable, TypedDict, etc
-        | NewProtocol[<variadic-type-arg(<prop-spec>)> +]
-
-        | Union[<variadic-type-arg(<type-for>)> +]
-
-        | GetAttr[<type>, <type>]
+        # This is syntax because taking an int literal makes it a
+        # special form.
         | GetArg[<type>, <int-literal>]
 
-        # String manipulation operations for string Literal types.
-        # We can put more in, but this is what typescript has.
-        | Uppercase[<type>] | Lowercase[<type>]
-        | Capitalize[<type>] | Uncapitalize[<type>]
 
    # Type conditional checks are just boolean compositions of
    # subtype checking.
@@ -54,14 +46,39 @@ TODO:
 
    <type-for(T)> = [ T <type-for-iter>+ <type-for-if>* ]
    <type-for-iter> =
-         for <var> in IterUnion<type>
-       | for <var>, <var> in DirProperties<type>
-       # TODO: callspecs
-       # TODO: variadic args (tuples, callables)
+         # Iterate over a tuple type
+         for <var> in Iter<type>
    <type-for-if> =
          if <type-bool>
 
 
+``type-for(T)`` is a parameterized grammar rule, which can take
+different types. Not sure if we actually want this though.
 
-``type-for(T)`` and ``variadic-type-arg(T)`` are parameterized grammar
-rules, which can take different
+---
+
+# TODO: NewProtocol needs a way of doing bases also...
+# TODO: New TypedDict setup
+* ``NewProtocol[*Ps: Property]``
+
+* ``Member[N: Literal & str, T]``
+# These names are too long -- but we can't do ``Type`` !!
+* ``GetName[T: Member]``
+* ``GetType[T: Member]``
+
+---
+
+* ``GetAttr[T, S: Literal & str]``
+
+# TODO: how to deal with special forms like Callable and tuple[T, ...]
+* ``GetArgs[T]`` - returns a tuple containing all of the type arguments
+
+
+
+String manipulation operations for string Literal types.
+We can put more in, but this is what typescript has.
+
+* ``Uppercase[S: Literal & str]``
+* ``Lowercase[S: Literal & str]``
+* ``Capitalize[S: Literal & str]``
+* ``Uncapitalize[S: Literal & str]``
