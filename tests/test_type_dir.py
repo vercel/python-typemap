@@ -57,7 +57,7 @@ class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
 type AllOptional[T] = next.NewProtocol[
     *[
         next.Property[next.GetName[p], next.GetType[p] | None]
-        for p in next.DirProperties[T]
+        for p in next.Attrs[T]
     ]
 ]
 
@@ -67,16 +67,12 @@ type OptionalFinal = AllOptional[Final]
 type Capitalize[T] = next.NewProtocol[
     *[
         next.Property[next.Uppercase[next.GetName[p]], next.GetType[p]]
-        for p in next.DirProperties[T]
+        for p in next.Attrs[T]
     ]
 ]
 
 type Prims[T] = next.NewProtocol[
-    *[
-        p
-        for p in next.DirProperties[T]
-        if next.IsSubtype[next.GetType[p], int | str]
-    ]
+    *[p for p in next.Attrs[T] if next.IsSubtype[next.GetType[p], int | str]]
 ]
 
 
@@ -94,7 +90,7 @@ type NoLiterals[T] = next.NewProtocol[
                 ]
             ],
         ]
-        for p in next.DirProperties[T]
+        for p in next.Attrs[T]
     ]
 ]
 
@@ -119,8 +115,8 @@ def test_type_dir_1():
 def test_type_dir_2():
     d = eval_typing(OptionalFinal)
 
-    # XXX: `DirProperties` skips methods, true to its name. Perhaps we just need
-    #      `Dir` that would iterate over everything
+    # XXX: `Atrs` skips methods, true to its name. Perhaps we just need
+    #      `Members` that would iterate over everything
     assert format_helper.format_class(d) == textwrap.dedent("""\
         class AllOptional[tests.test_type_dir.Final]:
             last: int | typing.Literal[True] | None

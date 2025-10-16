@@ -92,7 +92,7 @@ def GetType(self, tp):
 
 
 @_SpecialForm
-def DirProperties(self, tp):
+def Attrs(self, tp):
     # TODO: Support unions
     o = type_eval.eval_typing(tp)
     hints = typing.get_type_hints(o, include_extras=True)

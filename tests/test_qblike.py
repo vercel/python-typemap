@@ -15,11 +15,7 @@ class Link[T]:
 
 
 type PropsOnly[T] = next.NewProtocol[
-    *[
-        p
-        for p in next.DirProperties[T]
-        if next.IsSubtype[next.GetType[p], Property]
-    ]
+    *[p for p in next.Attrs[T] if next.IsSubtype[next.GetType[p], Property]]
 ]
 
 # Conditional type alias!
