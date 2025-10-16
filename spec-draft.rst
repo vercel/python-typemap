@@ -46,7 +46,7 @@ Big Q: what should be an error and what should return Never?
    <type-for(T)> = [ T <type-for-iter>+ <type-for-if>* ]
    <type-for-iter> =
          # Iterate over a tuple type
-         for <var> in Iter<type>
+         for <var> in Iter[<type>]
    <type-for-if> =
          if <type-bool>
 
@@ -71,7 +71,10 @@ different types. Not sure if we actually want this though.
 
 # TODO: how to deal with special forms like Callable and tuple[T, ...]
 * ``GetArgs[T]`` - returns a tuple containing all of the type arguments
+* ``FromUnion[T]`` - returns a tuple containing all of the union
+  elements, or a 1-ary tuple containing T if it is not a union.
 
+# TODO: How to do IsUnion?
 
 
 String manipulation operations for string Literal types.

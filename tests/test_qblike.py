@@ -15,7 +15,7 @@ class Link[T]:
 
 
 type PropsOnly[T] = next.NewProtocol[
-    *[p for p in next.Attrs[T] if next.Is[next.GetType[p], Property]]
+    *[p for p in next.Iter[next.Attrs[T]] if next.Is[next.GetType[p], Property]]
 ]
 
 # Conditional type alias!
@@ -49,7 +49,7 @@ def select[C: next.CallSpec](
             next.GetName[c],
             FilterLinks[next.GetAttr[A, next.GetName[c]]],
         ]
-        for c in next.CallSpecKwargs[C]
+        for c in next.Iter[next.CallSpecKwargs[C]]
     ]
 ]: ...
 

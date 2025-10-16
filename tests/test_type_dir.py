@@ -57,7 +57,7 @@ class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
 type AllOptional[T] = next.NewProtocol[
     *[
         next.Member[next.GetName[p], next.GetType[p] | None]
-        for p in next.Attrs[T]
+        for p in next.Iter[next.Attrs[T]]
     ]
 ]
 
@@ -67,12 +67,16 @@ type OptionalFinal = AllOptional[Final]
 type Capitalize[T] = next.NewProtocol[
     *[
         next.Member[next.Uppercase[next.GetName[p]], next.GetType[p]]
-        for p in next.Attrs[T]
+        for p in next.Iter[next.Attrs[T]]
     ]
 ]
 
 type Prims[T] = next.NewProtocol[
-    *[p for p in next.Attrs[T] if next.Is[next.GetType[p], int | str]]
+    *[
+        p
+        for p in next.Iter[next.Attrs[T]]
+        if next.Is[next.GetType[p], int | str]
+    ]
 ]
 
 type NoLiterals1[T] = next.NewProtocol[
@@ -82,14 +86,14 @@ type NoLiterals1[T] = next.NewProtocol[
             typing.Union[
                 *[
                     t
-                    for t in next.IterUnion[next.GetType[p]]
+                    for t in next.Iter[next.FromUnion[next.GetType[p]]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     if not next.Is[t, typing.Literal]
                 ]
             ],
         ]
-        for p in next.Attrs[T]
+        for p in next.Iter[next.Attrs[T]]
     ]
 ]
 
@@ -116,7 +120,7 @@ type NoLiterals2[T] = next.NewProtocol[
             typing.Union[
                 *[
                     t
-                    for t in next.IterUnion[next.GetType[p]]
+                    for t in next.Iter[next.FromUnion[next.GetType[p]]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     # if not next.IsSubtype[t, typing.Literal]
@@ -124,7 +128,7 @@ type NoLiterals2[T] = next.NewProtocol[
                 ]
             ],
         ]
-        for p in next.Attrs[T]
+        for p in next.Iter[next.Attrs[T]]
     ]
 ]
 

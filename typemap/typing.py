@@ -5,6 +5,7 @@ import types
 import typing
 
 from typemap import type_eval
+from typemap.type_eval import _typing_inspect
 
 
 _SpecialForm: typing.Any = typing._SpecialForm
@@ -37,7 +38,7 @@ class _CallSpecWrapper:
 
 
 @_SpecialForm
-def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[type[Member]]:
+def CallSpecKwargs(self, spec: _CallSpecWrapper):
     ff = types.FunctionType(
         spec._func.__code__,
         spec._func.__globals__,
@@ -54,12 +55,14 @@ def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[type[Member]]:
     bound = sig.bind(*spec._args, **spec._kwargs)
 
     # TODO: Get the real type instead of Never
-    return [
-        Member[
-            typing.Literal[name],  # type: ignore[valid-type]
-            typing.Never,
+    return tuple[
+        *[  # type: ignore[misc]
+            Member[
+                typing.Literal[name],  # type: ignore[valid-type]
+                typing.Never,
+            ]
+            for name in bound.kwargs
         ]
-        for name in bound.kwargs
     ]
 
 
@@ -68,7 +71,7 @@ def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[type[Member]]:
 
 def _from_literal(val):
     val = type_eval.eval_typing(val)
-    if isinstance(val, typing._LiteralGenericAlias):  # type: ignore[attr-defined]
+    if _typing_inspect.is_literal(val):
         val = val.__args__[0]
     return val
 
@@ -89,7 +92,7 @@ def Attrs(self, tp):
     # TODO: Support unions
     o = type_eval.eval_typing(tp)
     hints = typing.get_type_hints(o, include_extras=True)
-    return [Member[typing.Literal[n], t] for n, t in hints.items()]
+    return tuple[*[Member[typing.Literal[n], t] for n, t in hints.items()]]
 
 
 ##################################################################
@@ -101,12 +104,28 @@ def Attrs(self, tp):
 
 
 @_SpecialForm
-def IterUnion(self, tp):
+def Iter(self, tp):
     tp = type_eval.eval_typing(tp)
-    if isinstance(tp, types.UnionType):
+    if (
+        _typing_inspect.is_generic_alias(tp)
+        and tp.__origin__ is tuple
+        and (not tp.__args__ or tp.__args__[-1] is not Ellipsis)
+    ):
         return tp.__args__
     else:
-        return [tp]
+        # XXX: Or should we return []?
+        raise TypeError(
+            f"Invalid type argument to Iter: {tp} is not a fixed-length tuple"
+        )
+
+
+@_SpecialForm
+def FromUnion(self, tp):
+    tp = type_eval.eval_typing(tp)
+    if isinstance(tp, types.UnionType):
+        return tuple[*tp.__args__]
+    else:
+        return tuple[tp]
 
 
 ##################################################################

@@ -22,6 +22,11 @@ class F_int(F[int]):
     pass
 
 
+type ConcatTuples[A, B] = tuple[
+    *[x for x in next.Iter[A]],
+    *[x for x in next.Iter[B]],
+]
+
 type MapRecursive[A] = next.NewProtocol[
     *[
         (
@@ -29,8 +34,10 @@ type MapRecursive[A] = next.NewProtocol[
             if not next.Is[next.GetType[p], A]
             else next.Member[next.GetName[p], OrGotcha[MapRecursive[A]]]
         )
-        # XXX: type language - concatenating DirProperties is sketchy
-        for p in (next.Attrs[A] + next.Attrs[F_int])
+        # XXX: This next line *ought* to work, but we haven't
+        # implemented it yet.
+        # for p in next.Iter[*next.Attrs[A], *next.Attrs[F_int]]
+        for p in next.Iter[ConcatTuples[next.Attrs[A], next.Attrs[F_int]]]
     ],
     next.Member[typing.Literal["control"], float],
 ]
