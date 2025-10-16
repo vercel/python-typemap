@@ -62,7 +62,7 @@ type OptionalFinal = AllOptional[Final]
 
 
 type Capitalize[T] = next.NewProtocol[
-    [
+    *[
         next.Property[next.Uppercase[p.name], p.type]
         for p in next.DirProperties[T]
     ]

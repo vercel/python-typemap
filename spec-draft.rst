@@ -3,6 +3,12 @@ Grammar specification of the extensions to the type language.
 
 It's important that there be a clearly specified type language for the type-level computation---we can't just be using some poorly specified subset of all Python.
 
+TODO:
+- Drop DirProperties - make it Members or something
+- IsSubtype -> Is?
+- Look into TupleTypeVar stuff for iteration
+- Move some to a "primitives" section
+
 
 ::
 
@@ -16,10 +22,8 @@ It's important that there be a clearly specified type language for the type-leve
 
         # TODO: NewProtocol needs a way of doing bases also...
         # TODO: Should probably support Callable, TypedDict, etc
-        | NewProtocol[<type-for(<prop-spec>)>]
         | NewProtocol[<variadic-type-arg(<prop-spec>)> +]
 
-        | Union[<type-for(<type>)>]
         | Union[<variadic-type-arg(<type-for>)> +]
 
         | GetAttr[<type>, <type>]
@@ -38,8 +42,8 @@ It's important that there be a clearly specified type language for the type-leve
        | <type-bool> and <type-bool>
        | <type-bool> or <type-bool>
        # Do we want these next two?
-       | any(<type-for(<type-bool>)>)
-       | all(<type-for(<type-bool>)>)
+       | Any[<type-for(<type-bool>)>]
+       | All[<type-for(<type-bool>)>]
 
    <prop-spec> = Property[<type>, <type>]
 

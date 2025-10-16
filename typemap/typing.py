@@ -165,7 +165,10 @@ Uncapitalize = _StringLiteralOp(op=lambda s: s[0:1].lower() + s[1:])
 
 
 @_SpecialForm
-def NewProtocol(self, val: typing.Sequence[Property]):
+def NewProtocol(self, val: Property | tuple[Property, ...]):
+    if not isinstance(val, tuple):
+        val = (val,)
+
     dct: dict[str, object] = {}
     dct["__annotations__"] = {prop.name: prop.type for prop in val}
 
