@@ -16,9 +16,9 @@ class Link[T]:
 
 type PropsOnly[T] = next.NewProtocol[
     *[
-        next.Property[p.name, p.type]
+        p
         for p in next.DirProperties[T]
-        if next.IsSubtype[p.type, Property]
+        if next.IsSubtype[next.GetType[p], Property]
     ]
 ]
 
@@ -50,8 +50,8 @@ def select[C: next.CallSpec](
 ) -> next.NewProtocol[
     *[
         next.Property[
-            c.name,
-            FilterLinks[next.GetAttr[A, c.name]],
+            next.GetName[c],
+            FilterLinks[next.GetAttr[A, next.GetName[c]]],
         ]
         for c in next.CallSpecKwargs[C]
     ]

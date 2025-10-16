@@ -25,9 +25,9 @@ class F_int(F[int]):
 type MapRecursive[A] = next.NewProtocol[
     *[
         (
-            next.Property[p.name, OrGotcha[p.type]]
-            if not next.IsSubtype[p.type, A]
-            else next.Property[p.name, OrGotcha[MapRecursive[A]]]
+            next.Property[next.GetName[p], OrGotcha[next.GetType[p]]]
+            if not next.IsSubtype[next.GetType[p], A]
+            else next.Property[next.GetName[p], OrGotcha[MapRecursive[A]]]
         )
         # XXX: type language - concatenating DirProperties is sketchy
         for p in (next.DirProperties[A] + next.DirProperties[F_int])

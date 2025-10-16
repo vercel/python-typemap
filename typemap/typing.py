@@ -33,7 +33,7 @@ class _CallSpecWrapper:
 
 @dataclass(frozen=True)
 class _CallKwarg:
-    name: str
+    _name: str
 
 
 @_SpecialForm
@@ -53,7 +53,7 @@ def CallSpecKwargs(self, spec: _CallSpecWrapper) -> list[_CallKwarg]:
     sig = inspect.signature(ff)
     bound = sig.bind(*spec._args, **spec._kwargs)
 
-    return [_CallKwarg(name=name) for name in bound.kwargs]
+    return [_CallKwarg(_name=name) for name in bound.kwargs]
 
 
 ##################################################################
@@ -69,22 +69,26 @@ class PropertyMeta(type):
     def __getitem__(cls, val: tuple[str | types.GenericAlias, type]):
         name, type = val
         # We allow str or Literal so that string literals work too
-        return cls(name=_from_literal(name), type=type)
+        return cls(_name=_from_literal(name), _type=type)
 
 
 @dataclass(frozen=True)
 class Property(metaclass=PropertyMeta):
-    name: str
-    type: type
+    _name: str
+    _type: type
+
+
+@_SpecialForm
+def GetName(self, tp):
+    return tp._name
+
+
+@_SpecialForm
+def GetType(self, tp):
+    return tp._type
 
 
 ##################################################################
-
-
-# I want to experiment with this being a tuple.
-class _OutProperty(typing.NamedTuple):
-    name: str
-    type: type
 
 
 @_SpecialForm
@@ -92,7 +96,7 @@ def DirProperties(self, tp):
     # TODO: Support unions
     o = type_eval.eval_typing(tp)
     hints = typing.get_type_hints(o, include_extras=True)
-    return [_OutProperty(typing.Literal[n], t) for n, t in hints.items()]
+    return [Property(typing.Literal[n], t) for n, t in hints.items()]
 
 
 ##################################################################
@@ -170,7 +174,9 @@ def NewProtocol(self, val: Property | tuple[Property, ...]):
         val = (val,)
 
     dct: dict[str, object] = {}
-    dct["__annotations__"] = {prop.name: prop.type for prop in val}
+    dct["__annotations__"] = {
+        _from_literal(GetName[prop]): GetType[prop] for prop in val
+    }
 
     module_name = __name__
     name = "NewProtocol"
