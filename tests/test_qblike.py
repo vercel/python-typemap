@@ -45,7 +45,7 @@ def select[C: next.CallSpec](
     __rcv: A, *args: C.args, **kwargs: C.kwargs
 ) -> next.NewProtocol[
     *[
-        next.Property[
+        next.Member[
             next.GetName[c],
             FilterLinks[next.GetAttr[A, next.GetName[c]]],
         ]

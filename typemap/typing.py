@@ -65,7 +65,7 @@ def _from_literal(val):
     return val
 
 
-class PropertyMeta(type):
+class MemberMeta(type):
     def __getitem__(cls, val: tuple[str | types.GenericAlias, type]):
         name, type = val
         # We allow str or Literal so that string literals work too
@@ -73,7 +73,7 @@ class PropertyMeta(type):
 
 
 @dataclass(frozen=True)
-class Property(metaclass=PropertyMeta):
+class Member(metaclass=MemberMeta):
     _name: str
     _type: type
 
@@ -96,7 +96,7 @@ def Attrs(self, tp):
     # TODO: Support unions
     o = type_eval.eval_typing(tp)
     hints = typing.get_type_hints(o, include_extras=True)
-    return [Property(typing.Literal[n], t) for n, t in hints.items()]
+    return [Member(typing.Literal[n], t) for n, t in hints.items()]
 
 
 ##################################################################
@@ -169,7 +169,7 @@ Uncapitalize = _StringLiteralOp(op=lambda s: s[0:1].lower() + s[1:])
 
 
 @_SpecialForm
-def NewProtocol(self, val: Property | tuple[Property, ...]):
+def NewProtocol(self, val: Member | tuple[Member, ...]):
     if not isinstance(val, tuple):
         val = (val,)
 

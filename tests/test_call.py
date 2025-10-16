@@ -9,7 +9,7 @@ from . import format_helper
 def func[C: next.CallSpec](
     *args: C.args, **kwargs: C.kwargs
 ) -> next.NewProtocol[
-    *[next.Property[next.GetName[c], int] for c in next.CallSpecKwargs[C]]
+    *[next.Member[next.GetName[c], int] for c in next.CallSpecKwargs[C]]
 ]: ...
 
 

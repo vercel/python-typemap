@@ -56,7 +56,7 @@ class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
 
 type AllOptional[T] = next.NewProtocol[
     *[
-        next.Property[next.GetName[p], next.GetType[p] | None]
+        next.Member[next.GetName[p], next.GetType[p] | None]
         for p in next.Attrs[T]
     ]
 ]
@@ -66,7 +66,7 @@ type OptionalFinal = AllOptional[Final]
 
 type Capitalize[T] = next.NewProtocol[
     *[
-        next.Property[next.Uppercase[next.GetName[p]], next.GetType[p]]
+        next.Member[next.Uppercase[next.GetName[p]], next.GetType[p]]
         for p in next.Attrs[T]
     ]
 ]
@@ -78,7 +78,7 @@ type Prims[T] = next.NewProtocol[
 
 type NoLiterals[T] = next.NewProtocol[
     *[
-        next.Property[
+        next.Member[
             next.GetName[p],
             typing.Union[
                 *[
