@@ -75,8 +75,7 @@ type Prims[T] = next.NewProtocol[
     *[p for p in next.Attrs[T] if next.IsSubtype[next.GetType[p], int | str]]
 ]
 
-
-type NoLiterals[T] = next.NewProtocol[
+type NoLiterals1[T] = next.NewProtocol[
     *[
         next.Member[
             next.GetName[p],
@@ -87,6 +86,41 @@ type NoLiterals[T] = next.NewProtocol[
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     if not next.IsSubtype[t, typing.Literal]
+                ]
+            ],
+        ]
+        for p in next.Attrs[T]
+    ]
+]
+
+
+# Try to implement IsLiteral. This is basically what is recommended
+# for doing it in TS.
+# XXX: This doesn't work in python! We can subtype str!
+type IsLiteral[T] = (
+    typing.Literal[True]
+    if (
+        (next.IsSubtype[T, str] and not next.IsSubtype[str, T])
+        or (next.IsSubtype[T, bytes] and not next.IsSubtype[bytes, T])
+        or (next.IsSubtype[T, bool] and not next.IsSubtype[bool, T])
+        or (next.IsSubtype[T, int] and not next.IsSubtype[int, T])
+        # XXX: enum, None
+    )
+    else typing.Literal[False]
+)
+
+type NoLiterals2[T] = next.NewProtocol[
+    *[
+        next.Member[
+            next.GetName[p],
+            typing.Union[
+                *[
+                    t
+                    for t in next.IterUnion[next.GetType[p]]
+                    # XXX: 'typing.Literal' is not *really* a type...
+                    # Maybe we can't do this, which maybe is fine.
+                    # if not next.IsSubtype[t, typing.Literal]
+                    if not next.IsSubtype[IsLiteral[t], typing.Literal[True]]
                 ]
             ],
         ]
@@ -153,10 +187,25 @@ def test_type_dir_4():
 
 
 def test_type_dir_5():
-    d = eval_typing(NoLiterals[Final])
+    global fuck
+    d = eval_typing(NoLiterals1[Final])
 
     assert format_helper.format_class(d) == textwrap.dedent("""\
-        class NoLiterals[tests.test_type_dir.Final]:
+        class NoLiterals1[tests.test_type_dir.Final]:
+            last: int
+            iii: str | int
+            t: dict[str, str | int | typing.Literal['gotcha!']]
+            kkk: ~K
+            x: tests.test_type_dir.Wrapper[int | None]
+            ordinary: str
+    """)
+
+
+def test_type_dir_6():
+    d = eval_typing(NoLiterals2[Final])
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class NoLiterals2[tests.test_type_dir.Final]:
             last: int
             iii: str | int
             t: dict[str, str | int | typing.Literal['gotcha!']]

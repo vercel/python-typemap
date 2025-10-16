@@ -10,6 +10,11 @@ from typemap import type_eval
 _SpecialForm: typing.Any = typing._SpecialForm
 
 
+class _NoCacheSpecialForm(_SpecialForm, _root=True):  # type: ignore[call-arg]
+    def __getitem__(self, parameters):
+        return self._getitem(self, parameters)
+
+
 @dataclass(frozen=True)
 class CallSpec:
     pass
@@ -162,7 +167,11 @@ Uncapitalize = _StringLiteralOp(op=lambda s: s[0:1].lower() + s[1:])
 ##################################################################
 
 
-@_SpecialForm
+# XXX: We definitely can't use the normal _SpecialForm cache here
+# directly, since we depend on the context's current_alias.
+# Maybe we can add that to the cache, though.
+# (Or maybe we need to never use the cache??)
+@_NoCacheSpecialForm
 def NewProtocol(self, val: Member | tuple[Member, ...]):
     if not isinstance(val, tuple):
         val = (val,)
