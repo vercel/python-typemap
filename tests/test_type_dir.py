@@ -55,7 +55,10 @@ class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
 
 
 type AllOptional[T] = next.NewProtocol[
-    *[next.Property[p.name, p.type | None] for p in next.DirProperties[T]]
+    *[
+        next.Property[next.GetName[p], next.GetType[p] | None]
+        for p in next.DirProperties[T]
+    ]
 ]
 
 type OptionalFinal = AllOptional[Final]
@@ -63,16 +66,16 @@ type OptionalFinal = AllOptional[Final]
 
 type Capitalize[T] = next.NewProtocol[
     *[
-        next.Property[next.Uppercase[p.name], p.type]
+        next.Property[next.Uppercase[next.GetName[p]], next.GetType[p]]
         for p in next.DirProperties[T]
     ]
 ]
 
 type Prims[T] = next.NewProtocol[
     *[
-        next.Property[name, typ]
-        for name, typ in next.DirProperties[T]
-        if next.IsSubtype[typ, int | str]
+        p
+        for p in next.DirProperties[T]
+        if next.IsSubtype[next.GetType[p], int | str]
     ]
 ]
 
@@ -80,11 +83,11 @@ type Prims[T] = next.NewProtocol[
 type NoLiterals[T] = next.NewProtocol[
     *[
         next.Property[
-            p.name,
+            next.GetName[p],
             typing.Union[
                 *[
                     t
-                    for t in next.IterUnion[p.type]
+                    for t in next.IterUnion[next.GetType[p]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     if not next.IsSubtype[t, typing.Literal]
