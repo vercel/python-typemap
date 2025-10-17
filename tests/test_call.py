@@ -1,18 +1,22 @@
 import textwrap
 
 from typemap.type_eval import eval_call
-from typemap import typing as next
+from typemap.typing import (
+    CallSpec,
+    NewProtocol,
+    Member,
+    GetName,
+    Iter,
+    CallSpecKwargs,
+)
 
 from . import format_helper
 
 
-def func[C: next.CallSpec](
+def func[C: CallSpec](
     *args: C.args, **kwargs: C.kwargs
-) -> next.NewProtocol[
-    *[
-        next.Member[next.GetName[c], int]
-        for c in next.Iter[next.CallSpecKwargs[C]]
-    ]
+) -> NewProtocol[
+    *[Member[GetName[c], int] for c in Iter[CallSpecKwargs[C]]]
 ]: ...
 
 

@@ -55,8 +55,8 @@ def CallSpecKwargs(self, spec: _CallSpecWrapper):
     bound = sig.bind(*spec._args, **spec._kwargs)
 
     # TODO: Get the real type instead of Never
-    return tuple[
-        *[  # type: ignore[misc]
+    return tuple[  # type: ignore[misc]
+        *[
             Member[
                 typing.Literal[name],  # type: ignore[valid-type]
                 typing.Never,
@@ -96,6 +96,7 @@ def Attrs(self, tp):
 
 
 ##################################################################
+
 
 @_SpecialForm
 def Iter(self, tp):
