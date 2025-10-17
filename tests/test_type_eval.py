@@ -1,17 +1,25 @@
 import textwrap
-import typing
 import unittest
+from typing import Literal
 
-from typemap import typing as next
+from typemap.typing import (
+    NewProtocol,
+    Member,
+    GetName,
+    GetType,
+    Iter,
+    Attrs,
+    Is,
+)
 from typemap.type_eval import eval_typing
 
 from . import format_helper
 
 
-type A[T] = T | None | typing.Literal[False]
+type A[T] = T | None | Literal[False]
 type B = A[int]
 
-type OrGotcha[K] = K | typing.Literal["gotcha!"]
+type OrGotcha[K] = K | Literal["gotcha!"]
 
 
 class F[T]:
@@ -23,30 +31,30 @@ class F_int(F[int]):
 
 
 type ConcatTuples[A, B] = tuple[
-    *[x for x in next.Iter[A]],
-    *[x for x in next.Iter[B]],
+    *[x for x in Iter[A]],
+    *[x for x in Iter[B]],
 ]
 
-type MapRecursive[A] = next.NewProtocol[
+type MapRecursive[A] = NewProtocol[
     *[
         (
-            next.Member[next.GetName[p], OrGotcha[next.GetType[p]]]
-            if not next.Is[next.GetType[p], A]
-            else next.Member[next.GetName[p], OrGotcha[MapRecursive[A]]]
+            Member[GetName[p], OrGotcha[GetType[p]]]
+            if not Is[GetType[p], A]
+            else Member[GetName[p], OrGotcha[MapRecursive[A]]]
         )
         # XXX: This next line *ought* to work, but we haven't
         # implemented it yet.
-        # for p in next.Iter[*next.Attrs[A], *next.Attrs[F_int]]
-        for p in next.Iter[ConcatTuples[next.Attrs[A], next.Attrs[F_int]]]
+        # for p in Iter[*Attrs[A], *Attrs[F_int]]
+        for p in Iter[ConcatTuples[Attrs[A], Attrs[F_int]]]
     ],
-    next.Member[typing.Literal["control"], float],
+    Member[Literal["control"], float],
 ]
 
 
 class Recursive:
     n: int
     m: str
-    t: typing.Literal[False]
+    t: Literal[False]
     a: Recursive
 
 

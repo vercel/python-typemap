@@ -49,7 +49,8 @@ Big Q: what should be an error and what should return Never?
 
 
 ``type-for(T)`` is a parameterized grammar rule, which can take
-different types. Not sure if we actually want this though.
+different types. Not sure if we actually need this though---now it is
+only used for Any/All.
 
 ---
 

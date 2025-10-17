@@ -1,7 +1,19 @@
 import textwrap
 
 from typemap.type_eval import eval_call, eval_typing
-from typemap import typing as next
+from typemap.typing import (
+    NewProtocol,
+    Iter,
+    Attrs,
+    Is,
+    GetType,
+    CallSpec,
+    Member,
+    GetName,
+    GetAttr,
+    CallSpecKwargs,
+    GetArg,
+)
 
 from . import format_helper
 
@@ -14,14 +26,12 @@ class Link[T]:
     pass
 
 
-type PropsOnly[T] = next.NewProtocol[
-    *[p for p in next.Iter[next.Attrs[T]] if next.Is[next.GetType[p], Property]]
+type PropsOnly[T] = NewProtocol[
+    *[p for p in Iter[Attrs[T]] if Is[GetType[p], Property]]
 ]
 
 # Conditional type alias!
-type FilterLinks[T] = (
-    Link[PropsOnly[next.GetArg[T, 0]]] if next.Is[T, Link] else T
-)
+type FilterLinks[T] = Link[PropsOnly[GetArg[T, 0]]] if Is[T, Link] else T
 
 
 # Basic filtering
@@ -41,15 +51,15 @@ class A:
     w: Property[list[str]]
 
 
-def select[C: next.CallSpec](
+def select[C: CallSpec](
     __rcv: A, *args: C.args, **kwargs: C.kwargs
-) -> next.NewProtocol[
+) -> NewProtocol[
     *[
-        next.Member[
-            next.GetName[c],
-            FilterLinks[next.GetAttr[A, next.GetName[c]]],
+        Member[
+            GetName[c],
+            FilterLinks[GetAttr[A, GetName[c]]],
         ]
-        for c in next.Iter[next.CallSpecKwargs[C]]
+        for c in Iter[CallSpecKwargs[C]]
     ]
 ]: ...
 
@@ -99,7 +109,7 @@ def test_qblike_3():
             z: tests.test_qblike.Link[PropsOnly[tests.test_qblike.Tgt]]
         """)
 
-    tgt = eval_typing(next.GetAttr[ret, "z"].__args__[0])
+    tgt = eval_typing(GetAttr[ret, "z"].__args__[0])
     fmt = format_helper.format_class(tgt)
 
     assert fmt == textwrap.dedent("""\

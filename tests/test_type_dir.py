@@ -1,13 +1,23 @@
-import typing
 import textwrap
+from typing import TypeVar, Literal, Union
 
 from typemap.type_eval import eval_typing
-from typemap import typing as next
+from typemap.typing import (
+    NewProtocol,
+    Member,
+    GetName,
+    GetType,
+    Iter,
+    Attrs,
+    FromUnion,
+    Uppercase,
+    Is,
+)
 
 from . import format_helper
 
 
-type OrGotcha[K] = K | typing.Literal["gotcha!"]
+type OrGotcha[K] = K | Literal["gotcha!"]
 
 type StrForInt[X] = (str | OrGotcha[X]) if X is int else (X | OrGotcha[X])
 
@@ -21,7 +31,7 @@ class AnotherBase[I]:
 
 
 class Base[T]:
-    K = typing.TypeVar("K")
+    K = TypeVar("K")
 
     t: dict[str, StrForInt[T]]
     kkk: K
@@ -47,53 +57,43 @@ class Mine(Wrapper[int]):
 
 
 class Last[O]:
-    last: O | typing.Literal[True]
+    last: O | Literal[True]
 
 
 class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
     pass
 
 
-type AllOptional[T] = next.NewProtocol[
-    *[
-        next.Member[next.GetName[p], next.GetType[p] | None]
-        for p in next.Iter[next.Attrs[T]]
-    ]
+type AllOptional[T] = NewProtocol[
+    *[Member[GetName[p], GetType[p] | None] for p in Iter[Attrs[T]]]
 ]
 
 type OptionalFinal = AllOptional[Final]
 
 
-type Capitalize[T] = next.NewProtocol[
-    *[
-        next.Member[next.Uppercase[next.GetName[p]], next.GetType[p]]
-        for p in next.Iter[next.Attrs[T]]
-    ]
+type Capitalize[T] = NewProtocol[
+    *[Member[Uppercase[GetName[p]], GetType[p]] for p in Iter[Attrs[T]]]
 ]
 
-type Prims[T] = next.NewProtocol[
-    *[
-        p
-        for p in next.Iter[next.Attrs[T]]
-        if next.Is[next.GetType[p], int | str]
-    ]
+type Prims[T] = NewProtocol[
+    *[p for p in Iter[Attrs[T]] if Is[GetType[p], int | str]]
 ]
 
-type NoLiterals1[T] = next.NewProtocol[
+type NoLiterals1[T] = NewProtocol[
     *[
-        next.Member[
-            next.GetName[p],
-            typing.Union[
+        Member[
+            GetName[p],
+            Union[
                 *[
                     t
-                    for t in next.Iter[next.FromUnion[next.GetType[p]]]
+                    for t in Iter[FromUnion[GetType[p]]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
-                    if not next.Is[t, typing.Literal]
+                    if not Is[t, Literal]
                 ]
             ],
         ]
-        for p in next.Iter[next.Attrs[T]]
+        for p in Iter[Attrs[T]]
     ]
 ]
 
@@ -102,33 +102,33 @@ type NoLiterals1[T] = next.NewProtocol[
 # for doing it in TS.
 # XXX: This doesn't work in python! We can subtype str!
 type IsLiteral[T] = (
-    typing.Literal[True]
+    Literal[True]
     if (
-        (next.Is[T, str] and not next.Is[str, T])
-        or (next.Is[T, bytes] and not next.Is[bytes, T])
-        or (next.Is[T, bool] and not next.Is[bool, T])
-        or (next.Is[T, int] and not next.Is[int, T])
+        (Is[T, str] and not Is[str, T])
+        or (Is[T, bytes] and not Is[bytes, T])
+        or (Is[T, bool] and not Is[bool, T])
+        or (Is[T, int] and not Is[int, T])
         # XXX: enum, None
     )
-    else typing.Literal[False]
+    else Literal[False]
 )
 
-type NoLiterals2[T] = next.NewProtocol[
+type NoLiterals2[T] = NewProtocol[
     *[
-        next.Member[
-            next.GetName[p],
-            typing.Union[
+        Member[
+            GetName[p],
+            Union[
                 *[
                     t
-                    for t in next.Iter[next.FromUnion[next.GetType[p]]]
+                    for t in Iter[FromUnion[GetType[p]]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
-                    # if not next.IsSubtype[t, typing.Literal]
-                    if not next.Is[IsLiteral[t], typing.Literal[True]]
+                    # if not IsSubtype[t, Literal]
+                    if not Is[IsLiteral[t], Literal[True]]
                 ]
             ],
         ]
-        for p in next.Iter[next.Attrs[T]]
+        for p in Iter[Attrs[T]]
     ]
 ]
 
