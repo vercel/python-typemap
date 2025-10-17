@@ -153,11 +153,7 @@ def Is(self, arg):
     lhs, rhs = arg
     return type_eval.issubtype(
         type_eval.eval_typing(lhs),
-        # XXX: This is solidly wrong, we need to eval both sides...
-        # But eval_typing currently expands generic types out into
-        # something broken...
-        # type_eval.eval_typing(rhs),
-        rhs,
+        type_eval.eval_typing(rhs),
     )
 
 

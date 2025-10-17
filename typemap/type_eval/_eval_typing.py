@@ -19,6 +19,13 @@ from . import _apply_generic
 __all__ = ("eval_typing",)
 
 
+# Base type for the proxy classes we generate to hold __annotations__
+class _EvalProxy:
+    # Make sure __origin__ doesn't show up at runtime...
+    if typing.TYPE_CHECKING:
+        __origin__: type
+
+
 @dataclasses.dataclass
 class EvalContext:
     seen: dict[Any, Any]
@@ -101,10 +108,11 @@ def _eval_type_type(obj: type, ctx: EvalContext):
     if isinstance(obj, type) and issubclass(obj, typing.Generic):
         ret = type(
             obj.__name__,
-            (typing.cast(type, typing.Protocol),),
+            (_EvalProxy,),
             {
                 "__module__": obj.__module__,
                 "__name__": obj.__name__,
+                "__origin__": obj,
             },
         )
 

@@ -21,6 +21,8 @@ from typing import _GenericAlias, _SpecialGenericAlias  # type: ignore [attr-def
 from typing_extensions import TypeAliasType, TypeVarTuple, Unpack
 from types import GenericAlias, UnionType
 
+from . import _eval_typing
+
 
 def is_classvar(t: Any) -> bool:
     return t is ClassVar or (is_generic_alias(t) and get_origin(t) is ClassVar)  # type: ignore [comparison-overlap]
@@ -121,6 +123,10 @@ def is_optional_type(t: Any) -> TypeGuard[UnionType]:
 
 def is_literal(t: Any) -> bool:
     return is_generic_alias(t) and get_origin(t) is Literal  # type: ignore [comparison-overlap]
+
+
+def is_eval_proxy(t: Any) -> TypeGuard[type[_eval_typing._EvalProxy]]:
+    return isinstance(t, type) and issubclass(t, _eval_typing._EvalProxy)
 
 
 __all__ = (
