@@ -1,16 +1,6 @@
-# import annotationlib
-
-# import contextlib
-# import contextvars
-# import dataclasses
-# import functools
-# import inspect
-# import sys
-# import types
 import typing
 
 
-# from . import _eval_type
 from . import _typing_inspect
 
 
@@ -28,6 +18,14 @@ def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
         return any(issubtype(lhs, r) for r in typing.get_args(rhs))
     elif _typing_inspect.is_union_type(lhs):
         return all(issubtype(t, rhs) for t in typing.get_args(lhs))
+
+    # For _EvalProxy's just blow through them, since we don't yet care
+    # about the attribute types here.
+    # TODO: But we'll need to once we support Protocols??
+    elif _typing_inspect.is_eval_proxy(lhs):
+        return issubtype(lhs.__origin__, rhs)
+    elif _typing_inspect.is_eval_proxy(rhs):
+        return issubtype(lhs, rhs.__origin__)
 
     elif bool(
         _typing_inspect.is_valid_isinstance_arg(lhs)
@@ -53,13 +51,10 @@ def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
     # C[A] <:? D
     elif bool(
         _typing_inspect.is_generic_alias(lhs)
-        # and _typing_inspect.is_valid_isinstance_arg(rhs)
+        and _typing_inspect.is_valid_isinstance_arg(rhs)
     ):
-        # print(lhs)
-        # breakpoint()
-        return issubclass(lhs.__origin__, rhs)
-        # return issubtype(lhs.__origin__, rhs)
-        # return issubtype(_typing_inspect.get_origin(lhs), rhs)
+        return issubtype(_typing_inspect.get_origin(lhs), rhs)
+
     # C <:? D[A]
     elif bool(
         _typing_inspect.is_valid_isinstance_arg(lhs)
