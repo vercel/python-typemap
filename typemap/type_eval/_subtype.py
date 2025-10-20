@@ -46,7 +46,7 @@ def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
 
     # literal <:? type
     elif _typing_inspect.is_literal(lhs):
-        return issubtype(type(typing.get_args(lhs)[0]), rhs)
+        return all(issubtype(type(x), rhs) for x in typing.get_args(lhs))
 
     # C[A] <:? D
     elif bool(
