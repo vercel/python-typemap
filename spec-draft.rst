@@ -82,3 +82,34 @@ We can put more in, but this is what typescript has.
 * ``Lowercase[S: Literal & str]``
 * ``Capitalize[S: Literal & str]``
 * ``Uncapitalize[S: Literal & str]``
+
+
+-------------------------------------------------------------------------
+
+
+Big open questions?
+
+Can we actually implement Is (IsSubtype) at runtime in a satisfactory way?
+ - Could we slightly dodge the question by *not* adding the evaluation library to the standard library, and letting the operations be opaque.
+
+   Then we would promise to have a third-party library, which would need to be "fit for purpose" for people to want to use, but would be free of the burden of being canonical?
+
+There is a lot that needs to happen, like protocols and variance inference and
+callable subtyping (which might require matching against type vars...)
+
+How do we deal with modifiers? ClassVar, Final, Required, ReadOnly
+ - One option is to treat them not as types by as *modifiers* and have them
+   in a separate field where they are a union of Literals.
+   So ``x: Final[ClassVar[int]]`` would appear in ``Attrs`` as
+   ``Member[Literal['x'], int, Literal['Final' | 'ClassVar']]``
+
+
+How do we deal with Callables? We need to support extended callable syntax basically.
+Or something like it.
+
+
+=====
+
+This proposal is less "well-typed" than typescript... (Well-kinded, maybe?)
+Typescript has better typechecking at the alias definition site:
+For ``P[K]``, ``K`` needs to have ``keyof P``...

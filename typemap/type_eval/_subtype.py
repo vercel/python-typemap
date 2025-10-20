@@ -68,8 +68,19 @@ def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
         return lhs is rhs
 
     # TODO: What to do about C[A] <:? D[B]???
+    # TODO: and we will we need to infer variance ourselves with the new syntax
 
     # TODO: Protocols???
+
+    # TODO: tuple
+
+    # TODO: Callable -- oh no, and callable needs
+
+    # TODO: Any
+
+    # TODO: Annotated
+
+    # TODO: TypedDict
 
     # TODO: We will need to have some sort of hook to support runtime
     # checking of typechecker extensions.
