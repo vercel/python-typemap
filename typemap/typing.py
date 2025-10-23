@@ -149,12 +149,24 @@ def GetArg(self, arg):
 
 
 @_SpecialForm
-def Is(self, arg):
+def IsSubtype(self, arg):
     lhs, rhs = arg
     return type_eval.issubtype(
         type_eval.eval_typing(lhs),
         type_eval.eval_typing(rhs),
     )
+
+
+@_SpecialForm
+def IsTypematch(self, arg):
+    lhs, rhs = arg
+    return type_eval.istypematch(
+        type_eval.eval_typing(lhs),
+        type_eval.eval_typing(rhs),
+    )
+
+
+Is = IsTypematch
 
 
 ##################################################################
