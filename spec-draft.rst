@@ -59,7 +59,7 @@ only used for Any/All.
 * ``NewProtocol[*Ps: Member]``
 
 * ``Members[T]`` produces a ``tuple`` of ``Member`` types.
-* ``Member[N: Literal & str, T]``
+* ``Member[N: Literal[str], T]``
 # These names are too long -- but we can't do ``Type`` !!
 * ``GetName[T: Member]``
 * ``GetType[T: Member]``
@@ -67,7 +67,7 @@ only used for Any/All.
 
 ---
 
-* ``GetAttr[T, S: Literal & str]``
+* ``GetAttr[T, S: Literal[str]]``
 
 # TODO: how to deal with special forms like Callable and tuple[T, ...]
 * ``GetArgs[T]`` - returns a tuple containing all of the type arguments
@@ -79,11 +79,19 @@ only used for Any/All.
 
 String manipulation operations for string Literal types.
 We can put more in, but this is what typescript has.
+``Slice`` and ``Concat`` are a poor man's literal template.
+We can actually implement the case functions in terms of them and a
+bunch of conditionals.
 
-* ``Uppercase[S: Literal & str]``
-* ``Lowercase[S: Literal & str]``
-* ``Capitalize[S: Literal & str]``
-* ``Uncapitalize[S: Literal & str]``
+
+* ``Slice[S: Literal[str], Start: Literal[int | None], End: Literal[int | None]]``
+* ``Concat[S1: Literal[str], S2: Literal[str]]``
+
+* ``Uppercase[S: Literal[str]]``
+* ``Lowercase[S: Literal[str]]``
+* ``Capitalize[S: Literal[str]]``
+* ``Uncapitalize[S: Literal[str]]``
+
 
 
 -------------------------------------------------------------------------
