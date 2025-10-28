@@ -59,10 +59,12 @@ only used for Any/All.
 * ``NewProtocol[*Ps: Member]``
 
 * ``Members[T]`` produces a ``tuple`` of ``Member`` types.
-* ``Member[N: Literal[str], T]``
+* ``Member[N: Literal[str], T, Q: Quals, D]``
 # These names are too long -- but we can't do ``Type`` !!
 * ``GetName[T: Member]``
 * ``GetType[T: Member]``
+* ``GetQuals[T: Member]``
+* ``GetDefiner[T: Member]``
 * Could we also put the defining type there??
 
 ---
@@ -137,6 +139,11 @@ Or something like it.
 What do we do about ``Members`` on built-in types? ``typing.get_type_hints(int)`` returns ``{}`` but mypy will not agree!
 
 An object of an empty user-defined class has 29 entries in ``dir`` (all dunders), and ``object()`` has 24. (In 3.14. In 3.12, it was 27 for the user-defined object).
+
+5.
+Polymorphic callables? How do we represent their type and how do we construct their type?
+
+What does TS do here? - TS has full impredactive polymorphic functions. You can do System F stuff.
 
 =====
 
