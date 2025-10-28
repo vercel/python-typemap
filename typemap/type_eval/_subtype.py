@@ -1,5 +1,5 @@
 # XXX: This is the start of an implementation of issubtype, but
-# honestly it is still mostly the same as istypematch. I'm preserving
+# honestly it is still mostly the same as issubsimilar. I'm preserving
 # it for now and might still expand it some.
 # Largely the value of it is in the TODO comments I guess.
 

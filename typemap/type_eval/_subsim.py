@@ -4,10 +4,10 @@ import typing
 from . import _typing_inspect
 
 
-__all__ = ("istypematch",)
+__all__ = ("issubsimilar",)
 
 
-def istypematch(lhs: typing.Any, rhs: typing.Any) -> bool:
+def issubsimilar(lhs: typing.Any, rhs: typing.Any) -> bool:
     # TODO: Need to handle some cases
 
     # N.B: All of the 'bool's in these are because black otherwise
@@ -15,16 +15,16 @@ def istypematch(lhs: typing.Any, rhs: typing.Any) -> bool:
 
     # Unions first
     if _typing_inspect.is_union_type(rhs):
-        return any(istypematch(lhs, r) for r in typing.get_args(rhs))
+        return any(issubsimilar(lhs, r) for r in typing.get_args(rhs))
     elif _typing_inspect.is_union_type(lhs):
-        return all(istypematch(t, rhs) for t in typing.get_args(lhs))
+        return all(issubsimilar(t, rhs) for t in typing.get_args(lhs))
 
     # For _EvalProxy's just blow through them, since we don't yet care
     # about the attribute types here.
     elif _typing_inspect.is_eval_proxy(lhs):
-        return istypematch(lhs.__origin__, rhs)
+        return issubsimilar(lhs.__origin__, rhs)
     elif _typing_inspect.is_eval_proxy(rhs):
-        return istypematch(lhs, rhs.__origin__)
+        return issubsimilar(lhs, rhs.__origin__)
 
     elif bool(
         _typing_inspect.is_valid_isinstance_arg(lhs)
@@ -45,28 +45,28 @@ def istypematch(lhs: typing.Any, rhs: typing.Any) -> bool:
 
     # literal <:? type
     elif _typing_inspect.is_literal(lhs):
-        return all(istypematch(type(x), rhs) for x in typing.get_args(lhs))
+        return all(issubsimilar(type(x), rhs) for x in typing.get_args(lhs))
 
     # C[A] <:? D
     elif bool(
         _typing_inspect.is_generic_alias(lhs)
         and _typing_inspect.is_valid_isinstance_arg(rhs)
     ):
-        return istypematch(_typing_inspect.get_origin(lhs), rhs)
+        return issubsimilar(_typing_inspect.get_origin(lhs), rhs)
 
     # C <:? D[A]
     elif bool(
         _typing_inspect.is_valid_isinstance_arg(lhs)
         and _typing_inspect.is_generic_alias(rhs)
     ):
-        return istypematch(lhs, _typing_inspect.get_origin(rhs))
+        return issubsimilar(lhs, _typing_inspect.get_origin(rhs))
 
     # C[A] <:? D[B] -- just match the heads!
     elif bool(
         _typing_inspect.is_generic_alias(lhs)
         and _typing_inspect.is_generic_alias(rhs)
     ):
-        return istypematch(
+        return issubsimilar(
             _typing_inspect.get_origin(lhs), _typing_inspect.get_origin(rhs)
         )
 
