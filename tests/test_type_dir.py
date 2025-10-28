@@ -9,6 +9,7 @@ from typemap.typing import (
     GetType,
     Iter,
     Attrs,
+    Members,
     FromUnion,
     Uppercase,
     Is,
@@ -31,10 +32,14 @@ class AnotherBase[I]:
 
 
 class Base[T]:
+    # This K is dodgy
     K = TypeVar("K")
 
     t: dict[str, StrForInt[T]]
     kkk: K
+
+    def foo(self, a: T | None, b: int = 0) -> dict[str, T]:
+        pass
 
     def base[Z](self, a: T | Z | None, b: K) -> dict[str, T | Z]:
         pass
@@ -144,6 +149,7 @@ def test_type_dir_1():
             kkk: ~K
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
+            def foo(self, a: int | None, b: int = 0) -> dict[str, int]: ...
             def base[Z](self, a: int | Z | None, b: ~K) -> dict[str, int | Z]: ...
             def cbase(cls, a: int | None, b: ~K) -> dict[str, int]: ...
             def sbase[Z](cls, a: int | Literal['gotcha!'] | Z | None, b: ~K) -> dict[str, int | Z]: ...
@@ -217,3 +223,19 @@ def test_type_dir_6():
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
     """)
+
+
+def test_type_dir_7():
+    d = eval_typing(Members[Final])
+    foo = next(iter(m for m in Iter[d] if m.__args__[0].__args__[0] == "foo"))
+    # XXX: drop self?
+    assert (
+        str(foo)
+        == "\
+typemap.typing.Member[typing.Literal['foo'], \
+typing.Callable[[\
+typemap.typing.Param[typing.Literal['self'], typing.Any, typing.Never], \
+typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], \
+typemap.typing.Param[typing.Literal['b'], int, typing.Literal['=']]], \
+dict[str, int]], typing.Literal['ClassVar'], typing.Never]"
+    )

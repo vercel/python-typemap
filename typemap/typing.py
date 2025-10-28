@@ -76,23 +76,121 @@ def _from_literal(val):
     return val
 
 
-class Member[N: str, T]:
+class Member[N: str, T, Q: str = typing.Never, D = typing.Never]:
     pass
 
 
 type GetName[T: Member] = GetArg[T, 0]  # type: ignore[valid-type]
 type GetType[T: Member] = GetArg[T, 1]  # type: ignore[valid-type]
+type GetQuals[T: Member] = GetArg[T, 2]  # type: ignore[valid-type]
+type GetDefiner[T: Member] = GetArg[T, 3]  # type: ignore[valid-type]
 
 
 ##################################################################
+
+
+def get_annotated_type_hints(cls, **kwargs):
+    """Get the type hints for a cls annotated with definition site.
+
+    This traverses the mro and finds the definition site for each annotation.
+    """
+    ohints = typing.get_type_hints(cls, **kwargs)
+    hints = {}
+    for acls in cls.__mro__:
+        if not hasattr(acls, "__annotations__"):
+            continue
+        for k in acls.__annotations__:
+            if k not in hints:
+                hints[k] = ohints[k], acls
+
+        # Stop early if we are done.
+        if len(hints) == len(ohints):
+            break
+    return hints
 
 
 @_SpecialForm
 def Attrs(self, tp):
     # TODO: Support unions
     o = type_eval.eval_typing(tp)
-    hints = typing.get_type_hints(o, include_extras=True)
-    return tuple[*[Member[typing.Literal[n], t] for n, t in hints.items()]]
+    hints = get_annotated_type_hints(o, include_extras=True)
+
+    return tuple[
+        *[
+            Member[typing.Literal[n], t, typing.Never, d]
+            for n, (t, d) in hints.items()
+        ]
+    ]
+
+
+class Param[N: str | None, T, Q: str = typing.Never]:
+    pass
+
+
+def _function_type(func, *, is_method):
+    root = inspect.unwrap(func)
+    sig = inspect.signature(root)
+    # XXX: __type_params__!!!
+
+    empty = inspect.Parameter.empty
+
+    def _ann(x):
+        return typing.Any if x is empty else x
+
+    params = []
+    for _i, p in enumerate(sig.parameters.values()):
+        # XXX: what should we do about self?
+        # should we track classmethod/staticmethod somehow?
+        # if i == 0 and is_method:
+        #     continue
+        has_name = p.kind in (
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            inspect.Parameter.KEYWORD_ONLY,
+        )
+        quals = []
+        if p.kind == inspect.Parameter.VAR_POSITIONAL:
+            quals.append("*")
+        if p.kind == inspect.Parameter.VAR_KEYWORD:
+            quals.append("**")
+        if p.default is not empty:
+            quals.append("=")
+        params.append(
+            Param[
+                typing.Literal[p.name if has_name else None],
+                _ann(p.annotation),
+                typing.Literal[*quals] if quals else typing.Never,
+            ]
+        )
+
+    return typing.Callable[params, _ann(sig.return_annotation)]
+
+
+@_SpecialForm
+def Members(self, tp):
+    # TODO: Support unions
+    o = type_eval.eval_typing(tp)
+    hints = get_annotated_type_hints(o, include_extras=True)
+
+    attrs = [
+        Member[typing.Literal[n], t, typing.Never, d]
+        for n, (t, d) in hints.items()
+    ]
+
+    for name, attr in o.__dict__.items():
+        if isinstance(attr, (types.FunctionType, types.MethodType)):
+            if attr is typing._no_init_or_replace_init:
+                continue
+
+            # XXX: populate the source field
+            attrs.append(
+                Member[
+                    typing.Literal[name],
+                    _function_type(attr, is_method=True),
+                    typing.Literal["ClassVar"],
+                ]
+            )
+
+    return tuple[*attrs]
 
 
 ##################################################################
@@ -170,6 +268,8 @@ Is = IsSubSimilar
 
 
 ##################################################################
+
+# TODO: unions! Slice, Concat
 
 
 class _StringLiteralOp:
