@@ -158,15 +158,15 @@ def IsSubtype(self, arg):
 
 
 @_SpecialForm
-def IsTypematch(self, arg):
+def IsSubSimilar(self, arg):
     lhs, rhs = arg
-    return type_eval.istypematch(
+    return type_eval.issubsimilar(
         type_eval.eval_typing(lhs),
         type_eval.eval_typing(rhs),
     )
 
 
-Is = IsTypematch
+Is = IsSubSimilar
 
 
 ##################################################################
