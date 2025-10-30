@@ -56,11 +56,15 @@ only used for Any/All.
 
 # TODO: NewProtocol needs a way of doing bases also...
 # TODO: New TypedDict setup
+
 * ``NewProtocol[*Ps: Member]``
 
 * ``Members[T]`` produces a ``tuple`` of ``Member`` types.
 * ``Member[N: Literal[str], T, Q: Quals, D]``
+
 # These names are too long -- but we can't do ``Type`` !!
+# Kind of want to do the *longer* ``MemberName``
+
 * ``GetName[T: Member]``
 * ``GetType[T: Member]``
 * ``GetQuals[T: Member]``
@@ -72,11 +76,12 @@ only used for Any/All.
 * ``GetAttr[T, S: Literal[str]]``
 
 # TODO: how to deal with special forms like Callable and tuple[T, ...]
+
 * ``GetArgs[T]`` - returns a tuple containing all of the type arguments
 * ``FromUnion[T]`` - returns a tuple containing all of the union
   elements, or a 1-ary tuple containing T if it is not a union.
 
-# TODO: How to do IsUnion?
+# TODO: How to do IsUnion? Might need a ``Length`` for tuples?
 
 
 String manipulation operations for string Literal types.
@@ -102,22 +107,28 @@ bunch of conditionals.
 Big open questions?
 
 1.
+PROBABLE DECISION: external library *and* restricted checking.
+
 Can we actually implement Is (IsSubtype) at runtime in a satisfactory way?
+ - There is a lot that needs to happen, like protocols and variance inference and callable subtyping (which might require matching against type vars...)
+   Jukka points out that lots of type information is frequently missing at runtime too: attributes are frequently unannotated and
+
  - Could we slightly dodge the question by *not* adding the evaluation library to the standard library, and letting the operations be opaque.
 
    Then we would promise to have a third-party library, which would need to be "fit for purpose" for people to want to use, but would be free of the burden of being canonical?
 
-  There is a lot that needs to happen, like protocols and variance inference and
-callable subtyping (which might require matching against type vars...)
-
  - I think we probably *can't* try to put it in the standard library. I think it would by nature bless the implementation with some degree of canonicity that I'm not sure we can back up. Different typecheckers don't always match on subtyping behavior, *and* it sometimes depends on config flags (like strict_optional in mypy). *And* we could imagine a bunch of other config flags: whether to be strict about argument names in protocols, for example.
 
- - We can instead have something simpler, which I will call ``Matches``. ``Matches`` would do *simple* checking of the *head* of types, essentially, without looking at type parameters. It would still lift over unions and would check literals.
+ - We can instead have something simpler, which I will call ``IsSubSimilar``. ``IsSubSimilar`` would do *simple* checking of the *head* of types, essentially, without looking at type parameters. It would still lift over unions and would check literals.
+
+   Probably need a better name.
    Honestly this is basically what is currently implemented for the examples, so it is probably good enough.
 
    It's unsatisfying, though.
 
 2.
+DECISION: quals string literals seems fine
+
 How do we deal with modifiers? ClassVar, Final, Required, ReadOnly
  - One option is to treat them not as types by as *modifiers* and have them
    in a separate field where they are a union of Literals.
@@ -128,7 +139,7 @@ How do we deal with modifiers? ClassVar, Final, Required, ReadOnly
    We could also have a ``MemberUpdate[M: Member, T]`` that updates
    the type of a member but preserves its name and modifiers.
 
- -
+ - Otherwise need to treat them as types.
 
 
 3.
@@ -143,7 +154,10 @@ An object of an empty user-defined class has 29 entries in ``dir`` (all dunders)
 5.
 Polymorphic callables? How do we represent their type and how do we construct their type?
 
-What does TS do here? - TS has full impredactive polymorphic functions. You can do System F stuff.
+What does TS do here? - TS has full impredactive polymorphic functions. You can do System F stuff. *But* trying to do type level operations on them seems to lose track of the polymorphism: the type vars will get instantiated with ``unknown``.
+
+6.
+Want to be graceful at runtime, since **many** classes don't have full annotations.
 
 =====
 
@@ -152,6 +166,7 @@ Typescript has better typechecking at the alias definition site:
 For ``P[K]``, ``K`` needs to have ``keyof P``...
 
 Oh, we could maybe do better but it would require some new machinery.
+
 * ``KeyOf[T]`` - literal keys of ``T``
 * ``Member[T]``, when statically checking a type alias, could be treated as having some type like ``tuple[Member[KeyOf[T], object???, str], ...]``
 * ``GetAttr[T, S: KeyOf[T]]`` - but this isn't supported yet. TS supports it.
