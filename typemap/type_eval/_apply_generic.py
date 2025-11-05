@@ -226,4 +226,5 @@ def apply(cls: type[Any]) -> dict[str, Any]:
         dct[k] = _eval_typing.eval_typing(v)
 
     dct["__annotations__"] = annos
+    dct["__generalized_mro__"] = mro_boxed
     return dct

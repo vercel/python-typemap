@@ -80,10 +80,10 @@ class Member[N: str, T, Q: str = typing.Never, D = typing.Never]:
     pass
 
 
-type GetName[T: Member] = GetArg[T, 0]  # type: ignore[valid-type]
-type GetType[T: Member] = GetArg[T, 1]  # type: ignore[valid-type]
-type GetQuals[T: Member] = GetArg[T, 2]  # type: ignore[valid-type]
-type GetDefiner[T: Member] = GetArg[T, 3]  # type: ignore[valid-type]
+type GetName[T: Member] = GetArg[T, Member, 0]  # type: ignore[valid-type]
+type GetType[T: Member] = GetArg[T, Member, 1]  # type: ignore[valid-type]
+type GetQuals[T: Member] = GetArg[T, Member, 2]  # type: ignore[valid-type]
+type GetDefiner[T: Member] = GetArg[T, Member, 3]  # type: ignore[valid-type]
 
 
 ##################################################################
@@ -233,12 +233,42 @@ def GetAttr(self, arg):
     return typing.get_type_hints(type_eval.eval_typing(lhs))[name]
 
 
+def _get_args(tp, base) -> typing.Any:
+    # XXX: check against base!!
+    evaled = type_eval.eval_typing(tp)
+
+    tp_head = _typing_inspect.get_head(tp)
+    base_head = _typing_inspect.get_head(base)
+    # XXX: not sure this is what we want!
+    # at the very least we want unions I think
+    if not tp_head or not base_head:
+        return None
+
+    if tp_head is base_head:
+        return typing.get_args(evaled)
+
+    # Scan the fully-annotated MRO to find the base
+    elif gen_mro := getattr(evaled, "__generalized_mro__", None):
+        for box in gen_mro:
+            if box.cls is base_head:
+                return tuple(box.args.values())
+        return None
+
+    else:
+        # or error??
+        return None
+
+
 @_SpecialForm
-def GetArg(self, arg):
-    tp, idx = arg
-    args = typing.get_args(type_eval.eval_typing(tp))
+def GetArg(self, arg) -> typing.Any:
+    # XXX: Unions
+    tp, base, idx = arg
+    args = _get_args(tp, base)
+    if args is None:
+        return typing.Never
+
     try:
-        return args[idx]
+        return args[_from_literal(idx)]
     except IndexError:
         return typing.Never
 

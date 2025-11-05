@@ -18,9 +18,7 @@ Big Q: what should be an error and what should return Never?
         # *[... for t in ...] arguments
         | <ident>[<variadic-type-arg(<type>)> +]
 
-        # This is syntax because taking an int literal makes it a
-        # special form.
-        | GetArg[<type>, <int-literal>]
+        | <string-or-int-literal>  # Only accepted in arguments to new functions?
 
 
    # Type conditional checks are just boolean compositions of
@@ -48,11 +46,14 @@ Big Q: what should be an error and what should return Never?
          if <type-bool>
 
 
-``type-for(T)`` is a parameterized grammar rule, which can take
-different types. Not sure if we actually need this though---now it is
-only used for Any/All.
+``type-for(T)`` is a parameterized grammar rule, which can take different types. Not sure if we actually need this though---now it is only used for Any/All.
 
 ---
+
+* ``GetArg[T, Base, Idx: Literal[str]]`` - returns the type argument number ``Idx`` to ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be. (That is, if we have  ``class A(B[C]): ...``, then ``GetArg[A, B, 0] == C`` while ``GetArg[A, A, 0] == Never``)
+* ``GetArgs[T, Base]`` - returns a tuple containing all of the type arguments of ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be.
+* ``FromUnion[T]`` - returns a tuple containing all of the union elements, or a 1-ary tuple containing T if it is not a union.
+
 
 # TODO: NewProtocol needs a way of doing bases also...
 # TODO: New TypedDict setup
@@ -76,10 +77,6 @@ only used for Any/All.
 * ``GetAttr[T, S: Literal[str]]``
 
 # TODO: how to deal with special forms like Callable and tuple[T, ...]
-
-* ``GetArgs[T]`` - returns a tuple containing all of the type arguments
-* ``FromUnion[T]`` - returns a tuple containing all of the union
-  elements, or a 1-ary tuple containing T if it is not a union.
 
 # TODO: How to do IsUnion? Might need a ``Length`` for tuples?
 
