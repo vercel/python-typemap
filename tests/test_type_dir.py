@@ -1,10 +1,11 @@
 import textwrap
-from typing import TypeVar, Literal, Union
+from typing import Never, Literal, Union, TypeVar
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
     NewProtocol,
     Member,
+    GetArg,
     GetName,
     GetType,
     Iter,
@@ -65,8 +66,12 @@ class Last[O]:
     last: O | Literal[True]
 
 
+# XXX: the mixing of int and float as arguments to Base is questionable!
 class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
     pass
+
+
+type BaseArg[T] = GetArg[T, Base, 0] if Is[T, Base] else Never
 
 
 type AllOptional[T] = NewProtocol[
@@ -239,3 +244,8 @@ typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], \
 typemap.typing.Param[typing.Literal['b'], int, typing.Literal['=']]], \
 dict[str, int]], typing.Literal['ClassVar'], typing.Never]"
     )
+
+
+def test_type_dir_8():
+    d = eval_typing(BaseArg[Final])
+    assert d is int

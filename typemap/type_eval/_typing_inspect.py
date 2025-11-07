@@ -125,6 +125,15 @@ def is_literal(t: Any) -> bool:
     return is_generic_alias(t) and get_origin(t) is Literal  # type: ignore [comparison-overlap]
 
 
+def get_head(t: Any) -> type | None:
+    if is_generic_alias(t):
+        return get_origin(t)
+    elif isinstance(t, type):
+        return t
+    else:
+        return None
+
+
 def is_eval_proxy(t: Any) -> TypeGuard[type[_eval_typing._EvalProxy]]:
     return isinstance(t, type) and issubclass(t, _eval_typing._EvalProxy)
 
