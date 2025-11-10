@@ -134,18 +134,6 @@ def _union_elems(tp):
 
 def _lift_over_unions(func):
     @functools.wraps(func)
-    @_split_args
-    def wrapper(self, *args):
-        args2 = [_union_elems(x) for x in args]
-        # XXX: Never
-        parts = [func(self, *x) for x in itertools.product(*args2)]
-        return typing.Union[*parts]
-
-    return wrapper
-
-
-def _lift_over_unions_new(func):
-    @functools.wraps(func)
     def wrapper(*args):
         args2 = [_union_elems(x) for x in args]
         # XXX: Never
@@ -220,7 +208,7 @@ class Members[T]:
 
 
 @type_eval.register_evaluator(Members)
-@_lift_over_unions_new
+@_lift_over_unions
 def _eval_members(tp):
     hints = get_annotated_type_hints(tp, include_extras=True)
 
@@ -284,7 +272,7 @@ class GetAttr[Lhs, Prop]:
 
 
 @type_eval.register_evaluator(GetAttr)
-@_lift_over_unions_new
+@_lift_over_unions
 def _eval_GetAttr(lhs, prop):
     # TODO: the prop missing, etc!
     # XXX: extras?
@@ -323,7 +311,7 @@ class GetArg[Tp, Base, Idx: int]:
 
 
 @type_eval.register_evaluator(GetArg)
-@_lift_over_unions_new
+@_lift_over_unions
 def _eval_GetArg(tp, base, idx) -> typing.Any:
     args = _get_args(tp, base)
     if args is None:
@@ -369,21 +357,44 @@ Is = IsSubSimilar
 ##################################################################
 
 
-def _string_literal_op(op):
-    @_SpecialForm
+class Uppercase[S: str]:
+    pass
+
+
+class Lowercase[S: str]:
+    pass
+
+
+class Capitalize[S: str]:
+    pass
+
+
+class Uncapitalize[S: str]:
+    pass
+
+
+class StrConcat[S: str, T: str]:
+    pass
+
+
+class StrSlice[S: str, Start: int | None, End: int | None]:
+    pass
+
+
+def _string_literal_op(typ, op):
     @_lift_over_unions
-    def func(self, *args):
+    def func(*args):
         return typing.Literal[op(*[_from_literal(x) for x in args])]
 
-    return func
+    type_eval.register_evaluator(typ)(func)
 
 
-Uppercase = _string_literal_op(op=str.upper)
-Lowercase = _string_literal_op(op=str.lower)
-Capitalize = _string_literal_op(op=str.capitalize)
-Uncapitalize = _string_literal_op(op=lambda s: s[0:1].lower() + s[1:])
-StrConcat = _string_literal_op(op=lambda s, t: s + t)
-StrSlice = _string_literal_op(op=lambda s, start, end: s[start:end])
+_string_literal_op(Uppercase, op=str.upper)
+_string_literal_op(Lowercase, op=str.lower)
+_string_literal_op(Capitalize, op=str.capitalize)
+_string_literal_op(Uncapitalize, op=lambda s: s[0:1].lower() + s[1:])
+_string_literal_op(StrConcat, op=lambda s, t: s + t)
+_string_literal_op(StrSlice, op=lambda s, start, end: s[start:end])
 
 
 ##################################################################
