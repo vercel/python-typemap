@@ -46,6 +46,9 @@ class EvalContext:
     seen: dict[Any, Any]
     # The typing.Any is really a types.FunctionType, but mypy gets
     # confused and wants to treat it as a MethodType.
+    current_alias_stack: set[types.GenericAlias | typing.Any] = (
+        dataclasses.field(default_factory=set)
+    )
     current_alias: types.GenericAlias | typing.Any | None = None
 
 
@@ -88,6 +91,10 @@ def eval_typing(obj: typing.Any):
 
 
 def _eval_types(obj: typing.Any, ctx: EvalContext):
+    # Don't recurse into any pending alias expansion
+    if obj in ctx.current_alias_stack:
+        return obj
+    # strings match
     if obj in ctx.seen:
         return ctx.seen[obj]
     ctx.seen[obj] = evaled = _eval_types_impl(obj, ctx)
@@ -179,6 +186,7 @@ def _eval_types_generic(obj: types.GenericAlias, ctx: EvalContext):
 
     old_obj = ctx.current_alias
     ctx.current_alias = new_obj  # alias is the new_obj, so names look better
+    ctx.current_alias_stack.add(new_obj)
 
     try:
         ff = types.FunctionType(func.__code__, mod.__dict__, None, None, args)
@@ -191,6 +199,7 @@ def _eval_types_generic(obj: types.GenericAlias, ctx: EvalContext):
         raise
     finally:
         ctx.current_alias = old_obj
+        ctx.current_alias_stack.remove(new_obj)
 
     return evaled
 
