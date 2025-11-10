@@ -127,7 +127,9 @@ def is_literal(t: Any) -> bool:
 
 def get_head(t: Any) -> type | None:
     if is_generic_alias(t):
-        return get_origin(t)
+        return get_head(get_origin(t))
+    elif is_eval_proxy(t):
+        return get_head(t.__origin__)
     elif isinstance(t, type):
         return t
     else:

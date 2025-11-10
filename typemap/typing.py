@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
+import functools
 import inspect
+import itertools
 import types
 import typing
 
@@ -109,9 +111,42 @@ def get_annotated_type_hints(cls, **kwargs):
     return hints
 
 
+def _split_args(func):
+    @functools.wraps(func)
+    def wrapper(self, arg):
+        if isinstance(arg, tuple):
+            return func(self, *arg)
+        else:
+            return func(self, arg)
+
+    return wrapper
+
+
+def _union_elems(tp):
+    tp = type_eval.eval_typing(tp)
+    if isinstance(tp, types.UnionType):
+        return tuple(y for x in tp.__args__ for y in _union_elems(x))
+    elif _typing_inspect.is_literal(tp) and len(tp.__args__) > 1:
+        return tuple(typing.Literal[x] for x in tp.__args__)
+    else:
+        return (tp,)
+
+
+def _lift_over_unions(func):
+    @functools.wraps(func)
+    @_split_args
+    def wrapper(self, *args):
+        args2 = [_union_elems(x) for x in args]
+        # XXX: Never
+        parts = [func(self, *x) for x in itertools.product(*args2)]
+        return typing.Union[*parts]
+
+    return wrapper
+
+
 @_SpecialForm
+@_lift_over_unions
 def Attrs(self, tp):
-    # TODO: Support unions
     o = type_eval.eval_typing(tp)
     hints = get_annotated_type_hints(o, include_extras=True)
 
@@ -141,6 +176,8 @@ def _function_type(func, *, is_method):
     for _i, p in enumerate(sig.parameters.values()):
         # XXX: what should we do about self?
         # should we track classmethod/staticmethod somehow?
+        # mypy stores all this stuff in the SymbolNodes (FuncDef, etc),
+        # even though it kind of really is a type/descriptor thing
         # if i == 0 and is_method:
         #     continue
         has_name = p.kind in (
@@ -166,8 +203,8 @@ def _function_type(func, *, is_method):
 
 
 @_SpecialForm
+@_lift_over_unions
 def Members(self, tp):
-    # TODO: Support unions
     o = type_eval.eval_typing(tp)
     hints = get_annotated_type_hints(o, include_extras=True)
 
@@ -214,20 +251,16 @@ def Iter(self, tp):
 
 @_SpecialForm
 def FromUnion(self, tp):
-    tp = type_eval.eval_typing(tp)
-    if isinstance(tp, types.UnionType):
-        return tuple[*tp.__args__]
-    else:
-        return tuple[tp]
+    return tuple[*_union_elems(tp)]
 
 
 ##################################################################
 
 
 @_SpecialForm
-def GetAttr(self, arg):
-    # TODO: Unions, the prop missing, etc!
-    lhs, prop = arg
+@_lift_over_unions
+def GetAttr(self, lhs, prop):
+    # TODO: the prop missing, etc!
     # XXX: extras?
     name = _from_literal(type_eval.eval_typing(prop))
     return typing.get_type_hints(type_eval.eval_typing(lhs))[name]
@@ -260,9 +293,8 @@ def _get_args(tp, base) -> typing.Any:
 
 
 @_SpecialForm
-def GetArg(self, arg) -> typing.Any:
-    # XXX: Unions
-    tp, base, idx = arg
+@_lift_over_unions
+def GetArg(self, tp, base, idx) -> typing.Any:
     args = _get_args(tp, base)
     if args is None:
         return typing.Never
@@ -275,10 +307,12 @@ def GetArg(self, arg) -> typing.Any:
 
 ##################################################################
 
+# N.B: These handle unions on their own
+
 
 @_SpecialForm
-def IsSubtype(self, arg):
-    lhs, rhs = arg
+@_split_args
+def IsSubtype(self, lhs, rhs):
     return type_eval.issubtype(
         type_eval.eval_typing(lhs),
         type_eval.eval_typing(rhs),
@@ -286,8 +320,8 @@ def IsSubtype(self, arg):
 
 
 @_SpecialForm
-def IsSubSimilar(self, arg):
-    lhs, rhs = arg
+@_split_args
+def IsSubSimilar(self, lhs, rhs):
     return type_eval.issubsimilar(
         type_eval.eval_typing(lhs),
         type_eval.eval_typing(rhs),
@@ -299,21 +333,22 @@ Is = IsSubSimilar
 
 ##################################################################
 
-# TODO: unions! Slice, Concat
+
+def _string_literal_op(op):
+    @_SpecialForm
+    @_lift_over_unions
+    def func(self, *args):
+        return typing.Literal[op(*[_from_literal(x) for x in args])]
+
+    return func
 
 
-class _StringLiteralOp:
-    def __init__(self, op: typing.Callable[[str], str]):
-        self.op = op
-
-    def __getitem__(self, arg):
-        return typing.Literal[self.op(_from_literal(arg))]
-
-
-Uppercase = _StringLiteralOp(op=str.upper)
-Lowercase = _StringLiteralOp(op=str.lower)
-Capitalize = _StringLiteralOp(op=str.capitalize)
-Uncapitalize = _StringLiteralOp(op=lambda s: s[0:1].lower() + s[1:])
+Uppercase = _string_literal_op(op=str.upper)
+Lowercase = _string_literal_op(op=str.lower)
+Capitalize = _string_literal_op(op=str.capitalize)
+Uncapitalize = _string_literal_op(op=lambda s: s[0:1].lower() + s[1:])
+StrConcat = _string_literal_op(op=lambda s, t: s + t)
+StrSlice = _string_literal_op(op=lambda s, start, end: s[start:end])
 
 
 ##################################################################
