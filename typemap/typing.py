@@ -144,6 +144,17 @@ def _lift_over_unions(func):
     return wrapper
 
 
+def _lift_over_unions_new(func):
+    @functools.wraps(func)
+    def wrapper(*args):
+        args2 = [_union_elems(x) for x in args]
+        # XXX: Never
+        parts = [func(*x) for x in itertools.product(*args2)]
+        return typing.Union[*parts]
+
+    return wrapper
+
+
 class Attrs[T]:
     pass
 
@@ -209,7 +220,7 @@ class Members[T]:
 
 
 @type_eval.register_evaluator(Members)
-# @_lift_over_unions
+@_lift_over_unions_new
 def _eval_members(tp):
     hints = get_annotated_type_hints(tp, include_extras=True)
 
@@ -268,13 +279,17 @@ def _eval_from_union(tp):
 ##################################################################
 
 
-@_SpecialForm
-@_lift_over_unions
-def GetAttr(self, lhs, prop):
+class GetAttr[Lhs, Prop]:
+    pass
+
+
+@type_eval.register_evaluator(GetAttr)
+@_lift_over_unions_new
+def _eval_GetAttr(lhs, prop):
     # TODO: the prop missing, etc!
     # XXX: extras?
-    name = _from_literal(type_eval.eval_typing(prop))
-    return typing.get_type_hints(type_eval.eval_typing(lhs))[name]
+    name = _from_literal(prop)
+    return typing.get_type_hints(lhs)[name]
 
 
 def _get_args(tp, base) -> typing.Any:
@@ -303,9 +318,13 @@ def _get_args(tp, base) -> typing.Any:
         return None
 
 
-@_SpecialForm
-@_lift_over_unions
-def GetArg(self, tp, base, idx) -> typing.Any:
+class GetArg[Tp, Base, Idx: int]:
+    pass
+
+
+@type_eval.register_evaluator(GetArg)
+@_lift_over_unions_new
+def _eval_GetArg(tp, base, idx) -> typing.Any:
     args = _get_args(tp, base)
     if args is None:
         return typing.Never

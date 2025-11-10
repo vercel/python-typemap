@@ -164,12 +164,13 @@ def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
 
 @_eval_types_impl.register
 def _eval_types_generic(obj: types.GenericAlias, ctx: EvalContext):
+    new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
+
+    new_obj = obj.__origin__[new_args]  # type: ignore[index]
     if isinstance(obj.__origin__, type):
         # This is a GenericAlias over a Python class, e.g. `dict[str, int]`
         # Let's reconstruct it by evaluating all arguments
-        new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
-
-        return obj.__origin__[new_args]  # type: ignore[index]
+        return new_obj
 
     func = obj.evaluate_value
 
@@ -177,7 +178,7 @@ def _eval_types_generic(obj: types.GenericAlias, ctx: EvalContext):
     mod = sys.modules[obj.__module__]
 
     old_obj = ctx.current_alias
-    ctx.current_alias = obj
+    ctx.current_alias = new_obj  # alias is the new_obj, so names look better
 
     try:
         ff = types.FunctionType(func.__code__, mod.__dict__, None, None, args)
