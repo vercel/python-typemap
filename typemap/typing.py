@@ -148,7 +148,7 @@ class Attrs[T]:
 
 
 @type_eval.register_evaluator(Attrs)
-def _eval_attrs(tp):
+def _eval_Attrs(tp):
     hints = get_annotated_type_hints(tp, include_extras=True)
 
     return tuple[
@@ -209,7 +209,7 @@ class Members[T]:
 
 @type_eval.register_evaluator(Members)
 @_lift_over_unions
-def _eval_members(tp):
+def _eval_Members(tp):
     hints = get_annotated_type_hints(tp, include_extras=True)
 
     attrs = [
@@ -260,7 +260,7 @@ class FromUnion[T]:
 
 
 @type_eval.register_evaluator(FromUnion)
-def _eval_from_union(tp):
+def _eval_FromUnion(tp):
     return tuple[*_union_elems(tp)]
 
 
@@ -404,20 +404,14 @@ class NewProtocol[*T]:
     pass
 
 
-# XXX: We definitely can't use the normal _SpecialForm cache here
-# directly, since we depend on the context's current_alias.
-# Maybe we can add that to the cache, though.
-# (Or maybe we need to never use the cache??)
 @type_eval.register_evaluator(NewProtocol)
 def _eval_NewProtocol(*etyps: Member):
     dct: dict[str, object] = {}
     dct["__annotations__"] = {
         # XXX: Should eval_typing on the etyps evaluate the arguments??
-        _from_literal(type_eval.eval_typing(typing.get_args(prop)[0])):
-        # XXX: We maybe (probably?) want to eval_typing the RHS, but
-        # we have infinite recursion issues in test_eval_types_2...
-        type_eval.eval_typing(typing.get_args(prop)[1])
-        # typing.get_args(prop)[1]
+        _from_literal(
+            type_eval.eval_typing(typing.get_args(prop)[0])
+        ): type_eval.eval_typing(typing.get_args(prop)[1])
         for prop in etyps
     }
 
