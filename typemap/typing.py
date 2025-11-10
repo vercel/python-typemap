@@ -144,11 +144,13 @@ def _lift_over_unions(func):
     return wrapper
 
 
-@_SpecialForm
-@_lift_over_unions
-def Attrs(self, tp):
-    o = type_eval.eval_typing(tp)
-    hints = get_annotated_type_hints(o, include_extras=True)
+class Attrs[T]:
+    pass
+
+
+@type_eval.register_evaluator(Attrs)
+def _eval_attrs(tp):
+    hints = get_annotated_type_hints(tp, include_extras=True)
 
     return tuple[
         *[
@@ -202,18 +204,21 @@ def _function_type(func, *, is_method):
     return typing.Callable[params, _ann(sig.return_annotation)]
 
 
-@_SpecialForm
-@_lift_over_unions
-def Members(self, tp):
-    o = type_eval.eval_typing(tp)
-    hints = get_annotated_type_hints(o, include_extras=True)
+class Members[T]:
+    pass
+
+
+@type_eval.register_evaluator(Members)
+# @_lift_over_unions
+def _eval_members(tp):
+    hints = get_annotated_type_hints(tp, include_extras=True)
 
     attrs = [
         Member[typing.Literal[n], t, typing.Never, d]
         for n, (t, d) in hints.items()
     ]
 
-    for name, attr in o.__dict__.items():
+    for name, attr in tp.__dict__.items():
         if isinstance(attr, (types.FunctionType, types.MethodType)):
             if attr is typing._no_init_or_replace_init:
                 continue
@@ -233,6 +238,8 @@ def Members(self, tp):
 ##################################################################
 
 
+# NB - Iter needs to be interpreted, I think!
+# XXX: Can we figure a way around this?
 @_SpecialForm
 def Iter(self, tp):
     tp = type_eval.eval_typing(tp)
@@ -249,8 +256,12 @@ def Iter(self, tp):
         )
 
 
-@_SpecialForm
-def FromUnion(self, tp):
+class FromUnion[T]:
+    pass
+
+
+@type_eval.register_evaluator(FromUnion)
+def _eval_from_union(tp):
     return tuple[*_union_elems(tp)]
 
 
@@ -308,6 +319,11 @@ def GetArg(self, tp, base, idx) -> typing.Any:
 ##################################################################
 
 # N.B: These handle unions on their own
+
+
+# NB - Is needs to be interpreted, I think!
+# XXX: Can we figure a way around this?
+# By registering a handler??
 
 
 @_SpecialForm

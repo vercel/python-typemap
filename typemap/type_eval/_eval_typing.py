@@ -9,6 +9,8 @@ import sys
 import types
 import typing
 
+from typing import _GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+
 
 if typing.TYPE_CHECKING:
     from typing import Any
@@ -17,6 +19,19 @@ from . import _apply_generic
 
 
 __all__ = ("eval_typing",)
+
+
+_eval_funcs: dict[type, typing.Callable[..., Any]] = {}
+
+
+def register_evaluator[T: typing.Callable[..., Any]](
+    typ: type,
+) -> typing.Callable[[T], T]:
+    def func(f: T) -> T:
+        _eval_funcs[typ] = f
+        return f
+
+    return func
 
 
 # Base type for the proxy classes we generate to hold __annotations__
@@ -148,11 +163,12 @@ def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
 
 
 @_eval_types_impl.register
-def _eval_generic(obj: types.GenericAlias, ctx: EvalContext):
+def _eval_types_generic(obj: types.GenericAlias, ctx: EvalContext):
     if isinstance(obj.__origin__, type):
         # This is a GenericAlias over a Python class, e.g. `dict[str, int]`
         # Let's reconstruct it by evaluating all arguments
         new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
+
         return obj.__origin__[new_args]  # type: ignore[index]
 
     func = obj.evaluate_value
@@ -176,6 +192,20 @@ def _eval_generic(obj: types.GenericAlias, ctx: EvalContext):
         ctx.current_alias = old_obj
 
     return evaled
+
+
+@_eval_types_impl.register
+def _eval_typing_generic(obj: _GenericAlias, ctx: EvalContext):
+    # generic *classes* are typing._GenericAlias while generic type
+    # aliases are # types.GenericAlias? Why in the world.
+    if func := _eval_funcs.get(obj.__origin__):
+        new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
+        ret = func(*new_args)
+        # return _eval_types(ret, ctx)  # ???
+        return ret
+
+    # TODO: Actually evaluate in this case!
+    return obj
 
 
 @_eval_types_impl.register

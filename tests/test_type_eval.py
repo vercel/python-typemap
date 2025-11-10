@@ -159,3 +159,12 @@ def test_type_strings_5():
 def test_type_strings_6():
     d = eval_typing(StrSlice[Literal["abcd"], Literal[1], Literal[None]])
     assert d == Literal["bcd"]
+
+
+def test_type_asdf():
+    from typemap.typing import FromUnion
+
+    d = eval_typing(FromUnion[int | bool])
+    arg = FromUnion[int | str]
+    d = eval_typing(arg)
+    assert d == tuple[int, str] or d == tuple[str, int]
