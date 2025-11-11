@@ -10,6 +10,9 @@ from ._eval_call import eval_call
 from ._subtype import issubtype
 from ._subsim import issubsimilar
 
+# This one is imported for registering handlers
+from . import _eval_operators  # noqa
+
 
 __all__ = (
     "eval_typing",

@@ -28,6 +28,7 @@ def register_evaluator[T: typing.Callable[..., Any]](
     typ: type,
 ) -> typing.Callable[[T], T]:
     def func(f: T) -> T:
+        assert typ not in _eval_funcs
         _eval_funcs[typ] = f
         return f
 
