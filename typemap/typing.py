@@ -12,11 +12,6 @@ from typemap.type_eval import _typing_inspect
 _SpecialForm: typing.Any = typing._SpecialForm
 
 
-class _NoCacheSpecialForm(_SpecialForm, _root=True):  # type: ignore[call-arg]
-    def __getitem__(self, parameters):
-        return self._getitem(self, parameters)
-
-
 @dataclass(frozen=True)
 class CallSpec:
     pass
