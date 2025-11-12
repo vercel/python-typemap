@@ -104,17 +104,6 @@ class NewProtocol[*T]:
 ##################################################################
 
 
-def _split_args(func):
-    @functools.wraps(func)
-    def wrapper(self, arg):
-        if isinstance(arg, tuple):
-            return func(self, *arg)
-        else:
-            return func(self, arg)
-
-    return wrapper
-
-
 # NB - Iter needs to be interpreted, I think!
 # XXX: Can we figure a way around this?
 @_SpecialForm
@@ -134,6 +123,17 @@ def Iter(self, tp):
 
 
 # N.B: These handle unions on their own
+
+
+def _split_args(func):
+    @functools.wraps(func)
+    def wrapper(self, arg):
+        if isinstance(arg, tuple):
+            return func(self, *arg)
+        else:
+            return func(self, arg)
+
+    return wrapper
 
 
 # NB - Is needs to be interpreted, I think!
