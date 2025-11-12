@@ -1,11 +1,9 @@
 from dataclasses import dataclass
 
-import functools
+import contextvars
 import types
 import typing
-
-from typemap import type_eval
-from typemap.type_eval import _typing_inspect
+from typing import _GenericAlias  # type: ignore
 
 
 _SpecialForm: typing.Any = typing._SpecialForm
@@ -103,60 +101,43 @@ class NewProtocol[*T]:
 
 ##################################################################
 
+# TODO: type better
+special_form_evaluator: contextvars.ContextVar[
+    typing.Callable[[typing.Any], typing.Any] | None
+] = contextvars.ContextVar("special_form_evaluator", default=None)
 
-# NB - Iter needs to be interpreted, I think!
-# XXX: Can we figure a way around this?
+
+class _IterGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
+    def __iter__(self):
+        evaluator = special_form_evaluator.get()
+        if evaluator:
+            return evaluator(self)
+        else:
+            return super().__iter__()
+
+
 @_SpecialForm
 def Iter(self, tp):
-    tp = type_eval.eval_typing(tp)
-    if (
-        _typing_inspect.is_generic_alias(tp)
-        and tp.__origin__ is tuple
-        and (not tp.__args__ or tp.__args__[-1] is not Ellipsis)
-    ):
-        return tp.__args__
-    else:
-        # XXX: Or should we return []?
-        raise TypeError(
-            f"Invalid type argument to Iter: {tp} is not a fixed-length tuple"
-        )
+    return _IterGenericAlias(self, (tp,))
 
 
-# N.B: These handle unions on their own
-
-
-def _split_args(func):
-    @functools.wraps(func)
-    def wrapper(self, arg):
-        if isinstance(arg, tuple):
-            return func(self, *arg)
+class _IsGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
+    def __bool__(self):
+        evaluator = special_form_evaluator.get()
+        if evaluator:
+            return evaluator(self)
         else:
-            return func(self, arg)
-
-    return wrapper
-
-
-# NB - Is needs to be interpreted, I think!
-# XXX: Can we figure a way around this?
-# By registering a handler??
+            raise TypeError(f"No evaluator provided for {self}")
 
 
 @_SpecialForm
-@_split_args
-def IsSubtype(self, lhs, rhs):
-    return type_eval.issubtype(
-        type_eval.eval_typing(lhs),
-        type_eval.eval_typing(rhs),
-    )
+def IsSubtype(self, tps):
+    return _IsGenericAlias(self, tps)
 
 
 @_SpecialForm
-@_split_args
-def IsSubSimilar(self, lhs, rhs):
-    return type_eval.issubsimilar(
-        type_eval.eval_typing(lhs),
-        type_eval.eval_typing(rhs),
-    )
+def IsSubSimilar(self, tps):
+    return _IsGenericAlias(self, tps)
 
 
 Is = IsSubSimilar

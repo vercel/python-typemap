@@ -11,6 +11,9 @@ from typemap.typing import (
     Attrs,
     CallSpecKwargs,
     _CallSpecWrapper,
+    Iter,
+    IsSubtype,
+    IsSubSimilar,
     Member,
     Members,
     NewProtocol,
@@ -57,17 +60,6 @@ def get_annotated_type_hints(cls, **kwargs):
     return hints
 
 
-def _split_args(func):
-    @functools.wraps(func)
-    def wrapper(self, arg):
-        if isinstance(arg, tuple):
-            return func(self, *arg)
-        else:
-            return func(self, arg)
-
-    return wrapper
-
-
 def _union_elems(tp):
     tp = type_eval.eval_typing(tp)
     if isinstance(tp, types.UnionType):
@@ -89,23 +81,49 @@ def _lift_over_unions(func):
     return wrapper
 
 
-@type_eval.register_evaluator(Attrs)
-def _eval_Attrs(tp):
-    hints = get_annotated_type_hints(tp, include_extras=True)
+##################################################################
 
-    return tuple[
-        *[
-            Member[typing.Literal[n], t, typing.Never, d]
-            for n, (t, d) in hints.items()
-        ]
-    ]
+
+@type_eval.register_evaluator(Iter)
+def _eval_Iter(tp):
+    tp = type_eval.eval_typing(tp)
+    if (
+        _typing_inspect.is_generic_alias(tp)
+        and tp.__origin__ is tuple
+        and (not tp.__args__ or tp.__args__[-1] is not Ellipsis)
+    ):
+        return iter(tp.__args__)
+    else:
+        # XXX: Or should we return []?
+        raise TypeError(
+            f"Invalid type argument to Iter: {tp} is not a fixed-length tuple"
+        )
+
+
+# N.B: These handle unions on their own
+
+
+@type_eval.register_evaluator(IsSubtype)
+def _eval_IsSubtype(lhs, rhs):
+    return type_eval.issubtype(
+        type_eval.eval_typing(lhs),
+        type_eval.eval_typing(rhs),
+    )
+
+
+@type_eval.register_evaluator(IsSubSimilar)
+def _eval_IsSubSimilar(lhs, rhs):
+    return type_eval.issubsimilar(
+        type_eval.eval_typing(lhs),
+        type_eval.eval_typing(rhs),
+    )
 
 
 ##################################################################
 
 
 @type_eval.register_evaluator(CallSpecKwargs)
-def eval_CallSpecKwargs(spec: _CallSpecWrapper):
+def _eval_CallSpecKwargs(spec: _CallSpecWrapper):
     ff = types.FunctionType(
         spec._func.__code__,
         spec._func.__globals__,
@@ -174,6 +192,18 @@ def _function_type(func, *, is_method):
         )
 
     return typing.Callable[params, _ann(sig.return_annotation)]
+
+
+@type_eval.register_evaluator(Attrs)
+def _eval_Attrs(tp):
+    hints = get_annotated_type_hints(tp, include_extras=True)
+
+    return tuple[
+        *[
+            Member[typing.Literal[n], t, typing.Never, d]
+            for n, (t, d) in hints.items()
+        ]
+    ]
 
 
 @type_eval.register_evaluator(Members)

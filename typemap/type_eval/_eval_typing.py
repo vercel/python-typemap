@@ -61,6 +61,8 @@ _current_context: contextvars.ContextVar[EvalContext | None] = (
 
 @contextlib.contextmanager
 def _ensure_context() -> typing.Iterator[EvalContext]:
+    import typemap.typing as nt
+
     ctx = _current_context.get()
     ctx_set = False
     if ctx is None:
@@ -69,12 +71,17 @@ def _ensure_context() -> typing.Iterator[EvalContext]:
         )
         _current_context.set(ctx)
         ctx_set = True
+    old_evaluator = nt.special_form_evaluator.get()
+    if old_evaluator is not eval_typing:
+        nt.special_form_evaluator.set(eval_typing)
 
     try:
         yield ctx
     finally:
         if ctx_set:
             _current_context.set(None)
+        if old_evaluator is not eval_typing:
+            nt.special_form_evaluator.set(old_evaluator)
 
 
 def _get_current_context() -> EvalContext:
