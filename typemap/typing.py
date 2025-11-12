@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 
 import functools
-import inspect
 import types
 import typing
 
@@ -20,7 +19,7 @@ class CallSpec:
 @dataclass(frozen=True)
 class _CallSpecWrapper:
     _args: tuple[typing.Any]
-    _kwargs: dict[str, typing.Any]
+    _kwargs: tuple[tuple[str, typing.Any], ...]
     # TODO: Support MethodType!
     _func: types.FunctionType  # | types.MethodType
 
@@ -33,33 +32,8 @@ class _CallSpecWrapper:
         pass
 
 
-@_SpecialForm
-def CallSpecKwargs(self, spec: _CallSpecWrapper):
-    ff = types.FunctionType(
-        spec._func.__code__,
-        spec._func.__globals__,
-        spec._func.__name__,
-        None,
-        (),
-    )
-
-    # We can't call `inspect.signature` on `spec` directly --
-    # signature() will attempt to resolve annotations and fail.
-    # So we run it on a copy of the function that doesn't have
-    # annotations set.
-    sig = inspect.signature(ff)
-    bound = sig.bind(*spec._args, **spec._kwargs)
-
-    # TODO: Get the real type instead of Never
-    return tuple[  # type: ignore[misc]
-        *[
-            Member[
-                typing.Literal[name],  # type: ignore[valid-type]
-                typing.Never,
-            ]
-            for name in bound.kwargs
-        ]
-    ]
+class CallSpecKwargs[Spec]:
+    pass
 
 
 ##################################################################

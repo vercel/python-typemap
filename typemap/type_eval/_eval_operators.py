@@ -9,6 +9,8 @@ from typemap.type_eval import _typing_inspect
 
 from typemap.typing import (
     Attrs,
+    CallSpecKwargs,
+    _CallSpecWrapper,
     Member,
     Members,
     NewProtocol,
@@ -25,7 +27,7 @@ from typemap.typing import (
 )
 
 
-# _SpecialForm: typing.Any = typing._SpecialForm
+##################################################################
 
 
 def _from_literal(val):
@@ -33,9 +35,6 @@ def _from_literal(val):
     if _typing_inspect.is_literal(val):
         val = val.__args__[0]
     return val
-
-
-##################################################################
 
 
 def get_annotated_type_hints(cls, **kwargs):
@@ -98,6 +97,38 @@ def _eval_Attrs(tp):
         *[
             Member[typing.Literal[n], t, typing.Never, d]
             for n, (t, d) in hints.items()
+        ]
+    ]
+
+
+##################################################################
+
+
+@type_eval.register_evaluator(CallSpecKwargs)
+def eval_CallSpecKwargs(spec: _CallSpecWrapper):
+    ff = types.FunctionType(
+        spec._func.__code__,
+        spec._func.__globals__,
+        spec._func.__name__,
+        None,
+        (),
+    )
+
+    # We can't call `inspect.signature` on `spec` directly --
+    # signature() will attempt to resolve annotations and fail.
+    # So we run it on a copy of the function that doesn't have
+    # annotations set.
+    sig = inspect.signature(ff)
+    bound = sig.bind(*spec._args, **dict(spec._kwargs))
+
+    # TODO: Get the real type instead of Never
+    return tuple[  # type: ignore[misc]
+        *[
+            Member[
+                typing.Literal[name],  # type: ignore[valid-type]
+                typing.Never,
+            ]
+            for name in bound.kwargs
         ]
     ]
 

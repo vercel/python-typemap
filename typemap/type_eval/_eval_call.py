@@ -27,7 +27,9 @@ def _eval_call(
     params = func.__type_params__
     for p in params:
         if hasattr(p, "__bound__") and p.__bound__ is next.CallSpec:
-            vars[p.__name__] = next._CallSpecWrapper(args, kwargs, func)
+            vars[p.__name__] = next._CallSpecWrapper(
+                args, tuple(kwargs.items()), func
+            )
         else:
             vars[p.__name__] = p
 
