@@ -113,7 +113,7 @@ class _IterGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
         if evaluator:
             return evaluator(self)
         else:
-            return super().__iter__()
+            raise TypeError(f"No evaluator provided for {self}")
 
 
 @_SpecialForm

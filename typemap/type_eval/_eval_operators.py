@@ -6,6 +6,7 @@ import typing
 
 from typemap import type_eval
 from typemap.type_eval import _typing_inspect
+from typemap.type_eval._eval_typing import _eval_types
 
 from typemap.typing import (
     Attrs,
@@ -33,8 +34,8 @@ from typemap.typing import (
 ##################################################################
 
 
-def _from_literal(val):
-    val = type_eval.eval_typing(val)
+def _from_literal(val, ctx):
+    val = _eval_types(val, ctx)
     if _typing_inspect.is_literal(val):
         val = val.__args__[0]
     return val
@@ -60,10 +61,10 @@ def get_annotated_type_hints(cls, **kwargs):
     return hints
 
 
-def _union_elems(tp):
-    tp = type_eval.eval_typing(tp)
+def _union_elems(tp, ctx):
+    tp = _eval_types(tp, ctx)
     if isinstance(tp, types.UnionType):
-        return tuple(y for x in tp.__args__ for y in _union_elems(x))
+        return tuple(y for x in tp.__args__ for y in _union_elems(x, ctx))
     elif _typing_inspect.is_literal(tp) and len(tp.__args__) > 1:
         return tuple(typing.Literal[x] for x in tp.__args__)
     else:
@@ -72,10 +73,10 @@ def _union_elems(tp):
 
 def _lift_over_unions(func):
     @functools.wraps(func)
-    def wrapper(*args):
-        args2 = [_union_elems(x) for x in args]
+    def wrapper(*args, ctx):
+        args2 = [_union_elems(x, ctx) for x in args]
         # XXX: Never
-        parts = [func(*x) for x in itertools.product(*args2)]
+        parts = [func(*x, ctx=ctx) for x in itertools.product(*args2)]
         return typing.Union[*parts]
 
     return wrapper
@@ -85,8 +86,8 @@ def _lift_over_unions(func):
 
 
 @type_eval.register_evaluator(Iter)
-def _eval_Iter(tp):
-    tp = type_eval.eval_typing(tp)
+def _eval_Iter(tp, *, ctx):
+    tp = _eval_types(tp, ctx)
     if (
         _typing_inspect.is_generic_alias(tp)
         and tp.__origin__ is tuple
@@ -104,18 +105,18 @@ def _eval_Iter(tp):
 
 
 @type_eval.register_evaluator(IsSubtype)
-def _eval_IsSubtype(lhs, rhs):
+def _eval_IsSubtype(lhs, rhs, *, ctx):
     return type_eval.issubtype(
-        type_eval.eval_typing(lhs),
-        type_eval.eval_typing(rhs),
+        _eval_types(lhs, ctx),
+        _eval_types(rhs, ctx),
     )
 
 
 @type_eval.register_evaluator(IsSubSimilar)
-def _eval_IsSubSimilar(lhs, rhs):
+def _eval_IsSubSimilar(lhs, rhs, *, ctx):
     return type_eval.issubsimilar(
-        type_eval.eval_typing(lhs),
-        type_eval.eval_typing(rhs),
+        _eval_types(lhs, ctx),
+        _eval_types(rhs, ctx),
     )
 
 
@@ -123,7 +124,7 @@ def _eval_IsSubSimilar(lhs, rhs):
 
 
 @type_eval.register_evaluator(CallSpecKwargs)
-def _eval_CallSpecKwargs(spec: _CallSpecWrapper):
+def _eval_CallSpecKwargs(spec: _CallSpecWrapper, *, ctx):
     ff = types.FunctionType(
         spec._func.__code__,
         spec._func.__globals__,
@@ -195,7 +196,7 @@ def _function_type(func, *, is_method):
 
 
 @type_eval.register_evaluator(Attrs)
-def _eval_Attrs(tp):
+def _eval_Attrs(tp, *, ctx):
     hints = get_annotated_type_hints(tp, include_extras=True)
 
     return tuple[
@@ -208,7 +209,7 @@ def _eval_Attrs(tp):
 
 @type_eval.register_evaluator(Members)
 @_lift_over_unions
-def _eval_Members(tp):
+def _eval_Members(tp, *, ctx):
     hints = get_annotated_type_hints(tp, include_extras=True)
 
     attrs = [
@@ -237,8 +238,8 @@ def _eval_Members(tp):
 
 
 @type_eval.register_evaluator(FromUnion)
-def _eval_FromUnion(tp):
-    return tuple[*_union_elems(tp)]
+def _eval_FromUnion(tp, *, ctx):
+    return tuple[*_union_elems(tp, ctx)]
 
 
 ##################################################################
@@ -246,16 +247,16 @@ def _eval_FromUnion(tp):
 
 @type_eval.register_evaluator(GetAttr)
 @_lift_over_unions
-def _eval_GetAttr(lhs, prop):
+def _eval_GetAttr(lhs, prop, *, ctx):
     # TODO: the prop missing, etc!
     # XXX: extras?
-    name = _from_literal(prop)
+    name = _from_literal(prop, ctx)
     return typing.get_type_hints(lhs)[name]
 
 
-def _get_args(tp, base) -> typing.Any:
+def _get_args(tp, base, ctx) -> typing.Any:
     # XXX: check against base!!
-    evaled = type_eval.eval_typing(tp)
+    evaled = _eval_types(tp, ctx)
 
     tp_head = _typing_inspect.get_head(tp)
     base_head = _typing_inspect.get_head(base)
@@ -281,21 +282,21 @@ def _get_args(tp, base) -> typing.Any:
 
 @type_eval.register_evaluator(GetArg)
 @_lift_over_unions
-def _eval_GetArg(tp, base, idx) -> typing.Any:
-    args = _get_args(tp, base)
+def _eval_GetArg(tp, base, idx, *, ctx) -> typing.Any:
+    args = _get_args(tp, base, ctx)
     if args is None:
         return typing.Never
 
     try:
-        return args[_from_literal(idx)]
+        return args[_from_literal(idx, ctx)]
     except IndexError:
         return typing.Never
 
 
 def _string_literal_op(typ, op):
     @_lift_over_unions
-    def func(*args):
-        return typing.Literal[op(*[_from_literal(x) for x in args])]
+    def func(*args, ctx):
+        return typing.Literal[op(*[_from_literal(x, ctx) for x in args])]
 
     type_eval.register_evaluator(typ)(func)
 
@@ -312,13 +313,13 @@ _string_literal_op(StrSlice, op=lambda s, start, end: s[start:end])
 
 
 @type_eval.register_evaluator(NewProtocol)
-def _eval_NewProtocol(*etyps: Member):
+def _eval_NewProtocol(*etyps: Member, ctx):
     dct: dict[str, object] = {}
     dct["__annotations__"] = {
         # XXX: Should eval_typing on the etyps evaluate the arguments??
-        _from_literal(
-            type_eval.eval_typing(typing.get_args(prop)[0])
-        ): type_eval.eval_typing(typing.get_args(prop)[1])
+        _from_literal(typing.get_args(prop)[0], ctx): _eval_types(
+            typing.get_args(prop)[1], ctx
+        )
         for prop in etyps
     }
 
@@ -338,5 +339,5 @@ def _eval_NewProtocol(*etyps: Member):
 
     mcls: type = type(typing.cast(type, typing.Protocol))
     cls = mcls(name, (typing.Protocol,), dct)
-    cls = type_eval.eval_typing(cls)
+    cls = _eval_types(cls, ctx)
     return cls

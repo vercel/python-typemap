@@ -71,17 +71,16 @@ def _ensure_context() -> typing.Iterator[EvalContext]:
         )
         _current_context.set(ctx)
         ctx_set = True
-    old_evaluator = nt.special_form_evaluator.get()
-    if old_evaluator is not eval_typing:
-        nt.special_form_evaluator.set(eval_typing)
+    evaluator_token = nt.special_form_evaluator.set(
+        lambda t: _eval_types(t, ctx)
+    )
 
     try:
         yield ctx
     finally:
         if ctx_set:
             _current_context.set(None)
-        if old_evaluator is not eval_typing:
-            nt.special_form_evaluator.set(old_evaluator)
+        nt.special_form_evaluator.reset(evaluator_token)
 
 
 def _get_current_context() -> EvalContext:
@@ -218,7 +217,7 @@ def _eval_typing_generic(obj: _GenericAlias, ctx: EvalContext):
     # aliases are # types.GenericAlias? Why in the world.
     if func := _eval_funcs.get(obj.__origin__):
         new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
-        ret = func(*new_args)
+        ret = func(*new_args, ctx=ctx)
         # return _eval_types(ret, ctx)  # ???
         return ret
 
