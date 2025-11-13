@@ -1,23 +1,21 @@
 import textwrap
 
+
 from typemap.type_eval import eval_call
 from typemap.typing import (
-    CallSpec,
+    Attrs,
     NewProtocol,
     Member,
     GetName,
     Iter,
-    CallSpecKwargs,
 )
 
 from . import format_helper
 
 
-def func[C: CallSpec](
+def func[**C](
     *args: C.args, **kwargs: C.kwargs
-) -> NewProtocol[
-    *[Member[GetName[c], int] for c in Iter[CallSpecKwargs[C]]]
-]: ...
+) -> NewProtocol[*[Member[GetName[c], int] for c in Iter[Attrs[C.kwargs]]]]: ...
 
 
 def test_call_1():

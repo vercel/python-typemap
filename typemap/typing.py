@@ -6,17 +6,6 @@ from typing import _GenericAlias  # type: ignore
 _SpecialForm: typing.Any = typing._SpecialForm
 
 
-class CallSpec:
-    pass
-
-
-class CallSpecKwargs[Spec]:
-    pass
-
-
-##################################################################
-
-
 class Member[N: str, T, Q: str = typing.Never, D = typing.Never]:
     pass
 

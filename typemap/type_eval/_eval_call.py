@@ -7,7 +7,6 @@ import typing
 
 from typing import Any
 
-from typemap import typing as next
 
 from . import _eval_typing
 
@@ -16,10 +15,8 @@ RtType = Any
 
 @dataclass(frozen=True, eq=False)
 class _CallSpecWrapper:
-    _args: tuple[typing.Any]
-    _kwargs: dict[str, typing.Any]
-    # _args: type[tuple]
-    # _kwargs: type
+    _args: type[tuple]
+    _kwargs: type
 
     @property
     def args(self) -> typing.Any:
@@ -71,9 +68,12 @@ def eval_call_with_types(
     vars: dict[str, Any] = {}
     params = func.__type_params__
     for p in params:
-        if hasattr(p, "__bound__") and p.__bound__ is next.CallSpec:
+        if isinstance(p, typing.ParamSpec):
             bound = _get_bound_args(func, arg_types, kwarg_types)
-            vars[p.__name__] = _CallSpecWrapper(bound.args, bound.kwargs)
+            vars[p.__name__] = _CallSpecWrapper(
+                tuple[bound.args],  # type: ignore[name-defined]
+                typing.TypedDict("**kwargs", bound.kwargs),  # type: ignore[operator]
+            )
         else:
             vars[p.__name__] = p
 

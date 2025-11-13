@@ -9,11 +9,9 @@ from typemap.typing import (
     Attrs,
     Is,
     GetType,
-    CallSpec,
     Member,
     GetName,
     GetAttr,
-    CallSpecKwargs,
     GetArg,
 )
 
@@ -53,7 +51,7 @@ class A:
     w: Property[list[str]]
 
 
-def select[C: CallSpec](
+def select[**C](
     __rcv: A, *args: C.args, **kwargs: C.kwargs
 ) -> NewProtocol[
     *[
@@ -61,7 +59,7 @@ def select[C: CallSpec](
             GetName[c],
             FilterLinks[GetAttr[A, GetName[c]]],
         ]
-        for c in Iter[CallSpecKwargs[C]]
+        for c in Iter[Attrs[C.kwargs]]
     ]
 ]: ...
 

@@ -7,11 +7,9 @@ import typing
 from typemap import type_eval
 from typemap.type_eval import _typing_inspect
 from typemap.type_eval._eval_typing import _eval_types
-from typemap.type_eval._eval_call import _CallSpecWrapper
 
 from typemap.typing import (
     Attrs,
-    CallSpecKwargs,
     Iter,
     IsSubtype,
     IsSubSimilar,
@@ -118,22 +116,6 @@ def _eval_IsSubSimilar(lhs, rhs, *, ctx):
         _eval_types(lhs, ctx),
         _eval_types(rhs, ctx),
     )
-
-
-##################################################################
-
-
-@type_eval.register_evaluator(CallSpecKwargs)
-def _eval_CallSpecKwargs(spec: _CallSpecWrapper, *, ctx):
-    return tuple[  # type: ignore[misc]
-        *[
-            Member[
-                typing.Literal[name],  # type: ignore[valid-type]
-                ty,  # type: ignore[valid-type]
-            ]
-            for name, ty in spec._kwargs.items()
-        ]
-    ]
 
 
 ##################################################################
