@@ -1,38 +1,97 @@
+from dataclasses import dataclass
+
 import annotationlib
+import inspect
 import types
 import typing
 
-if typing.TYPE_CHECKING:
-    from typing import Any
+from typing import Any
 
 from typemap import typing as next
 
 from . import _eval_typing
 
-
-def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
-    with _eval_typing._ensure_context() as ctx:
-        return _eval_call(func, ctx, *args, **kwargs)
+RtType = Any
 
 
-def _eval_call(
+@dataclass(frozen=True, eq=False)
+class _CallSpecWrapper:
+    _args: tuple[typing.Any]
+    _kwargs: dict[str, typing.Any]
+    # _args: type[tuple]
+    # _kwargs: type
+
+    @property
+    def args(self) -> typing.Any:
+        return self._args
+
+    @property
+    def kwargs(self) -> typing.Any:
+        return self._kwargs
+
+
+def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> RtType:
+    # N.B: This doesn't *really* work!!
+    # TODO: Do Literals for bool, int, str, None?
+    arg_types = tuple(type(t) for t in args)
+    kwarg_types = {k: type(t) for k, t in kwargs.items()}
+    return eval_call_with_types(func, arg_types, kwarg_types)
+
+
+def _get_bound_args(
     func: types.FunctionType,
-    ctx: _eval_typing.EvalContext,
-    /,
-    *args: Any,
-    **kwargs: Any,
-) -> Any:
-    vars: dict[str, Any] = {}
+    arg_types: tuple[RtType, ...],
+    kwarg_types: dict[str, RtType],
+) -> inspect.BoundArguments:
+    # XXX: I don't think this really does anything useful.
+    # We should try to be smarter about this.
+    ff = types.FunctionType(
+        func.__code__,
+        func.__globals__,
+        func.__name__,
+        None,
+        (),
+    )
 
+    # We can't call `inspect.signature` on `spec` directly --
+    # signature() will attempt to resolve annotations and fail.
+    # So we run it on a copy of the function that doesn't have
+    # annotations set.
+    sig = inspect.signature(ff)
+    bound = sig.bind(*arg_types, **kwarg_types)
+
+    return bound
+
+
+def eval_call_with_types(
+    func: types.FunctionType,
+    arg_types: tuple[RtType, ...],
+    kwarg_types: dict[str, RtType],
+) -> RtType:
+    vars: dict[str, Any] = {}
     params = func.__type_params__
     for p in params:
         if hasattr(p, "__bound__") and p.__bound__ is next.CallSpec:
-            vars[p.__name__] = next._CallSpecWrapper(
-                args, tuple(kwargs.items()), func
-            )
+            bound = _get_bound_args(func, arg_types, kwarg_types)
+            vars[p.__name__] = _CallSpecWrapper(bound.args, bound.kwargs)
         else:
             vars[p.__name__] = p
 
+    return eval_call_with_type_vars(func, vars)
+
+
+def eval_call_with_type_vars(
+    func: types.FunctionType, vars: dict[str, RtType]
+) -> RtType:
+    with _eval_typing._ensure_context() as ctx:
+        return _eval_call_with_type_vars(func, vars, ctx)
+
+
+def _eval_call_with_type_vars(
+    func: types.FunctionType,
+    vars: dict[str, RtType],
+    ctx: _eval_typing.EvalContext,
+) -> RtType:
     try:
         af = func.__annotate__
     except AttributeError:
