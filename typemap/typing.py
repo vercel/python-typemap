@@ -113,7 +113,7 @@ class _IterGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
         if evaluator:
             return evaluator(self)
         else:
-            raise TypeError(f"No evaluator provided for {self}")
+            return iter(typing.TypeVarTuple("_IterDummy"))
 
 
 @_SpecialForm
@@ -127,7 +127,7 @@ class _IsGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
         if evaluator:
             return evaluator(self)
         else:
-            raise TypeError(f"No evaluator provided for {self}")
+            return False
 
 
 @_SpecialForm
