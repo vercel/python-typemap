@@ -2,8 +2,16 @@ import contextvars
 import typing
 from typing import _GenericAlias  # type: ignore
 
-
 _SpecialForm: typing.Any = typing._SpecialForm
+
+# Not type-level computation but related
+
+
+class BaseTypedDict(typing.TypedDict):
+    pass
+
+
+###
 
 
 class Member[N: str, T, Q: str = typing.Never, D = typing.Never]:

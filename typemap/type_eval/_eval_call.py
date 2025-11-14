@@ -3,6 +3,7 @@ import enum
 import inspect
 import types
 import typing
+import typing_extensions
 
 from typing import Any
 
@@ -60,10 +61,7 @@ def _get_bound_type_args(
             # maybe! it would match what I want to do for kwargs!
             and isinstance(tv, typing.TypeVar)
             and tv.__bound__
-            and (
-                issubclass(tv.__bound__, dict)
-                or typing.is_typeddict(tv.__bound__)
-            )
+            and typing_extensions.is_typeddict(tv.__bound__)
         ):
             tp = typing.TypedDict(f"**{param.name}", bound.kwargs)  # type: ignore[misc, operator]
             vars[tv.__name__] = tp

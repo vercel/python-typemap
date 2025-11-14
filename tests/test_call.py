@@ -5,6 +5,7 @@ from typing import Unpack
 from typemap.type_eval import eval_call
 from typemap.typing import (
     Attrs,
+    BaseTypedDict,
     NewProtocol,
     Member,
     GetName,
@@ -14,7 +15,7 @@ from typemap.typing import (
 from . import format_helper
 
 
-def func[*T, K: dict](
+def func[*T, K: BaseTypedDict](
     *args: Unpack[T],
     **kwargs: Unpack[K],
 ) -> NewProtocol[*[Member[GetName[c], int] for c in Iter[Attrs[K]]]]: ...
@@ -32,7 +33,7 @@ def test_call_1():
         """)
 
 
-def func_trivial[*T, K: dict](
+def func_trivial[*T, K: BaseTypedDict](
     *args: Unpack[T],
     **kwargs: Unpack[K],
 ) -> K:
