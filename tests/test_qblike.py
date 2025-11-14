@@ -1,6 +1,6 @@
 import textwrap
 
-from typing import Literal
+from typing import Literal, Unpack
 
 from typemap.type_eval import eval_call, eval_typing
 from typemap.typing import (
@@ -51,15 +51,15 @@ class A:
     w: Property[list[str]]
 
 
-def select[**C](
-    __rcv: A, *args: C.args, **kwargs: C.kwargs
+def select[K: dict](
+    __rcv: A, **kwargs: Unpack[K]
 ) -> NewProtocol[
     *[
         Member[
             GetName[c],
             FilterLinks[GetAttr[A, GetName[c]]],
         ]
-        for c in Iter[Attrs[C.kwargs]]
+        for c in Iter[Attrs[K]]
     ]
 ]: ...
 

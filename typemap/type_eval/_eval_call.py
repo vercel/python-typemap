@@ -1,5 +1,3 @@
-from dataclasses import dataclass
-
 import annotationlib
 import inspect
 import types
@@ -12,19 +10,7 @@ from . import _eval_typing
 
 RtType = Any
 
-
-@dataclass(frozen=True, eq=False)
-class _CallSpecWrapper:
-    _args: type[tuple]
-    _kwargs: type
-
-    @property
-    def args(self) -> typing.Any:
-        return self._args
-
-    @property
-    def kwargs(self) -> typing.Any:
-        return self._kwargs
+from typing import _UnpackGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 
 
 def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> RtType:
@@ -35,29 +21,49 @@ def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> RtType:
     return eval_call_with_types(func, arg_types, kwarg_types)
 
 
-def _get_bound_args(
+def _get_bound_type_args(
     func: types.FunctionType,
     arg_types: tuple[RtType, ...],
     kwarg_types: dict[str, RtType],
-) -> inspect.BoundArguments:
-    # XXX: I don't think this really does anything useful.
-    # We should try to be smarter about this.
-    ff = types.FunctionType(
-        func.__code__,
-        func.__globals__,
-        func.__name__,
-        None,
-        (),
-    )
-
-    # We can't call `inspect.signature` on `spec` directly --
-    # signature() will attempt to resolve annotations and fail.
-    # So we run it on a copy of the function that doesn't have
-    # annotations set.
-    sig = inspect.signature(ff)
+) -> dict[str, RtType]:
+    sig = inspect.signature(func)
     bound = sig.bind(*arg_types, **kwarg_types)
 
-    return bound
+    vars: dict[str, RtType] = {}
+    # TODO: duplication, error cases
+    for param in sig.parameters.values():
+        if (
+            param.kind == inspect.Parameter.VAR_POSITIONAL
+            # XXX: typing_extensions also
+            and isinstance(param.annotation, _UnpackGenericAlias)
+            and param.annotation.__args__
+            and (tv := param.annotation.__args__[0])
+            # XXX: should we allow just a regular one with a tuple bound also?
+            # maybe! it would match what I want to do for kwargs!
+            and isinstance(tv, typing.TypeVarTuple)
+        ):
+            tps = bound.arguments.get(param.name, ())
+            vars[tv.__name__] = tuple[tps]  # type: ignore[valid-type]
+        elif (
+            param.kind == inspect.Parameter.VAR_KEYWORD
+            # XXX: typing_extensions also
+            and isinstance(param.annotation, _UnpackGenericAlias)
+            and param.annotation.__args__
+            and (tv := param.annotation.__args__[0])
+            # XXX: should we allow just a regular one with a tuple bound also?
+            # maybe! it would match what I want to do for kwargs!
+            and isinstance(tv, typing.TypeVar)
+            and tv.__bound__
+            and (
+                issubclass(tv.__bound__, dict)
+                or typing.is_typeddict(tv.__bound__)
+            )
+        ):
+            tp = typing.TypedDict(f"**{param.name}", bound.kwargs)  # type: ignore[misc, operator]
+            vars[tv.__name__] = tp
+        # TODO: simple bindings to other variables too
+
+    return vars
 
 
 def eval_call_with_types(
@@ -67,14 +73,9 @@ def eval_call_with_types(
 ) -> RtType:
     vars: dict[str, Any] = {}
     params = func.__type_params__
+    vars = _get_bound_type_args(func, arg_types, kwarg_types)
     for p in params:
-        if isinstance(p, typing.ParamSpec):
-            bound = _get_bound_args(func, arg_types, kwarg_types)
-            vars[p.__name__] = _CallSpecWrapper(
-                tuple[bound.args],  # type: ignore[name-defined]
-                typing.TypedDict("**kwargs", bound.kwargs),  # type: ignore[operator]
-            )
-        else:
+        if p.__name__ not in vars:
             vars[p.__name__] = p
 
     return eval_call_with_type_vars(func, vars)

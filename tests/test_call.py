@@ -1,5 +1,6 @@
 import textwrap
 
+from typing import Unpack
 
 from typemap.type_eval import eval_call
 from typemap.typing import (
@@ -13,9 +14,10 @@ from typemap.typing import (
 from . import format_helper
 
 
-def func[**C](
-    *args: C.args, **kwargs: C.kwargs
-) -> NewProtocol[*[Member[GetName[c], int] for c in Iter[Attrs[C.kwargs]]]]: ...
+def func[*T, K: dict](
+    *args: Unpack[T],
+    **kwargs: Unpack[K],
+) -> NewProtocol[*[Member[GetName[c], int] for c in Iter[Attrs[K]]]]: ...
 
 
 def test_call_1():
