@@ -30,3 +30,24 @@ def test_call_1():
             b: int
             c: int
         """)
+
+
+def func_trivial[*T, K: dict](
+    *args: Unpack[T],
+    **kwargs: Unpack[K],
+) -> K:
+    return kwargs
+
+
+def test_call_2():
+    ret = eval_call(func_trivial, a=1, b=2, c="aaa")
+    fmt = format_helper.format_class(ret)
+
+    # XXX: can we get rid of the annotate??
+    assert fmt == textwrap.dedent("""\
+        class **kwargs:
+            a: typing.Literal[1]
+            b: typing.Literal[2]
+            c: typing.Literal['aaa']
+            def __annotate__(format): ...
+        """)

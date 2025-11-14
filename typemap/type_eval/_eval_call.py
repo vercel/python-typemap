@@ -1,4 +1,5 @@
 import annotationlib
+import enum
 import inspect
 import types
 import typing
@@ -13,11 +14,16 @@ RtType = Any
 from typing import _UnpackGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 
 
+def _type(t):
+    if t is None or isinstance(t, (int, str, bool, bytes, enum.Enum)):
+        return typing.Literal[t]
+    else:
+        return type(t)
+
+
 def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> RtType:
-    # N.B: This doesn't *really* work!!
-    # TODO: Do Literals for bool, int, str, None?
-    arg_types = tuple(type(t) for t in args)
-    kwarg_types = {k: type(t) for k, t in kwargs.items()}
+    arg_types = tuple(_type(t) for t in args)
+    kwarg_types = {k: _type(t) for k, t in kwargs.items()}
     return eval_call_with_types(func, arg_types, kwarg_types)
 
 
