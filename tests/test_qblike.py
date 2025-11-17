@@ -1,5 +1,7 @@
 import textwrap
 
+from typing import Literal
+
 from typemap.type_eval import eval_call, eval_typing
 from typemap.typing import (
     NewProtocol,
@@ -106,10 +108,15 @@ def test_qblike_3():
         class select[...]:
             x: tests.test_qblike.Property[int]
             w: tests.test_qblike.Property[list[str]]
-            z: tests.test_qblike.Link[PropsOnly[tests.test_qblike.Tgt]]
+            z: tests.test_qblike.Link[PropsOnly[typemap.typing.GetArg[\
+tests.test_qblike.Link[tests.test_qblike.Tgt], tests.test_qblike.Link, 0]]]
         """)
+    # z: tests.test_qblike.Link[PropsOnly[tests.test_qblike.Tgt]]
 
-    tgt = eval_typing(GetAttr[ret, "z"].__args__[0])
+    res = eval_typing(GetAttr[ret, Literal["z"]])
+    tgt = res.__args__[0]
+    # XXX: this should probably be pre-evaluated already?
+    tgt = eval_typing(tgt)
     fmt = format_helper.format_class(tgt)
 
     assert fmt == textwrap.dedent("""\

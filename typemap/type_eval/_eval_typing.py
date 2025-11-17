@@ -9,6 +9,8 @@ import sys
 import types
 import typing
 
+from typing import _GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+
 
 if typing.TYPE_CHECKING:
     from typing import Any
@@ -17,6 +19,20 @@ from . import _apply_generic
 
 
 __all__ = ("eval_typing",)
+
+
+_eval_funcs: dict[type, typing.Callable[..., Any]] = {}
+
+
+def register_evaluator[T: typing.Callable[..., Any]](
+    typ: type,
+) -> typing.Callable[[T], T]:
+    def func(f: T) -> T:
+        assert typ not in _eval_funcs
+        _eval_funcs[typ] = f
+        return f
+
+    return func
 
 
 # Base type for the proxy classes we generate to hold __annotations__
@@ -31,6 +47,9 @@ class EvalContext:
     seen: dict[Any, Any]
     # The typing.Any is really a types.FunctionType, but mypy gets
     # confused and wants to treat it as a MethodType.
+    current_alias_stack: set[types.GenericAlias | typing.Any] = (
+        dataclasses.field(default_factory=set)
+    )
     current_alias: types.GenericAlias | typing.Any | None = None
 
 
@@ -42,6 +61,8 @@ _current_context: contextvars.ContextVar[EvalContext | None] = (
 
 @contextlib.contextmanager
 def _ensure_context() -> typing.Iterator[EvalContext]:
+    import typemap.typing as nt
+
     ctx = _current_context.get()
     ctx_set = False
     if ctx is None:
@@ -50,12 +71,16 @@ def _ensure_context() -> typing.Iterator[EvalContext]:
         )
         _current_context.set(ctx)
         ctx_set = True
+    evaluator_token = nt.special_form_evaluator.set(
+        lambda t: _eval_types(t, ctx)
+    )
 
     try:
         yield ctx
     finally:
         if ctx_set:
             _current_context.set(None)
+        nt.special_form_evaluator.reset(evaluator_token)
 
 
 def _get_current_context() -> EvalContext:
@@ -73,6 +98,10 @@ def eval_typing(obj: typing.Any):
 
 
 def _eval_types(obj: typing.Any, ctx: EvalContext):
+    # Don't recurse into any pending alias expansion
+    if obj in ctx.current_alias_stack:
+        return obj
+    # strings match
     if obj in ctx.seen:
         return ctx.seen[obj]
     ctx.seen[obj] = evaled = _eval_types_impl(obj, ctx)
@@ -148,12 +177,14 @@ def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
 
 
 @_eval_types_impl.register
-def _eval_generic(obj: types.GenericAlias, ctx: EvalContext):
+def _eval_types_generic(obj: types.GenericAlias, ctx: EvalContext):
+    new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
+
+    new_obj = obj.__origin__[new_args]  # type: ignore[index]
     if isinstance(obj.__origin__, type):
         # This is a GenericAlias over a Python class, e.g. `dict[str, int]`
         # Let's reconstruct it by evaluating all arguments
-        new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
-        return obj.__origin__[new_args]  # type: ignore[index]
+        return new_obj
 
     func = obj.evaluate_value
 
@@ -161,7 +192,8 @@ def _eval_generic(obj: types.GenericAlias, ctx: EvalContext):
     mod = sys.modules[obj.__module__]
 
     old_obj = ctx.current_alias
-    ctx.current_alias = obj
+    ctx.current_alias = new_obj  # alias is the new_obj, so names look better
+    ctx.current_alias_stack.add(new_obj)
 
     try:
         ff = types.FunctionType(func.__code__, mod.__dict__, None, None, args)
@@ -174,8 +206,23 @@ def _eval_generic(obj: types.GenericAlias, ctx: EvalContext):
         raise
     finally:
         ctx.current_alias = old_obj
+        ctx.current_alias_stack.remove(new_obj)
 
     return evaled
+
+
+@_eval_types_impl.register
+def _eval_typing_generic(obj: _GenericAlias, ctx: EvalContext):
+    # generic *classes* are typing._GenericAlias while generic type
+    # aliases are # types.GenericAlias? Why in the world.
+    if func := _eval_funcs.get(obj.__origin__):
+        new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
+        ret = func(*new_args, ctx=ctx)
+        # return _eval_types(ret, ctx)  # ???
+        return ret
+
+    # TODO: Actually evaluate in this case!
+    return obj
 
 
 @_eval_types_impl.register

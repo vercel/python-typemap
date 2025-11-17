@@ -232,7 +232,9 @@ def test_type_dir_6():
 
 def test_type_dir_7():
     d = eval_typing(Members[Final])
-    foo = next(iter(m for m in Iter[d] if m.__args__[0].__args__[0] == "foo"))
+    foo = next(
+        iter(m for m in d.__args__ if m.__args__[0].__args__[0] == "foo")
+    )
     # XXX: drop self?
     assert (
         str(foo)
