@@ -1,8 +1,17 @@
 A minor proposal that could be split out maybe:
 
-Supporting ``Unpack`` of typevars for ``*kwargs``
+Supporting ``Unpack`` of typevars for ``**kwargs``::
 
+    def f[K: BaseTypedDict](**kwargs: Unpack[K]) -> K:
+        return kwargs
 
+Here ``BaseTypedDict`` is defined as::
+    class BaseTypedDict(typing.TypedDict):
+        pass
+
+But any typeddict would be allowed there. (Or, maybe we should allow ``dict``?)
+
+This is basically a combination of "PEP 692 – Using TypedDict for more precise **kwargs typing" and the behavior of ``Unpack`` for ``*args`` from "PEP 646 – Variadic Generics".
 
 
 -----------------------------------------------------------------------
