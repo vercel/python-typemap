@@ -10,8 +10,6 @@ from typemap.type_eval._eval_typing import _eval_types
 
 from typemap.typing import (
     Attrs,
-    CallSpecKwargs,
-    _CallSpecWrapper,
     Iter,
     IsSubtype,
     IsSubSimilar,
@@ -118,38 +116,6 @@ def _eval_IsSubSimilar(lhs, rhs, *, ctx):
         _eval_types(lhs, ctx),
         _eval_types(rhs, ctx),
     )
-
-
-##################################################################
-
-
-@type_eval.register_evaluator(CallSpecKwargs)
-def _eval_CallSpecKwargs(spec: _CallSpecWrapper, *, ctx):
-    ff = types.FunctionType(
-        spec._func.__code__,
-        spec._func.__globals__,
-        spec._func.__name__,
-        None,
-        (),
-    )
-
-    # We can't call `inspect.signature` on `spec` directly --
-    # signature() will attempt to resolve annotations and fail.
-    # So we run it on a copy of the function that doesn't have
-    # annotations set.
-    sig = inspect.signature(ff)
-    bound = sig.bind(*spec._args, **dict(spec._kwargs))
-
-    # TODO: Get the real type instead of Never
-    return tuple[  # type: ignore[misc]
-        *[
-            Member[
-                typing.Literal[name],  # type: ignore[valid-type]
-                typing.Never,
-            ]
-            for name in bound.kwargs
-        ]
-    ]
 
 
 ##################################################################

@@ -1,40 +1,17 @@
-from dataclasses import dataclass
-
 import contextvars
-import types
 import typing
 from typing import _GenericAlias  # type: ignore
 
-
 _SpecialForm: typing.Any = typing._SpecialForm
 
+# Not type-level computation but related
 
-@dataclass(frozen=True)
-class CallSpec:
+
+class BaseTypedDict(typing.TypedDict):
     pass
 
 
-@dataclass(frozen=True)
-class _CallSpecWrapper:
-    _args: tuple[typing.Any]
-    _kwargs: tuple[tuple[str, typing.Any], ...]
-    # TODO: Support MethodType!
-    _func: types.FunctionType  # | types.MethodType
-
-    @property
-    def args(self) -> None:
-        pass
-
-    @property
-    def kwargs(self) -> None:
-        pass
-
-
-class CallSpecKwargs[Spec]:
-    pass
-
-
-##################################################################
+###
 
 
 class Member[N: str, T, Q: str = typing.Never, D = typing.Never]:

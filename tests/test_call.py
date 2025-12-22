@@ -1,23 +1,24 @@
 import textwrap
 
+from typing import Unpack
+
 from typemap.type_eval import eval_call
 from typemap.typing import (
-    CallSpec,
+    Attrs,
+    BaseTypedDict,
     NewProtocol,
     Member,
     GetName,
     Iter,
-    CallSpecKwargs,
 )
 
 from . import format_helper
 
 
-def func[C: CallSpec](
-    *args: C.args, **kwargs: C.kwargs
-) -> NewProtocol[
-    *[Member[GetName[c], int] for c in Iter[CallSpecKwargs[C]]]
-]: ...
+def func[*T, K: BaseTypedDict](
+    *args: Unpack[T],
+    **kwargs: Unpack[K],
+) -> NewProtocol[*[Member[GetName[c], int] for c in Iter[Attrs[K]]]]: ...
 
 
 def test_call_1():
@@ -29,4 +30,25 @@ def test_call_1():
             a: int
             b: int
             c: int
+        """)
+
+
+def func_trivial[*T, K: BaseTypedDict](
+    *args: Unpack[T],
+    **kwargs: Unpack[K],
+) -> K:
+    return kwargs
+
+
+def test_call_2():
+    ret = eval_call(func_trivial, a=1, b=2, c="aaa")
+    fmt = format_helper.format_class(ret)
+
+    # XXX: can we get rid of the annotate??
+    assert fmt == textwrap.dedent("""\
+        class **kwargs:
+            a: typing.Literal[1]
+            b: typing.Literal[2]
+            c: typing.Literal['aaa']
+            def __annotate__(format): ...
         """)

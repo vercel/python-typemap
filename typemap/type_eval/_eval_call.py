@@ -1,38 +1,102 @@
 import annotationlib
+import enum
+import inspect
 import types
 import typing
+import typing_extensions
 
-if typing.TYPE_CHECKING:
-    from typing import Any
+from typing import Any
 
-from typemap import typing as next
 
 from . import _eval_typing
 
+RtType = Any
 
-def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> Any:
-    with _eval_typing._ensure_context() as ctx:
-        return _eval_call(func, ctx, *args, **kwargs)
+from typing import _UnpackGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 
 
-def _eval_call(
+def _type(t):
+    if t is None or isinstance(t, (int, str, bool, bytes, enum.Enum)):
+        return typing.Literal[t]
+    else:
+        return type(t)
+
+
+def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> RtType:
+    arg_types = tuple(_type(t) for t in args)
+    kwarg_types = {k: _type(t) for k, t in kwargs.items()}
+    return eval_call_with_types(func, arg_types, kwarg_types)
+
+
+def _get_bound_type_args(
     func: types.FunctionType,
-    ctx: _eval_typing.EvalContext,
-    /,
-    *args: Any,
-    **kwargs: Any,
-) -> Any:
-    vars: dict[str, Any] = {}
+    arg_types: tuple[RtType, ...],
+    kwarg_types: dict[str, RtType],
+) -> dict[str, RtType]:
+    sig = inspect.signature(func)
+    bound = sig.bind(*arg_types, **kwarg_types)
 
+    vars: dict[str, RtType] = {}
+    # TODO: duplication, error cases
+    for param in sig.parameters.values():
+        if (
+            param.kind == inspect.Parameter.VAR_POSITIONAL
+            # XXX: typing_extensions also
+            and isinstance(param.annotation, _UnpackGenericAlias)
+            and param.annotation.__args__
+            and (tv := param.annotation.__args__[0])
+            # XXX: should we allow just a regular one with a tuple bound also?
+            # maybe! it would match what I want to do for kwargs!
+            and isinstance(tv, typing.TypeVarTuple)
+        ):
+            tps = bound.arguments.get(param.name, ())
+            vars[tv.__name__] = tuple[tps]  # type: ignore[valid-type]
+        elif (
+            param.kind == inspect.Parameter.VAR_KEYWORD
+            # XXX: typing_extensions also
+            and isinstance(param.annotation, _UnpackGenericAlias)
+            and param.annotation.__args__
+            and (tv := param.annotation.__args__[0])
+            # XXX: should we allow just a regular one with a tuple bound also?
+            # maybe! it would match what I want to do for kwargs!
+            and isinstance(tv, typing.TypeVar)
+            and tv.__bound__
+            and typing_extensions.is_typeddict(tv.__bound__)
+        ):
+            tp = typing.TypedDict(f"**{param.name}", bound.kwargs)  # type: ignore[misc, operator]
+            vars[tv.__name__] = tp
+        # TODO: simple bindings to other variables too
+
+    return vars
+
+
+def eval_call_with_types(
+    func: types.FunctionType,
+    arg_types: tuple[RtType, ...],
+    kwarg_types: dict[str, RtType],
+) -> RtType:
+    vars: dict[str, Any] = {}
     params = func.__type_params__
+    vars = _get_bound_type_args(func, arg_types, kwarg_types)
     for p in params:
-        if hasattr(p, "__bound__") and p.__bound__ is next.CallSpec:
-            vars[p.__name__] = next._CallSpecWrapper(
-                args, tuple(kwargs.items()), func
-            )
-        else:
+        if p.__name__ not in vars:
             vars[p.__name__] = p
 
+    return eval_call_with_type_vars(func, vars)
+
+
+def eval_call_with_type_vars(
+    func: types.FunctionType, vars: dict[str, RtType]
+) -> RtType:
+    with _eval_typing._ensure_context() as ctx:
+        return _eval_call_with_type_vars(func, vars, ctx)
+
+
+def _eval_call_with_type_vars(
+    func: types.FunctionType,
+    vars: dict[str, RtType],
+    ctx: _eval_typing.EvalContext,
+) -> RtType:
     try:
         af = func.__annotate__
     except AttributeError:

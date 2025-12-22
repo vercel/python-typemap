@@ -1,19 +1,18 @@
 import textwrap
 
-from typing import Literal
+from typing import Literal, Unpack
 
 from typemap.type_eval import eval_call, eval_typing
 from typemap.typing import (
+    BaseTypedDict,
     NewProtocol,
     Iter,
     Attrs,
     Is,
     GetType,
-    CallSpec,
     Member,
     GetName,
     GetAttr,
-    CallSpecKwargs,
     GetArg,
 )
 
@@ -36,6 +35,20 @@ type PropsOnly[T] = NewProtocol[
 type FilterLinks[T] = Link[PropsOnly[GetArg[T, Link, 0]]] if Is[T, Link] else T
 
 
+def select[K: BaseTypedDict](
+    __rcv: A,
+    **kwargs: Unpack[K],
+) -> NewProtocol[
+    *[
+        Member[
+            GetName[c],
+            FilterLinks[GetAttr[A, GetName[c]]],
+        ]
+        for c in Iter[Attrs[K]]
+    ]
+]: ...
+
+
 # Basic filtering
 class Tgt2:
     pass
@@ -51,19 +64,6 @@ class A:
     y: Property[bool | None]
     z: Link[Tgt]
     w: Property[list[str]]
-
-
-def select[C: CallSpec](
-    __rcv: A, *args: C.args, **kwargs: C.kwargs
-) -> NewProtocol[
-    *[
-        Member[
-            GetName[c],
-            FilterLinks[GetAttr[A, GetName[c]]],
-        ]
-        for c in Iter[CallSpecKwargs[C]]
-    ]
-]: ...
 
 
 def test_qblike_1():
