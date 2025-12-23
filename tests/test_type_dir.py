@@ -244,7 +244,7 @@ typing.Callable[[\
 typemap.typing.Param[typing.Literal['self'], typing.Any, typing.Never], \
 typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], \
 typemap.typing.Param[typing.Literal['b'], int, typing.Literal['=']]], \
-dict[str, int]], typing.Literal['ClassVar'], typing.Never]"
+dict[str, int]], typing.Literal['ClassVar'], tests.test_type_dir.Final]"
     )
 
 

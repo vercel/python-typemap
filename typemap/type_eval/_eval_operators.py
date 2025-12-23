@@ -62,18 +62,17 @@ def get_annotated_type_hints(cls, **kwargs):
 
 def get_annotated_method_hints(tp):
     hints = {}
-    # XXX: traverse mro
-    for name, attr in tp.__dict__.items():
-        if isinstance(attr, (types.FunctionType, types.MethodType)):
-            if attr is typing._no_init_or_replace_init:
-                continue
+    for ptp in reversed(tp.mro()):
+        for name, attr in ptp.__dict__.items():
+            if isinstance(attr, (types.FunctionType, types.MethodType)):
+                if attr is typing._no_init_or_replace_init:
+                    continue
 
-            # XXX: populate the source field
-            hints[name] = (
-                _function_type(attr, is_method=True),
-                ("ClassVar",),
-                typing.Never,
-            )
+                hints[name] = (
+                    _function_type(attr, is_method=True),
+                    ("ClassVar",),
+                    ptp,
+                )
 
     return hints
 
