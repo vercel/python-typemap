@@ -251,6 +251,3 @@ dict[str, int]], typing.Literal['ClassVar'], tests.test_type_dir.Final]"
 def test_type_dir_8():
     d = eval_typing(BaseArg[Final])
     assert d is int
-
-
-# TODO: add a test for _lift_over_unions producing Never
