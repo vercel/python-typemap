@@ -7,27 +7,25 @@ import typing
 from typemap import type_eval
 from typemap.type_eval import _typing_inspect
 from typemap.type_eval._eval_typing import _eval_types
-
 from typemap.typing import (
     Attrs,
-    Iter,
-    IsSubtype,
+    Capitalize,
+    FromUnion,
+    GetArg,
+    GetAttr,
     IsSubSimilar,
+    IsSubtype,
+    Iter,
+    Lowercase,
     Member,
     Members,
     NewProtocol,
     Param,
-    FromUnion,
-    GetArg,
-    GetAttr,
-    Capitalize,
-    Uncapitalize,
-    Uppercase,
-    Lowercase,
     StrConcat,
     StrSlice,
+    Uncapitalize,
+    Uppercase,
 )
-
 
 ##################################################################
 
@@ -79,7 +77,9 @@ def get_annotated_method_hints(tp):
 
 def _union_elems(tp, ctx):
     tp = _eval_types(tp, ctx)
-    if isinstance(tp, types.UnionType):
+    if tp is typing.Never:
+        return ()
+    elif isinstance(tp, types.UnionType):
         return tuple(y for x in tp.__args__ for y in _union_elems(x, ctx))
     elif _typing_inspect.is_literal(tp) and len(tp.__args__) > 1:
         return tuple(typing.Literal[x] for x in tp.__args__)

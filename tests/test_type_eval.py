@@ -1,24 +1,25 @@
 import textwrap
 import unittest
-from typing import Literal
+from typing import Literal, Never
 
+from typemap.type_eval import eval_typing
 from typemap.typing import (
-    NewProtocol,
-    Member,
+    Attrs,
+    FromUnion,
+    GetArg,
     GetAttr,
     GetName,
     GetType,
-    Iter,
-    Attrs,
     Is,
-    Uppercase,
+    Iter,
+    Member,
+    NewProtocol,
     StrConcat,
     StrSlice,
+    Uppercase,
 )
-from typemap.type_eval import eval_typing
 
 from . import format_helper
-
 
 type A[T] = T | None | Literal[False]
 type B = A[int]
@@ -164,9 +165,17 @@ def test_type_strings_6():
 
 
 def test_type_asdf():
-    from typemap.typing import FromUnion
-
     d = eval_typing(FromUnion[int | bool])
     arg = FromUnion[int | str]
     d = eval_typing(arg)
     assert d == tuple[int, str] or d == tuple[str, int]
+
+
+def test_getarg_never():
+    d = eval_typing(GetArg[Never, object, 0])
+    assert d is Never
+
+
+def test_uppercase_never():
+    d = eval_typing(Uppercase[Never])
+    assert d is Never
