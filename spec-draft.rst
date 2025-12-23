@@ -92,6 +92,7 @@ Big Q: what should be an error and what should return Never?
 ---
 
 * ``GetAttr[T, S: Literal[str]]``
+  TODO: How should GetAttr interact with descriptors/classmethod? I am leaning towards it should apply the descriptor...
 
 # TODO: how to deal with special forms like Callable and tuple[T, ...]
 
