@@ -14,9 +14,9 @@ def issubsimilar(lhs: typing.Any, rhs: typing.Any) -> bool:
     # formats the two-conditional chains in an unconscionably bad way.
 
     # Unions first
-    if _typing_inspect.is_union_type(rhs):
+    if _typing_inspect.is_union_type(rhs) or rhs is typing.Never:
         return any(issubsimilar(lhs, r) for r in typing.get_args(rhs))
-    elif _typing_inspect.is_union_type(lhs):
+    elif _typing_inspect.is_union_type(lhs) or lhs is typing.Never:
         return all(issubsimilar(t, rhs) for t in typing.get_args(lhs))
 
     # For _EvalProxy's just blow through them, since we don't yet care

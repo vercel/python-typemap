@@ -40,7 +40,7 @@ def _from_literal(val, ctx):
 
 
 def get_annotated_type_hints(cls, **kwargs):
-    """Get the type hints for a cls annotated with definition site.
+    """Get the type hints/quals for a cls annotated with definition site.
 
     This traverses the mro and finds the definition site for each annotation.
     """
@@ -51,11 +51,30 @@ def get_annotated_type_hints(cls, **kwargs):
             continue
         for k in acls.__annotations__:
             if k not in hints:
-                hints[k] = ohints[k], acls
+                # XXX: TODO: Strip ClassVar/Final
+                hints[k] = ohints[k], (), acls
 
         # Stop early if we are done.
         if len(hints) == len(ohints):
             break
+    return hints
+
+
+def get_annotated_method_hints(tp):
+    hints = {}
+    # XXX: traverse mro
+    for name, attr in tp.__dict__.items():
+        if isinstance(attr, (types.FunctionType, types.MethodType)):
+            if attr is typing._no_init_or_replace_init:
+                continue
+
+            # XXX: populate the source field
+            hints[name] = (
+                _function_type(attr, is_method=True),
+                ("ClassVar",),
+                typing.Never,
+            )
+
     return hints
 
 
@@ -69,13 +88,27 @@ def _union_elems(tp, ctx):
         return (tp,)
 
 
+# TODO: Need to be able to do this in type system!
+def _mk_union(*parts):
+    if not parts:
+        return typing.Never
+    else:
+        return typing.Union[*parts]
+
+
+def _mk_literal_union(*parts):
+    if not parts:
+        return typing.Never
+    else:
+        return typing.Literal[*parts]
+
+
 def _lift_over_unions(func):
     @functools.wraps(func)
     def wrapper(*args, ctx):
         args2 = [_union_elems(x, ctx) for x in args]
-        # XXX: Never
         parts = [func(*x, ctx=ctx) for x in itertools.product(*args2)]
-        return typing.Union[*parts]
+        return _mk_union(*parts)
 
     return wrapper
 
@@ -167,8 +200,8 @@ def _eval_Attrs(tp, *, ctx):
 
     return tuple[
         *[
-            Member[typing.Literal[n], t, typing.Never, d]
-            for n, (t, d) in hints.items()
+            Member[typing.Literal[n], t, _mk_literal_union(*qs), d]
+            for n, (t, qs, d) in hints.items()
         ]
     ]
 
@@ -176,26 +209,15 @@ def _eval_Attrs(tp, *, ctx):
 @type_eval.register_evaluator(Members)
 @_lift_over_unions
 def _eval_Members(tp, *, ctx):
-    hints = get_annotated_type_hints(tp, include_extras=True)
+    hints = {
+        **get_annotated_type_hints(tp, include_extras=True),
+        **get_annotated_method_hints(tp),
+    }
 
     attrs = [
-        Member[typing.Literal[n], t, typing.Never, d]
-        for n, (t, d) in hints.items()
+        Member[typing.Literal[n], t, _mk_literal_union(*qs), d]
+        for n, (t, qs, d) in hints.items()
     ]
-
-    for name, attr in tp.__dict__.items():
-        if isinstance(attr, (types.FunctionType, types.MethodType)):
-            if attr is typing._no_init_or_replace_init:
-                continue
-
-            # XXX: populate the source field
-            attrs.append(
-                Member[
-                    typing.Literal[name],
-                    _function_type(attr, is_method=True),
-                    typing.Literal["ClassVar"],
-                ]
-            )
 
     return tuple[*attrs]
 
