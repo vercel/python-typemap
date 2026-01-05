@@ -1,6 +1,6 @@
 import textwrap
 import unittest
-from typing import Literal, Never
+from typing import Literal, Never, Tuple
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
@@ -12,6 +12,7 @@ from typemap.typing import (
     GetType,
     Is,
     Iter,
+    Length,
     Member,
     NewProtocol,
     StrConcat,
@@ -184,3 +185,34 @@ def test_uppercase_never():
 def test_never_is():
     d = eval_typing(Is[Never, Never])
     assert d is True
+
+
+def test_eval_iter():
+    d = eval_typing(Iter[tuple[int, str]])
+    assert tuple(d) == (int, str)
+
+    d = eval_typing(Iter[Tuple[int, str]])
+    assert tuple(d) == (int, str)
+
+    d = eval_typing(Iter[tuple[(int, str)]])
+    assert tuple(d) == (int, str)
+
+    d = eval_typing(Iter[tuple[()]])
+    assert tuple(d) == ()
+
+
+def test_eval_length_01():
+    d = eval_typing(Length[tuple[int, str]])
+    assert d == Literal[2]
+
+    d = eval_typing(Length[Tuple[int, str]])
+    assert d == Literal[2]
+
+    d = eval_typing(Length[tuple[(int, str)]])
+    assert d == Literal[2]
+
+    d = eval_typing(Length[tuple[()]])
+    assert d == Literal[0]
+
+    d = eval_typing(Length[tuple[int, ...]])
+    assert d == Literal[None]

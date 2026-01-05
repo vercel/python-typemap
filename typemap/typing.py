@@ -48,6 +48,10 @@ class GetArg[Tp, Base, Idx: int]:
     pass
 
 
+class Length[S: tuple]:
+    pass
+
+
 class Uppercase[S: str]:
     pass
 

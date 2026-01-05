@@ -16,6 +16,7 @@ from typemap.typing import (
     IsSubSimilar,
     IsSubtype,
     Iter,
+    Length,
     Lowercase,
     Member,
     Members,
@@ -278,6 +279,21 @@ def _eval_GetArg(tp, base, idx, *, ctx) -> typing.Any:
         return args[_from_literal(idx, ctx)]
     except IndexError:
         return typing.Never
+
+
+@type_eval.register_evaluator(Length)
+@_lift_over_unions
+def _eval_Length(tp, *, ctx) -> typing.Any:
+    tp = _eval_types(tp, ctx)
+    if _typing_inspect.is_generic_alias(tp) and tp.__origin__ is tuple:
+        # TODO: Unpack in the middle?
+        if not tp.__args__ or tp.__args__[-1] is not Ellipsis:
+            return typing.Literal[len(tp.__args__)]
+        else:
+            return typing.Literal[None]
+    else:
+        # XXX: Or should we return Never?
+        raise TypeError(f"Invalid type argument to Length: {tp} is not a tuple")
 
 
 def _string_literal_op(typ, op):

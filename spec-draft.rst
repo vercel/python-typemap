@@ -13,6 +13,7 @@ But any typeddict would be allowed there. (Or, maybe we should allow ``dict``?)
 
 This is basically a combination of "PEP 692 – Using TypedDict for more precise **kwargs typing" and the behavior of ``Unpack`` for ``*args`` from "PEP 646 – Variadic Generics".
 
+This is potentially moderately useful on its own but is being done to support processing **kwargs with type level computation.
 
 -----------------------------------------------------------------------
 
@@ -96,8 +97,7 @@ Big Q: what should be an error and what should return Never?
 
 # TODO: how to deal with special forms like Callable and tuple[T, ...]
 
-# TODO: How to do IsUnion? Might need a ``Length`` for tuples?
-
+* ``Length[T: tuple]`` - get the length of a tuple as an int literal (...or ``Literal[None]`` if it is unbounded)
 
 String manipulation operations for string Literal types.
 We can put more in, but this is what typescript has.
