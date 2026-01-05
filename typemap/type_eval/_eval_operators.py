@@ -1,6 +1,10 @@
+import collections
+import collections.abc
+import contextlib
 import functools
 import inspect
 import itertools
+import re
 import types
 import typing
 
@@ -22,6 +26,7 @@ from typemap.typing import (
     Members,
     NewProtocol,
     Param,
+    SpecialFormEllipsis,
     StrConcat,
     StrSlice,
     Uncapitalize,
@@ -266,15 +271,125 @@ def _get_args(tp, base, ctx) -> typing.Any:
         return None
 
 
+def _fix_type(tp):
+    """Fix up a type getting returned from GetArg
+
+    In particular, this means turning a list into a tuple of the list
+    elements and turning ... into SpecialFormEllipsis.
+    """
+    if isinstance(tp, (tuple, list)):
+        return tuple[*tp]
+    elif tp is ...:
+        return SpecialFormEllipsis
+    else:
+        return tp
+
+
+# The number of generic parameters to all the builtin types that had
+# subscripting added in PEP 585.
+_BUILTIN_GENERIC_ARITIES = {
+    tuple: 2,  # variadic, like Callable...
+    list: 1,
+    dict: 2,
+    set: 1,
+    frozenset: 1,
+    type: 1,
+    collections.deque: 1,
+    collections.defaultdict: 2,
+    collections.OrderedDict: 2,
+    collections.Counter: 1,
+    collections.ChainMap: 2,
+    collections.abc.Awaitable: 1,
+    collections.abc.Coroutine: 3,
+    collections.abc.AsyncIterable: 1,
+    collections.abc.AsyncIterator: 1,
+    collections.abc.AsyncGenerator: 2,
+    collections.abc.Iterable: 1,
+    collections.abc.Iterator: 1,
+    collections.abc.Generator: 3,
+    collections.abc.Reversible: 1,
+    collections.abc.Container: 1,
+    collections.abc.Collection: 1,
+    collections.abc.Callable: 2,  # special syntax
+    collections.abc.Set: 1,
+    collections.abc.MutableSet: 1,
+    collections.abc.Mapping: 2,
+    collections.abc.MutableMapping: 2,
+    collections.abc.Sequence: 1,
+    collections.abc.MutableSequence: 1,
+    collections.abc.KeysView: 1,
+    collections.abc.ItemsView: 2,
+    collections.abc.ValuesView: 1,
+    contextlib.AbstractContextManager: 1,
+    contextlib.AbstractAsyncContextManager: 1,
+    re.Pattern: 1,
+    re.Match: 1,
+}
+
+
+def _get_params(base_head):
+    if (params := getattr(base_head, "__parameters__", None)) is not None:
+        return params
+    elif (params := getattr(base_head, "__type_params__", None)) is not None:
+        return params
+    else:
+        return None
+
+
+def _get_generic_arity(base_head):
+    if (n := _BUILTIN_GENERIC_ARITIES.get(base_head)) is not None:
+        return n
+    # XXX: check the type?
+    elif (n := getattr(base_head, "_nparams", None)) is not None:
+        return n
+    elif (params := _get_params(base_head)) is not None:
+        # TODO: also check for TypeVarTuple!
+        return len(params)
+    else:
+        return -1
+
+
+def _get_defaults(base_head):
+    """Get the *default* type params for a type
+
+    `list` is equivalent to `list[Any]`, so `GetArg[list, list, 0]
+    ought to return `Any`, while `GetArg[list, list, 1]` ought to
+    return `Never` because the index is invalid.
+
+    Annoyingly we need to consult a table for built-in arities for this.
+    """
+    arity = _get_generic_arity(base_head)
+    if arity < 0:
+        return None
+
+    # Callable and tuple need to produce a SpecialFormEllipsis for arg
+    # 0 and 1, respectively.
+    if base_head is collections.abc.Callable:
+        return (SpecialFormEllipsis, typing.Any)
+    elif base_head is tuple:
+        return (typing.Any, SpecialFormEllipsis)
+
+    if params := _get_params(base_head):
+        return tuple(
+            typing.Any if t.__default__ == typing.NoDefault else t.__default__
+            for t in params
+        )
+
+    return (typing.Any,) * arity
+
+
 @type_eval.register_evaluator(GetArg)
 @_lift_over_unions
 def _eval_GetArg(tp, base, idx, *, ctx) -> typing.Any:
-    args = _get_args(tp, base, ctx)
+    base_head = _typing_inspect.get_head(base)
+    args = _get_args(tp, base_head, ctx)
+    if args == ():
+        args = _get_defaults(base_head)
     if args is None:
         return typing.Never
 
     try:
-        return args[_from_literal(idx, ctx)]
+        return _fix_type(args[_from_literal(idx, ctx)])
     except IndexError:
         return typing.Never
 
