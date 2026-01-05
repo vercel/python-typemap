@@ -248,8 +248,6 @@ def _get_args(tp, base, ctx) -> typing.Any:
 
     tp_head = _typing_inspect.get_head(tp)
     base_head = _typing_inspect.get_head(base)
-    # XXX: not sure this is what we want!
-    # at the very least we want unions I think
     if not tp_head or not base_head:
         return None
 
