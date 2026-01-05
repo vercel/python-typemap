@@ -14,9 +14,14 @@ def issubsimilar(lhs: typing.Any, rhs: typing.Any) -> bool:
     # formats the two-conditional chains in an unconscionably bad way.
 
     # Unions first
-    if _typing_inspect.is_union_type(rhs) or rhs is typing.Never:
+    if lhs is typing.Never:
+        return True
+    elif rhs is typing.Never:
+        return False
+
+    elif _typing_inspect.is_union_type(rhs):
         return any(issubsimilar(lhs, r) for r in typing.get_args(rhs))
-    elif _typing_inspect.is_union_type(lhs) or lhs is typing.Never:
+    elif _typing_inspect.is_union_type(lhs):
         return all(issubsimilar(t, rhs) for t in typing.get_args(lhs))
 
     # For _EvalProxy's just blow through them, since we don't yet care
@@ -74,10 +79,6 @@ def issubsimilar(lhs: typing.Any, rhs: typing.Any) -> bool:
     # an unbound type variable...
     elif _typing_inspect.is_type_var(lhs):
         return lhs is rhs
-
-    # TODO: and we will we need to infer variance ourselves with the new syntax
-
-    # TODO: Protocols???
 
     # Check behavior?
     # TODO: Annotated
