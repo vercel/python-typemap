@@ -11,6 +11,10 @@ class BaseTypedDict(typing.TypedDict):
     pass
 
 
+class SpecialFormEllipsis:
+    pass
+
+
 ###
 
 

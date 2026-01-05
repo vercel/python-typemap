@@ -1,6 +1,6 @@
 import textwrap
 import unittest
-from typing import Literal, Never, Tuple
+from typing import Any, Callable, Generic, List, Literal, Never, Tuple, TypeVar
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
@@ -15,6 +15,7 @@ from typemap.typing import (
     Length,
     Member,
     NewProtocol,
+    SpecialFormEllipsis,
     StrConcat,
     StrSlice,
     Uppercase,
@@ -175,6 +176,211 @@ def test_type_asdf():
 def test_getarg_never():
     d = eval_typing(GetArg[Never, object, 0])
     assert d is Never
+
+
+def test_eval_getarg_callable():
+    # oh hmmmmmmm -- yeah maybe callable could be fully bespoke if we
+    # disallowed putting Callable here...!
+    t = Callable[[int, str], str]
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert args == tuple[int, str]
+
+    t = Callable[int, str]
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert args == tuple[int]
+
+    t = Callable[[], str]
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert args == tuple[()]
+
+    t = Callable[..., str]
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert args == SpecialFormEllipsis
+
+    t = Callable
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert args == SpecialFormEllipsis
+
+    t = Callable
+    args = eval_typing(GetArg[t, Callable, 1])
+    assert args == Any
+
+
+def test_eval_getarg_tuple():
+    t = tuple[int, ...]
+    args = eval_typing(GetArg[t, tuple, 1])
+    assert args == SpecialFormEllipsis
+
+    t = tuple
+    args = eval_typing(GetArg[t, tuple, 0])
+    assert args == Any
+
+    args = eval_typing(GetArg[t, tuple, 1])
+    assert args == SpecialFormEllipsis
+
+
+def test_eval_getarg_list():
+    t = list[int]
+    arg = eval_typing(GetArg[t, list, 0])
+    assert arg is int
+
+    t = List[int]
+    arg = eval_typing(GetArg[t, list, 0])
+    assert arg is int
+
+    t = list
+    arg = eval_typing(GetArg[t, list, 0])
+    assert arg == Any
+
+    t = List
+    arg = eval_typing(GetArg[t, list, 0])
+    assert arg == Any
+
+    t = list[int]
+    arg = eval_typing(GetArg[t, List, 0])
+    assert arg is int
+
+    t = List[int]
+    arg = eval_typing(GetArg[t, List, 0])
+    assert arg is int
+
+    t = list
+    arg = eval_typing(GetArg[t, List, 0])
+    assert arg == Any
+
+    t = List
+    arg = eval_typing(GetArg[t, List, 0])
+    assert arg == Any
+
+    # indexing with -1 equivalent to 0
+    t = list[int]
+    arg = eval_typing(GetArg[t, list, -1])
+    assert arg is int
+
+    t = List[int]
+    arg = eval_typing(GetArg[t, list, -1])
+    assert arg is int
+
+    t = list
+    arg = eval_typing(GetArg[t, list, -1])
+    assert arg == Any
+
+    t = List
+    arg = eval_typing(GetArg[t, list, -1])
+    assert arg == Any
+
+    t = list[int]
+    arg = eval_typing(GetArg[t, List, -1])
+    assert arg is int
+
+    t = List[int]
+    arg = eval_typing(GetArg[t, List, -1])
+    assert arg is int
+
+    t = list
+    arg = eval_typing(GetArg[t, List, -1])
+    assert arg == Any
+
+    t = List
+    arg = eval_typing(GetArg[t, List, -1])
+    assert arg == Any
+
+    # indexing with 1 always fails
+    t = list[int]
+    arg = eval_typing(GetArg[t, list, 1])
+    assert arg == Never
+
+    t = List[int]
+    arg = eval_typing(GetArg[t, list, 1])
+    assert arg == Never
+
+    t = list
+    arg = eval_typing(GetArg[t, list, 1])
+    assert arg == Never
+
+    t = List
+    arg = eval_typing(GetArg[t, list, 1])
+    assert arg == Never
+
+    t = list[int]
+    arg = eval_typing(GetArg[t, List, 1])
+    assert arg == Never
+
+    t = List[int]
+    arg = eval_typing(GetArg[t, List, 1])
+    assert arg == Never
+
+    t = list
+    arg = eval_typing(GetArg[t, List, 1])
+    assert arg == Never
+
+    t = List
+    arg = eval_typing(GetArg[t, List, 1])
+    assert arg == Never
+
+
+def test_eval_getarg_custom_01():
+    class A[T]:
+        pass
+
+    t = A[int]
+    assert eval_typing(GetArg[t, A, 0]) is int
+    assert eval_typing(GetArg[t, A, -1]) is int
+    assert eval_typing(GetArg[t, A, 1]) == Never
+
+    t = A
+    assert eval_typing(GetArg[t, A, 0]) == Any
+    assert eval_typing(GetArg[t, A, -1]) == Any
+    assert eval_typing(GetArg[t, A, 1]) == Never
+
+
+def test_eval_getarg_custom_02():
+    T = TypeVar("T")
+
+    class A(Generic[T]):
+        pass
+
+    t = A[int]
+    assert eval_typing(GetArg[t, A, 0]) is int
+    assert eval_typing(GetArg[t, A, -1]) is int
+    assert eval_typing(GetArg[t, A, 1]) == Never
+
+    t = A
+    assert eval_typing(GetArg[t, A, 0]) == Any
+    assert eval_typing(GetArg[t, A, -1]) == Any
+    assert eval_typing(GetArg[t, A, 1]) == Never
+
+
+def test_eval_getarg_custom_03():
+    class A[T = str]:
+        pass
+
+    t = A[int]
+    assert eval_typing(GetArg[t, A, 0]) is int
+    assert eval_typing(GetArg[t, A, -1]) is int
+    assert eval_typing(GetArg[t, A, 1]) == Never
+
+    t = A
+    assert eval_typing(GetArg[t, A, 0]) is str
+    assert eval_typing(GetArg[t, A, -1]) is str
+    assert eval_typing(GetArg[t, A, 1]) == Never
+
+
+def test_eval_getarg_custom_04():
+    T = TypeVar("T", default=str)
+
+    class A(Generic[T]):
+        pass
+
+    t = A[int]
+    assert eval_typing(GetArg[t, A, 0]) is int
+    assert eval_typing(GetArg[t, A, -1]) is int
+    assert eval_typing(GetArg[t, A, 1]) == Never
+
+    t = A
+    assert eval_typing(GetArg[t, A, 0]) is str
+    assert eval_typing(GetArg[t, A, -1]) is str
+    assert eval_typing(GetArg[t, A, 1]) == Never
 
 
 def test_uppercase_never():

@@ -65,8 +65,11 @@ It's important that there be a clearly specified type language for the type-leve
 
 ---
 
-* ``GetArg[T, Base, Idx: Literal[str]]`` - returns the type argument number ``Idx`` to ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be. (That is, if we have  ``class A(B[C]): ...``, then ``GetArg[A, B, 0] == C`` while ``GetArg[A, A, 0] == Never``)
-* ``GetArgs[T, Base]`` - returns a tuple containing all of the type arguments of ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be.
+* ``GetArg[T, Base, Idx: Literal[str]]`` - returns the type argument number ``Idx`` to ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be. (That is, if we have  ``class A(B[C]): ...``, then ``GetArg[A, B, 0] == C`` while ``GetArg[A, A, 0] == Never``).
+  Special forms unfortunately require some special handling: the arguments list of a ``Callable`` will be packed in a tuple, and a ``...`` will become ``SpecialFormEllipsis``.
+
+
+* ``GetArgs[T, Base]`` - returns a tuple containing all of the type arguments of ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be. (TODO: UNIMPLEMENTED)
 * ``FromUnion[T]`` - returns a tuple containing all of the union elements, or a 1-ary tuple containing T if it is not a union.
 
 
@@ -91,8 +94,6 @@ It's important that there be a clearly specified type language for the type-leve
 
 * ``GetAttr[T, S: Literal[str]]``
   TODO: How should GetAttr interact with descriptors/classmethod? I am leaning towards it should apply the descriptor...
-
-# TODO: how to deal with special forms like Callable and tuple[T, ...]
 
 * ``Length[T: tuple]`` - get the length of a tuple as an int literal (...or ``Literal[None]`` if it is unbounded)
 
