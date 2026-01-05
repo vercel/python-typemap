@@ -179,3 +179,8 @@ def test_getarg_never():
 def test_uppercase_never():
     d = eval_typing(Uppercase[Never])
     assert d is Never
+
+
+def test_never_is():
+    d = eval_typing(Is[Never, Never])
+    assert d is True
