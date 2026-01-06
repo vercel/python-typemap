@@ -52,6 +52,10 @@ class GetArg[Tp, Base, Idx: int]:
     pass
 
 
+class GetArgs[Tp, Base]:
+    pass
+
+
 class Length[S: tuple]:
     pass
 

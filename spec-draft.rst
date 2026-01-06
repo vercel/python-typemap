@@ -69,7 +69,7 @@ It's important that there be a clearly specified type language for the type-leve
   Special forms unfortunately require some special handling: the arguments list of a ``Callable`` will be packed in a tuple, and a ``...`` will become ``SpecialFormEllipsis``.
 
 
-* ``GetArgs[T, Base]`` - returns a tuple containing all of the type arguments of ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be. (TODO: UNIMPLEMENTED)
+* ``GetArgs[T, Base]`` - returns a tuple containing all of the type arguments of ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be.
 * ``FromUnion[T]`` - returns a tuple containing all of the union elements, or a 1-ary tuple containing T if it is not a union.
 
 
