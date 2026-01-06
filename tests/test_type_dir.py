@@ -1,23 +1,24 @@
 import textwrap
-from typing import Never, Literal, Union, TypeVar
+import typing
+from typing import Literal, Never, TypeVar, Union
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
-    NewProtocol,
-    Member,
+    Attrs,
+    FromUnion,
     GetArg,
     GetName,
+    GetQuals,
     GetType,
-    Iter,
-    Attrs,
-    Members,
-    FromUnion,
-    Uppercase,
     Is,
+    Iter,
+    Member,
+    Members,
+    NewProtocol,
+    Uppercase,
 )
 
 from . import format_helper
-
 
 type OrGotcha[K] = K | Literal["gotcha!"]
 
@@ -38,6 +39,8 @@ class Base[T]:
 
     t: dict[str, StrForInt[T]]
     kkk: K
+
+    fin: typing.Final[int]
 
     def foo(self, a: T | None, b: int = 0) -> dict[str, T]:
         pass
@@ -75,14 +78,20 @@ type BaseArg[T] = GetArg[T, Base, 0] if Is[T, Base] else Never
 
 
 type AllOptional[T] = NewProtocol[
-    *[Member[GetName[p], GetType[p] | None] for p in Iter[Attrs[T]]]
+    *[
+        Member[GetName[p], GetType[p] | None, GetQuals[p]]
+        for p in Iter[Attrs[T]]
+    ]
 ]
 
 type OptionalFinal = AllOptional[Final]
 
 
 type Capitalize[T] = NewProtocol[
-    *[Member[Uppercase[GetName[p]], GetType[p]] for p in Iter[Attrs[T]]]
+    *[
+        Member[Uppercase[GetName[p]], GetType[p], GetQuals[p]]
+        for p in Iter[Attrs[T]]
+    ]
 ]
 
 type Prims[T] = NewProtocol[
@@ -102,6 +111,7 @@ type NoLiterals1[T] = NewProtocol[
                     if not Is[t, Literal]
                 ]
             ],
+            GetQuals[p],
         ]
         for p in Iter[Attrs[T]]
     ]
@@ -137,6 +147,7 @@ type NoLiterals2[T] = NewProtocol[
                     if not Is[IsLiteral[t], Literal[True]]
                 ]
             ],
+            GetQuals[p],
         ]
         for p in Iter[Attrs[T]]
     ]
@@ -152,6 +163,7 @@ def test_type_dir_1():
             iii: str | int | typing.Literal['gotcha!']
             t: dict[str, str | int | typing.Literal['gotcha!']]
             kkk: ~K
+            fin: typing.Final[int]
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
             def foo(self, a: int | None, b: int = 0) -> dict[str, int]: ...
@@ -172,6 +184,7 @@ def test_type_dir_2():
             iii: str | int | typing.Literal['gotcha!'] | None
             t: dict[str, str | int | typing.Literal['gotcha!']] | None
             kkk: ~K | None
+            fin: typing.Final[int | None]
             x: tests.test_type_dir.Wrapper[int | None] | None
             ordinary: str | None
     """)
@@ -186,6 +199,7 @@ def test_type_dir_3():
             III: str | int | typing.Literal['gotcha!']
             T: dict[str, str | int | typing.Literal['gotcha!']]
             KKK: ~K
+            FIN: typing.Final[int]
             X: tests.test_type_dir.Wrapper[int | None]
             ORDINARY: str
     """)
@@ -197,6 +211,7 @@ def test_type_dir_4():
     assert format_helper.format_class(d) == textwrap.dedent("""\
         class Prims[tests.test_type_dir.Final]:
             last: int | typing.Literal[True]
+            fin: typing.Final[int]
             ordinary: str
     """)
 
@@ -211,6 +226,7 @@ def test_type_dir_5():
             iii: str | int
             t: dict[str, str | int | typing.Literal['gotcha!']]
             kkk: ~K
+            fin: typing.Final[int]
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
     """)
@@ -225,6 +241,7 @@ def test_type_dir_6():
             iii: str | int
             t: dict[str, str | int | typing.Literal['gotcha!']]
             kkk: ~K
+            fin: typing.Final[int]
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
     """)

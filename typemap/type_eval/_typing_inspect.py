@@ -4,28 +4,37 @@
 
 
 import typing
-
-from typing import (
+from types import GenericAlias, UnionType
+from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
     Annotated,
     Any,
-    ClassVar,
     ForwardRef,
     Literal,
     TypeGuard,
     TypeVar,
     Union,
+    _GenericAlias,
+    _SpecialGenericAlias,
     get_args,
     get_origin,
 )
-from typing import _GenericAlias, _SpecialGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+
 from typing_extensions import TypeAliasType, TypeVarTuple, Unpack
-from types import GenericAlias, UnionType
 
 from . import _eval_typing
 
 
-def is_classvar(t: Any) -> bool:
-    return t is ClassVar or (is_generic_alias(t) and get_origin(t) is ClassVar)  # type: ignore [comparison-overlap]
+def is_special_form(t: Any, form: Any) -> bool:
+    """Check if t is a special form or a generic alias of that form.
+
+    Args:
+        t: The type to check
+        form: The special form to check against (e.g., ClassVar, Final, Literal)
+
+    Returns:
+        True if t is the special form or a generic alias with that origin
+    """
+    return t is form or (is_generic_alias(t) and get_origin(t) is form)  # type: ignore [comparison-overlap]
 
 
 def is_generic_alias(t: Any) -> TypeGuard[GenericAlias]:
@@ -142,12 +151,12 @@ def is_eval_proxy(t: Any) -> TypeGuard[type[_eval_typing._EvalProxy]]:
 
 __all__ = (
     "is_annotated",
-    "is_classvar",
     "is_forward_ref",
     "is_generic_alias",
     "is_generic_type_alias",
     "is_literal",
     "is_optional_type",
+    "is_special_form",
     "is_type_alias",
     "is_union_type",
 )

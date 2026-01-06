@@ -56,8 +56,24 @@ def get_annotated_type_hints(cls, **kwargs):
             continue
         for k in acls.__annotations__:
             if k not in hints:
-                # XXX: TODO: Strip ClassVar/Final
-                hints[k] = ohints[k], (), acls
+                quals = set()
+                ty = ohints[k]
+
+                # Strip ClassVar/Final from ty and add them to quals
+                while True:
+                    for form in [typing.ClassVar, typing.Final]:
+                        if _typing_inspect.is_special_form(ty, form):
+                            quals.add(form.__name__)
+                            ty = (
+                                typing.get_args(ty)[0]
+                                if typing.get_args(ty)
+                                else typing.Any
+                            )
+                            break
+                    else:
+                        break
+
+                hints[k] = ty, tuple(sorted(quals)), acls
 
         # Stop early if we are done.
         if len(hints) == len(ohints):
@@ -249,7 +265,6 @@ def _eval_GetAttr(lhs, prop, *, ctx):
 
 
 def _get_raw_args(tp, base_head, ctx) -> typing.Any:
-    # XXX: check against base!!
     evaled = _eval_types(tp, ctx)
 
     tp_head = _typing_inspect.get_head(tp)
@@ -444,15 +459,23 @@ _string_literal_op(StrSlice, op=lambda s, start, end: s[start:end])
 ##################################################################
 
 
+def _add_quals(typ, quals):
+    for qual in (typing.ClassVar, typing.Final):
+        if type_eval.issubsimilar(typing.Literal[qual.__name__], quals):
+            typ = qual[typ]
+    return typ
+
+
 @type_eval.register_evaluator(NewProtocol)
 def _eval_NewProtocol(*etyps: Member, ctx):
     dct: dict[str, object] = {}
     dct["__annotations__"] = {
         # XXX: Should eval_typing on the etyps evaluate the arguments??
-        _from_literal(typing.get_args(prop)[0], ctx): _eval_types(
-            typing.get_args(prop)[1], ctx
+        _from_literal(name, ctx): _add_quals(
+            _eval_types(typ, ctx),
+            _eval_types(quals, ctx),
         )
-        for prop in etyps
+        for name, typ, quals, _ in (typing.get_args(prop) for prop in etyps)
     }
 
     module_name = __name__
