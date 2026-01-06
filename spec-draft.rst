@@ -1,3 +1,7 @@
+===================================
+Unpack of typevars for ``**kwargs``
+===================================
+
 A minor proposal that could be split out maybe:
 
 Supporting ``Unpack`` of typevars for ``**kwargs``::
@@ -6,6 +10,7 @@ Supporting ``Unpack`` of typevars for ``**kwargs``::
         return kwargs
 
 Here ``BaseTypedDict`` is defined as::
+
     class BaseTypedDict(typing.TypedDict):
         pass
 
@@ -15,14 +20,67 @@ This is basically a combination of "PEP 692 – Using TypedDict for more precise
 
 This is potentially moderately useful on its own but is being done to support processing **kwargs with type level computation.
 
------------------------------------------------------------------------
+==========================
+Extended Callables, take 2
+==========================
 
-Grammar specification of the extensions to the type language.
+We introduce a ``Param`` type the contains all the information about a function param::
+
+  class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
+      pass
+
+  ParamQuals = typing.Literal["*", "**", "default", "keyword"]
+
+And then, we can represent the type of a function like::
+    def func(
+        a: int,
+        /,
+        b: int,
+        c: int = 0,
+        *args: int,
+        d: int,
+        e: int = 0,
+        **kwargs: int
+    ) -> int:
+        ...
+
+as (we are omiting the ``Literal`` in places)::
+
+    Callable[
+        [
+            Param[None, int],
+            Param["b", int],
+            Param["c", int, "default"],
+            Param[None, int, "*"],
+            Param["d", int, "keyword"],
+            Param["e", int, Literal["default", "keyword"]],
+            Param[None, int, "**"],
+        ],
+        int,
+    ]
+
+
+---------
+Rationale
+---------
+We need extended callable support, in order to inspect and produce callables via type-level computation. mypy supports `extended callables <https://mypy.readthedocs.io/en/stable/additional_features.html#extended-callable-types>`__ but they are deprecated in favor of callback protocols.
+
+
+Unfortunately callback protocols don't work well for type level computation. (They probably could be made to work, but it would require a separate facility for creating and introspecting *methods*, which wouldn't be any simpler.)
+
+I am proposing a fully new extended callable syntax because:
+ 1. The ``mypy_extensions`` functions are full no-ops, and we need real runtime objects
+ 2. They use parentheses and not brackets, which really goes against the philosophy here
+ 3. We can make an API that more nicely matches what we are going to do for inspecting members
+(We could introduce extended callables that closely mimic the ``mypy_extensions`` version though, if something new is a non starter)
+ 4. I thought they were missing support for something but may have been wrong. They can handle positional-only.
+
+
+============================================================
+Grammar specification of the extensions to the type language
+============================================================
 
 It's important that there be a clearly specified type language for the type-level computation---we can't just be using some poorly specified subset of all Python.
-
-# TODO: Big Q: what should be an error and what should return Never?
-
 
 ::
 
@@ -63,9 +121,15 @@ It's important that there be a clearly specified type language for the type-leve
 
 ``type-for(T)`` is a parameterized grammar rule, which can take different types. Not sure if we actually need this though---now it is only used for Any/All.
 
----
+-----
+
+==============
+Type operators
+==============
 
 * ``GetArg[T, Base, Idx: Literal[str]]`` - returns the type argument number ``Idx`` to ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be. (That is, if we have  ``class A(B[C]): ...``, then ``GetArg[A, B, 0] == C`` while ``GetArg[A, A, 0] == Never``).
+  N.B: *Unfortunately* ``Base`` must be a proper class, *not* a protocol. So, for example, ``GetArg[Ty, Iterable, 0]]`` to get the type of something
+  iterable *won't* work. This is because we can't do protocol checks at runtime in general.
   Special forms unfortunately require some special handling: the arguments list of a ``Callable`` will be packed in a tuple, and a ``...`` will become ``SpecialFormEllipsis``.
 
 
@@ -73,35 +137,53 @@ It's important that there be a clearly specified type language for the type-leve
 * ``FromUnion[T]`` - returns a tuple containing all of the union elements, or a 1-ary tuple containing T if it is not a union.
 
 
-# TODO: NewProtocol needs a way of doing bases also...
-# TODO: New TypedDict setup
+------------------------------
+Object inspection and creation
+------------------------------
 
 * ``NewProtocol[*Ps: Member]``
 
-* ``Members[T]`` produces a ``tuple`` of ``Member`` types.
-* ``Member[N: Literal[str], T, Q: Quals, D]``
 
-# These names are too long -- but we can't do ``Type`` !!
-# Kind of want to do the *longer* ``MemberName``
+* ``Members[T]`` produces a ``tuple`` of ``Member`` types.
+* ``Member[N: Literal[str], T, Q: MemberQuals, D]`` - ``N`` is the name, ``T`` is the type, ``Q`` is a union of qualifiers, ``D`` is the defining class of the member
+* ``MemberQuals = Literal['ClassVar', 'Final']`` - ``MemberQuals`` is the type of "qualifiers" that can apply to a member; currently ClassVar and Final
+
+TODO: How do we indicate ``@classmethod`` and ``@staticmethod``; should we have wrapper types for them. (That *kind of* matches reality...)
+
+TODO: What do we do about decorators in general, *at runtime*...
+
+We also have helpers for extracting those names; they are all definable in terms of ``GetArg``.
+(These names are too long -- but we can't do ``Type``. I kind of want to do the *longer* ``MemberName``?)
 
 * ``GetName[T: Member]``
 * ``GetType[T: Member]``
 * ``GetQuals[T: Member]``
 * ``GetDefiner[T: Member]``
-* Could we also put the defining type there??
 
----
+* ``NewProtocolWithBases[Bases, Ps: tuple[Member]]`` - A variant that allows specifying bases too. (UNIMPLEMENTED)
+
+* ``NewTypedDict[*Ps: Member]`` -- TODO: Needs fleshing out; will work similarly to ``NewProtocol`` but has different flags
+
 
 * ``GetAttr[T, S: Literal[str]]``
   TODO: How should GetAttr interact with descriptors/classmethod? I am leaning towards it should apply the descriptor...
 
-* ``Length[T: tuple]`` - get the length of a tuple as an int literal (...or ``Literal[None]`` if it is unbounded)
+
+----
+
+* ``Length[T: tuple]`` - get the length of a tuple as an int literal (or ``Literal[None]`` if it is unbounded)
+
+----
 
 String manipulation operations for string Literal types.
 We can put more in, but this is what typescript has.
 ``Slice`` and ``Concat`` are a poor man's literal template.
 We can actually implement the case functions in terms of them and a
 bunch of conditionals.
+
+-------------------
+String manipulation
+-------------------
 
 
 * ``Slice[S: Literal[str], Start: Literal[int | None], End: Literal[int | None]]``
@@ -112,17 +194,20 @@ bunch of conditionals.
 * ``Capitalize[S: Literal[str]]``
 * ``Uncapitalize[S: Literal[str]]``
 
+----
 
+Two possibilities for creating parameterized functions/types. They are kind of more syntax than functions exactly.  I like the lambda one more.
+* ``NewParameterized[V, Ty]`` - ``V`` should be a ``TypeVar`` (ugh!) and ``Ty`` should be a ``Callable`` or a ``NewProtocol`` or some such.
+* ``NewParameterized[lambda v: Ty]`` - The lambda could take multiple params, and introduce multiple variables. The biggest snag is how to specify bounds; one option is via default arguments.
 
--------------------------------------------------------------------------
+How to *inspect* generic function types? Honestly, it doesn't really work in Typescript. Maybe we don't need to deal with it either.
 
-
-Big open questions?
+=====================
+Big (open?) questions
+=====================
 
 1.
-PROBABLE DECISION: external library *and* restricted checking.
-
-Can we actually implement Is (IsSubtype) at runtime in a satisfactory way?
+Can we actually implement Is (IsSubtype) at runtime in a satisfactory way? (PROBABLE DECISION: external library *and* restricted checking.)
  - There is a lot that needs to happen, like protocols and variance inference and callable subtyping (which might require matching against type vars...)
    Jukka points out that lots of type information is frequently missing at runtime too: attributes are frequently unannotated and
 
@@ -139,10 +224,7 @@ Can we actually implement Is (IsSubtype) at runtime in a satisfactory way?
 
    It's unsatisfying, though.
 
-2.
-DECISION: quals string literals seems fine
-
-How do we deal with modifiers? ClassVar, Final, Required, ReadOnly
+2. How do we deal with modifiers? ClassVar, Final, Required, ReadOnly (DECISION: quals string literals seems fine)
  - One option is to treat them not as types by as *modifiers* and have them
    in a separate field where they are a union of Literals.
    So ``x: Final[ClassVar[int]]`` would appear in ``Attrs`` as
@@ -156,8 +238,7 @@ How do we deal with modifiers? ClassVar, Final, Required, ReadOnly
 
 
 3.
-How do we deal with Callables? We need to support extended callable syntax basically.
-Or something like it.
+How do we deal with Callables? We need to support extended callable syntax basically. Or something like it. (ANSWER: ``Param``)
 
 4.
 What do we do about ``Members`` on built-in types? ``typing.get_type_hints(int)`` returns ``{}`` but mypy will not agree!
@@ -170,9 +251,10 @@ Polymorphic callables? How do we represent their type and how do we construct th
 What does TS do here? - TS has full impredactive polymorphic functions. You can do System F stuff. *But* trying to do type level operations on them seems to lose track of the polymorphism: the type vars will get instantiated with ``unknown``.
 
 6.
-Want to be graceful at runtime, since **many** classes don't have full annotations.
+What operations should be error and what should return Never?
 
-=====
+
+----
 
 This proposal is less "well-typed" than typescript... (Well-kinded, maybe?)
 Typescript has better typechecking at the alias definition site:
