@@ -16,6 +16,7 @@ from typemap.typing import (
     Capitalize,
     FromUnion,
     GetArg,
+    GetArgs,
     GetAttr,
     IsSubSimilar,
     IsSubtype,
@@ -247,12 +248,11 @@ def _eval_GetAttr(lhs, prop, *, ctx):
     return typing.get_type_hints(lhs)[name]
 
 
-def _get_args(tp, base, ctx) -> typing.Any:
+def _get_raw_args(tp, base_head, ctx) -> typing.Any:
     # XXX: check against base!!
     evaled = _eval_types(tp, ctx)
 
     tp_head = _typing_inspect.get_head(tp)
-    base_head = _typing_inspect.get_head(base)
     if not tp_head or not base_head:
         return None
 
@@ -269,6 +269,14 @@ def _get_args(tp, base, ctx) -> typing.Any:
     else:
         # or error??
         return None
+
+
+def _get_args(tp, base, ctx) -> typing.Any:
+    base_head = _typing_inspect.get_head(base)
+    args = _get_raw_args(tp, base, ctx)
+    if args == ():
+        args = _get_defaults(base_head)
+    return args
 
 
 def _fix_type(tp):
@@ -383,8 +391,6 @@ def _get_defaults(base_head):
 def _eval_GetArg(tp, base, idx, *, ctx) -> typing.Any:
     base_head = _typing_inspect.get_head(base)
     args = _get_args(tp, base_head, ctx)
-    if args == ():
-        args = _get_defaults(base_head)
     if args is None:
         return typing.Never
 
@@ -392,6 +398,16 @@ def _eval_GetArg(tp, base, idx, *, ctx) -> typing.Any:
         return _fix_type(args[_from_literal(idx, ctx)])
     except IndexError:
         return typing.Never
+
+
+@type_eval.register_evaluator(GetArgs)
+@_lift_over_unions
+def _eval_GetArgs(tp, base, *, ctx) -> typing.Any:
+    base_head = _typing_inspect.get_head(base)
+    args = _get_args(tp, base_head, ctx)
+    if args is None:
+        return typing.Never
+    return tuple[*args]  # type: ignore[valid-type]
 
 
 @type_eval.register_evaluator(Length)

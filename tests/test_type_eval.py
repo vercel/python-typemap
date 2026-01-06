@@ -7,6 +7,7 @@ from typemap.typing import (
     Attrs,
     FromUnion,
     GetArg,
+    GetArgs,
     GetAttr,
     GetName,
     GetType,
@@ -176,6 +177,16 @@ def test_type_asdf():
 def test_getarg_never():
     d = eval_typing(GetArg[Never, object, 0])
     assert d is Never
+
+
+def test_eval_getargs():
+    t = dict[int, str]
+    args = eval_typing(GetArgs[t, dict])
+    assert args == tuple[int, str]
+
+    t = dict
+    args = eval_typing(GetArgs[t, dict])
+    assert args == tuple[Any, Any]
 
 
 def test_eval_getarg_callable():
