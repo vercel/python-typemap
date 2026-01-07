@@ -44,6 +44,9 @@ class _EvalProxy:
 
 @dataclasses.dataclass
 class EvalContext:
+    # Fully resolved types
+    resolved: dict[Any, Any] = dataclasses.field(default_factory=dict)
+    # Types that have been seen, but may not be fully resolved
     seen: dict[Any, Any] = dataclasses.field(default_factory=dict)
     # The typing.Any is really a types.FunctionType, but mypy gets
     # confused and wants to treat it as a MethodType.
@@ -51,6 +54,14 @@ class EvalContext:
         dataclasses.field(default_factory=set)
     )
     current_alias: types.GenericAlias | typing.Any | None = None
+
+    unwind_stack: set[typing.TypeAliasType | types.GenericAlias] = (
+        dataclasses.field(default_factory=set)
+    )
+    unwinding_until: typing.TypeAliasType | types.GenericAlias | None = None
+    known_recursive_types: dict[
+        typing.TypeAliasType | types.GenericAlias, typing.Any
+    ] = dataclasses.field(default_factory=dict)
 
 
 # `eval_types()` calls can be nested, context must be preserved
@@ -100,9 +111,22 @@ def _child_context() -> typing.Iterator[EvalContext]:
 
     try:
         child_ctx = EvalContext(
+            resolved={
+                # Drop resolved recursive types.
+                # This is to allow other recursive types to expand them out
+                # independently. For example, if we have a recursive types
+                # A = B|C and B = A|D, we want B to expand even if we already
+                # know A.
+                k: v
+                for k, v in ctx.resolved.items()
+                if k not in ctx.known_recursive_types
+            },
             seen=ctx.seen.copy(),
             current_alias_stack=ctx.current_alias_stack.copy(),
             current_alias=ctx.current_alias,
+            unwind_stack=ctx.unwind_stack.copy(),
+            unwinding_until=ctx.unwinding_until,
+            known_recursive_types=ctx.known_recursive_types.copy(),
         )
         _current_context.set(child_ctx)
         yield child_ctx
@@ -112,21 +136,52 @@ def _child_context() -> typing.Iterator[EvalContext]:
 
 def eval_typing(obj: typing.Any):
     with _ensure_context() as ctx:
-        return _eval_types(obj, ctx)
+        result = _eval_types(obj, ctx)
+        if result in ctx.known_recursive_types:
+            result = ctx.known_recursive_types[result]
+        return result
 
 
 def _eval_types(obj: typing.Any, ctx: EvalContext):
+    # Found a recursive type, we need to unwind it
+    if obj in ctx.unwind_stack:
+        ctx.unwinding_until = obj
+        return obj
+
     # Don't recurse into any pending alias expansion
     if obj in ctx.current_alias_stack:
         return obj
-    # strings match
+
+    # Already resolved or seen, return the result
+    if obj in ctx.resolved:
+        return ctx.resolved[obj]
     if obj in ctx.seen:
         return ctx.seen[obj]
 
     with _child_context() as child_ctx:
+        child_ctx.unwind_stack.add(obj)
         evaled = _eval_types_impl(obj, child_ctx)
 
-    ctx.seen[obj] = evaled
+    # If we have identified a recursive type, discard evaluation results.
+    # This prevents external evaluations from being polluted by partial
+    # evaluations.
+    keep_intermediate = True
+    if child_ctx.unwinding_until:
+        if child_ctx.unwinding_until == obj:
+            # Finished unwinding.
+            ctx.known_recursive_types[obj] = evaled
+            evaled = obj
+            keep_intermediate = False
+
+        else:
+            ctx.unwinding_until = child_ctx.unwinding_until
+
+    if keep_intermediate:
+        ctx.resolved |= child_ctx.resolved
+        ctx.seen |= child_ctx.seen
+        ctx.known_recursive_types |= child_ctx.known_recursive_types
+
+    ctx.resolved[obj] = evaled
     return evaled
 
 

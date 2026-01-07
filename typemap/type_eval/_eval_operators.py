@@ -251,7 +251,10 @@ def _eval_Members(tp, *, ctx):
 
 @type_eval.register_evaluator(FromUnion)
 def _eval_FromUnion(tp, *, ctx):
-    return tuple[*_union_elems(tp, ctx)]
+    if tp in ctx.known_recursive_types:
+        return tuple[*_union_elems(ctx.known_recursive_types[tp], ctx)]
+    else:
+        return tuple[*_union_elems(tp, ctx)]
 
 
 ##################################################################
