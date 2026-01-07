@@ -256,28 +256,12 @@ def _eval_func(
 @_eval_types_impl.register
 def _eval_type_type(obj: type, ctx: EvalContext):
     if isinstance(obj, type) and issubclass(obj, typing.Generic):
-        ret = type(
-            obj.__name__,
-            (_EvalProxy,),
-            {
-                "__module__": obj.__module__,
-                "__name__": obj.__name__,
-                "__origin__": obj,
-            },
-        )
-
-        # Need to add it to `seen` to handle recursion
-        ctx.seen[obj] = ret
         try:
-            ns = _apply_generic.apply(obj)
+            return _apply_generic.apply(obj, ctx)
         except Exception:
-            ctx.seen.pop(obj)
+            # XXX: should apply handle this?
+            ctx.seen.pop(obj, None)
             raise
-
-        for k, v in ns.items():
-            setattr(ret, k, v)
-
-        return ret
 
     return obj
 
