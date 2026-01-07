@@ -158,27 +158,36 @@ def _eval_types(obj: typing.Any, ctx: EvalContext):
     if obj in ctx.seen:
         return ctx.seen[obj]
 
-    with _child_context() as child_ctx:
-        child_ctx.unwind_stack.add(obj)
-        evaled = _eval_types_impl(obj, child_ctx)
+    if isinstance(obj, typing.TypeAliasType) or (
+        isinstance(obj, types.GenericAlias)
+        and isinstance(obj.__origin__, typing.TypeAliasType)
+    ):
+        with _child_context() as child_ctx:
+            child_ctx.unwind_stack.add(obj)
+            evaled = _eval_types_impl(obj, child_ctx)
+    else:
+        evaled = _eval_types_impl(obj, ctx)
+        child_ctx = None
 
     # If we have identified a recursive type, discard evaluation results.
     # This prevents external evaluations from being polluted by partial
     # evaluations.
     keep_intermediate = True
-    if child_ctx.unwinding_until:
-        if child_ctx.unwinding_until == obj:
-            # Finished unwinding.
-            ctx.known_recursive_types[obj] = evaled
-            evaled = obj
-            keep_intermediate = False
+    if child_ctx:
+        if child_ctx.unwinding_until:
+            if child_ctx.unwinding_until == obj:
+                # Finished unwinding.
+                ctx.known_recursive_types[obj] = evaled
+                evaled = obj
+                keep_intermediate = False
 
-        else:
-            ctx.unwinding_until = child_ctx.unwinding_until
+            else:
+                ctx.unwinding_until = child_ctx.unwinding_until
 
-    if keep_intermediate:
-        ctx.resolved |= child_ctx.resolved
-        ctx.seen |= child_ctx.seen
+        if keep_intermediate:
+            ctx.resolved |= child_ctx.resolved
+            ctx.seen |= child_ctx.seen
+
         ctx.known_recursive_types |= child_ctx.known_recursive_types
 
     ctx.resolved[obj] = evaled
