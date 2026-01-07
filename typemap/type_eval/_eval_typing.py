@@ -55,6 +55,38 @@ class EvalContext:
     )
     current_alias: types.GenericAlias | typing.Any | None = None
 
+    # We want to resolve recursive aliases correctly, but not have haphazardly
+    # expanded results which vary based on order of evaluation, nesting, etc.
+    # To produce consistent results, we leave recursive aliases unexpanded,
+    # unless they are the final result.
+    #
+    # For example, given A = int|list[A],
+    #   A expands to int|list[A]
+    #   list[A] remains as list[A]
+    #
+    # IMPLEMENTATION
+    #
+    # To achieve this behavior, we resolve recursive aliases in a way that
+    # prevents them from interacting with each other's evaluations.
+    #
+    # Once a recursive alias is fully resolved, we discard all intermediate
+    # evaluations and only keep the final result. We then mark the resolve value
+    # for the alias as itself, ensure that external evaluations don't expand it.
+    # We keep the actual expanded value in `known_recursive_types` for future
+    # reference.
+    #
+    # We identify recursive aliases by tracking any aliases we see in
+    # `unwind_stack`. If an alias is seen again, we know it is a recursive alias
+    # and note it in `unwinding_until`. When we finally unwind to the previous
+    # time we saw the alias, we know it is fully resolved.
+    #
+    # Intermediate evaluations are discarded because evaluating recursive
+    # generic classes use the `seen` dictionary as a cache. Sharing this cache
+    # would cause inconsistent expansion results.
+    #
+    # For example, given A = C|list[B] and B = D|list[A], A|B could expand to
+    # C|D|list[D|list[A]]|list[A] which is technically correct, but not
+    # consistent in the way we want.
     unwind_stack: set[typing.TypeAliasType | types.GenericAlias] = (
         dataclasses.field(default_factory=set)
     )
@@ -112,8 +144,8 @@ def _child_context() -> typing.Iterator[EvalContext]:
     try:
         child_ctx = EvalContext(
             resolved={
-                # Drop resolved recursive types.
-                # This is to allow other recursive types to expand them out
+                # Drop resolved recursive aliases.
+                # This is to allow other recursive aliases to expand them out
                 # independently. For example, if we have a recursive types
                 # A = B|C and B = A|D, we want B to expand even if we already
                 # know A.
@@ -143,7 +175,7 @@ def eval_typing(obj: typing.Any):
 
 
 def _eval_types(obj: typing.Any, ctx: EvalContext):
-    # Found a recursive type, we need to unwind it
+    # Found a recursive alias, we need to unwind it
     if obj in ctx.unwind_stack:
         ctx.unwinding_until = obj
         return obj
@@ -169,7 +201,7 @@ def _eval_types(obj: typing.Any, ctx: EvalContext):
         evaled = _eval_types_impl(obj, ctx)
         child_ctx = None
 
-    # If we have identified a recursive type, discard evaluation results.
+    # If we have identified a recursive alias, discard evaluation results.
     # This prevents external evaluations from being polluted by partial
     # evaluations.
     keep_intermediate = True
@@ -188,6 +220,9 @@ def _eval_types(obj: typing.Any, ctx: EvalContext):
             ctx.resolved |= child_ctx.resolved
             ctx.seen |= child_ctx.seen
 
+        # In case a child context evaluated a nested recursive alias, we can
+        # keep those results as they are already "consistent".
+        ctx.resolved |= {x: x for x in child_ctx.known_recursive_types.keys()}
         ctx.known_recursive_types |= child_ctx.known_recursive_types
 
     ctx.resolved[obj] = evaled
