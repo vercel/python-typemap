@@ -154,6 +154,37 @@ type NoLiterals2[T] = NewProtocol[
 ]
 
 
+# Subtyping this forces real type evaluation
+class Eval[T]:
+    pass
+
+
+class Loop(Eval[int]):
+    loop: Loop
+
+
+class Foo(Eval[int]):
+    bar: Bar
+
+
+class Bar(Eval[float]):
+    foo: Foo
+
+
+def test_type_dir_link_1():
+    d = eval_typing(Loop)
+    loop = d.__annotations__["loop"]
+    assert loop is d
+    assert loop is not Foo
+
+
+def test_type_dir_link_2():
+    d = eval_typing(Foo)
+    loop = d.__annotations__["bar"].__annotations__["foo"]
+    assert loop is d
+    assert loop is not Foo
+
+
 def test_type_dir_1():
     d = eval_typing(Final)
 
