@@ -114,27 +114,16 @@ def _eval_types_impl(obj: typing.Any, ctx: EvalContext):
 
 
 @_eval_types_impl.register
-def _eval_func(func: types.FunctionType | types.MethodType, ctx: EvalContext):
-    root = inspect.unwrap(func)
+def _eval_func(
+    func: types.FunctionType | types.MethodType | staticmethod | classmethod,
+    ctx: EvalContext,
+):
+    root = inspect.unwrap(func)  # type: ignore[arg-type]
     annos = typing.get_type_hints(root)
 
     annos = {name: _eval_types(tp, ctx) for name, tp in annos.items()}
 
-    new_func = types.FunctionType(
-        root.__code__,
-        root.__globals__,
-        "__call__",
-        root.__defaults__,
-        (),
-        root.__kwdefaults__,
-    )
-
-    new_func.__name__ = root.__name__
-    new_func.__module__ = root.__module__
-    new_func.__annotations__ = annos
-    new_func.__type_params__ = root.__type_params__
-
-    return new_func
+    return _apply_generic.make_func(func, annos)
 
 
 @_eval_types_impl.register
