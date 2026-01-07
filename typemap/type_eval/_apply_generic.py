@@ -133,7 +133,12 @@ def make_func(
     annos: dict[str, Any],
 ) -> types.FunctionType:
     new_func = types.FunctionType(
-        func.__code__, func.__globals__, "__call__", func.__defaults__, ()
+        func.__code__,
+        func.__globals__,
+        "__call__",
+        func.__defaults__,
+        (),
+        func.__kwdefaults__,
     )
 
     new_func.__module__ = func.__module__

@@ -17,8 +17,10 @@ class SpecialFormEllipsis:
 
 ###
 
+MemberQuals = typing.Literal["ClassVar", "Final"]
 
-class Member[N: str, T, Q: str = typing.Never, D = typing.Never]:
+
+class Member[N: str, T, Q: MemberQuals = typing.Never, D = typing.Never]:
     pass
 
 
@@ -32,7 +34,10 @@ class Attrs[T]:
     pass
 
 
-class Param[N: str | None, T, Q: str = typing.Never]:
+ParamQuals = typing.Literal["*", "**", "="]
+
+
+class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
     pass
 
 
