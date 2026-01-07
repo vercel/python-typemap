@@ -203,8 +203,10 @@ def _function_type(func, *, is_method):
             quals.append("*")
         if p.kind == inspect.Parameter.VAR_KEYWORD:
             quals.append("**")
+        if p.kind == inspect.Parameter.KEYWORD_ONLY:
+            quals.append("keyword")
         if p.default is not empty:
-            quals.append("=")
+            quals.append("default")
         params.append(
             Param[
                 typing.Literal[p.name if has_name else None],

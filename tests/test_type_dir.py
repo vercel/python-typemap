@@ -42,7 +42,7 @@ class Base[T]:
 
     fin: typing.Final[int]
 
-    def foo(self, a: T | None, b: int = 0) -> dict[str, T]:
+    def foo(self, a: T | None, *, b: int = 0) -> dict[str, T]:
         pass
 
     def base[Z](self, a: T | Z | None, b: K) -> dict[str, T | Z]:
@@ -166,7 +166,7 @@ def test_type_dir_1():
             fin: typing.Final[int]
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
-            def foo(self, a: int | None, b: int = 0) -> dict[str, int]: ...
+            def foo(self, a: int | None, *, b: int = 0) -> dict[str, int]: ...
             def base[Z](self, a: int | Z | None, b: ~K) -> dict[str, int | Z]: ...
             def cbase(cls, a: int | None, b: ~K) -> dict[str, int]: ...
             def sbase[Z](cls, a: int | Literal['gotcha!'] | Z | None, b: ~K) -> dict[str, int | Z]: ...
@@ -260,7 +260,8 @@ typemap.typing.Member[typing.Literal['foo'], \
 typing.Callable[[\
 typemap.typing.Param[typing.Literal['self'], typing.Any, typing.Never], \
 typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], \
-typemap.typing.Param[typing.Literal['b'], int, typing.Literal['=']]], \
+typemap.typing.Param[typing.Literal['b'], int, typing.Literal['keyword', \
+'default']]], \
 dict[str, int]], typing.Literal['ClassVar'], tests.test_type_dir.Final]"
     )
 

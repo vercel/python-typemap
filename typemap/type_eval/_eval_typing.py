@@ -121,7 +121,12 @@ def _eval_func(func: types.FunctionType | types.MethodType, ctx: EvalContext):
     annos = {name: _eval_types(tp, ctx) for name, tp in annos.items()}
 
     new_func = types.FunctionType(
-        root.__code__, root.__globals__, "__call__", root.__defaults__, ()
+        root.__code__,
+        root.__globals__,
+        "__call__",
+        root.__defaults__,
+        (),
+        root.__kwdefaults__,
     )
 
     new_func.__name__ = root.__name__
