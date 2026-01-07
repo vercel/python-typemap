@@ -159,12 +159,26 @@ def make_func(
     return new_func
 
 
-def apply(cls: type[Any]) -> dict[str, Any]:
+def apply(
+    cls: type[Any], ctx: _eval_typing.EvalContext
+) -> type[_eval_typing._EvalProxy]:
     mro_boxed = compute_mro(cls)
 
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
 
+    # We create it early so we can add it to seen, to handle recursion
+    ctx.seen[cls] = ret = type(
+        cls.__name__,
+        (_eval_typing._EvalProxy,),
+        {
+            "__module__": cls.__module__,
+            "__name__": cls.__name__,
+            "__origin__": cls,
+        },
+    )
+
+    # Run through the mro
     for boxed in reversed(mro_boxed):
         if af := getattr(boxed.cls, "__annotate__", None):
             # Class has annotations, let's resolve generic arguments
@@ -235,11 +249,15 @@ def apply(cls: type[Any]) -> dict[str, Any]:
                     dct[name] = stuff
 
     for k, v in annos.items():
-        annos[k] = _eval_typing.eval_typing(v)
+        annos[k] = _eval_typing._eval_types(v, ctx=ctx)
 
     for k, v in dct.items():
-        dct[k] = _eval_typing.eval_typing(v)
+        dct[k] = _eval_typing._eval_types(v, ctx=ctx)
 
     dct["__annotations__"] = annos
     dct["__generalized_mro__"] = mro_boxed
-    return dct
+
+    for k, v in dct.items():
+        setattr(ret, k, v)
+
+    return ret
