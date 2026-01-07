@@ -44,7 +44,7 @@ class _EvalProxy:
 
 @dataclasses.dataclass
 class EvalContext:
-    seen: dict[Any, Any]
+    seen: dict[Any, Any] = dataclasses.field(default_factory=dict)
     # The typing.Any is really a types.FunctionType, but mypy gets
     # confused and wants to treat it as a MethodType.
     current_alias_stack: set[types.GenericAlias | typing.Any] = (
@@ -66,9 +66,7 @@ def _ensure_context() -> typing.Iterator[EvalContext]:
     ctx = _current_context.get()
     ctx_set = False
     if ctx is None:
-        ctx = EvalContext(
-            seen=dict(),
-        )
+        ctx = EvalContext()
         _current_context.set(ctx)
         ctx_set = True
     evaluator_token = nt.special_form_evaluator.set(
@@ -92,6 +90,26 @@ def _get_current_context() -> EvalContext:
     return ctx
 
 
+@contextlib.contextmanager
+def _child_context() -> typing.Iterator[EvalContext]:
+    ctx = _current_context.get()
+    if ctx is None:
+        raise RuntimeError(
+            "type_eval._create_child_context() called outside of eval_types()"
+        )
+
+    try:
+        child_ctx = EvalContext(
+            seen=ctx.seen.copy(),
+            current_alias_stack=ctx.current_alias_stack.copy(),
+            current_alias=ctx.current_alias,
+        )
+        _current_context.set(child_ctx)
+        yield child_ctx
+    finally:
+        _current_context.set(ctx)
+
+
 def eval_typing(obj: typing.Any):
     with _ensure_context() as ctx:
         return _eval_types(obj, ctx)
@@ -104,7 +122,11 @@ def _eval_types(obj: typing.Any, ctx: EvalContext):
     # strings match
     if obj in ctx.seen:
         return ctx.seen[obj]
-    ctx.seen[obj] = evaled = _eval_types_impl(obj, ctx)
+
+    with _child_context() as child_ctx:
+        evaled = _eval_types_impl(obj, child_ctx)
+
+    ctx.seen[obj] = evaled
     return evaled
 
 
