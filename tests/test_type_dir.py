@@ -20,7 +20,7 @@ from typemap.typing import (
 
 from . import format_helper
 
-type OrGotcha[K] = K | Literal["gotcha!"]
+type OrGotcha[K] = K | Literal['gotcha!']
 
 type StrForInt[X] = (str | OrGotcha[X]) if X is int else (X | OrGotcha[X])
 
