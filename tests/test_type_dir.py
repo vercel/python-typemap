@@ -346,7 +346,7 @@ def test_type_members_func_2():
     assert (
         str(typ)
         == "\
-classmethod[tests.test_type_dir.Final, [typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int]]"
+classmethod[tests.test_type_dir.Final, tuple[typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int]]"
     )
 
 
@@ -361,5 +361,5 @@ def test_type_members_func_3():
     assert (
         str(typ)
         == "\
-staticmethod[[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
+staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
     )

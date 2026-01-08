@@ -174,7 +174,7 @@ def _child_context() -> typing.Iterator[EvalContext]:
 def eval_typing(obj: typing.Any):
     with _ensure_context() as ctx:
         result = _eval_types(obj, ctx)
-        if result in ctx.known_recursive_types:
+        if not isinstance(result, list) and result in ctx.known_recursive_types:
             result = ctx.known_recursive_types[result]
         return result
 
