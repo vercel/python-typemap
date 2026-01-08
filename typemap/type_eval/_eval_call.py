@@ -112,10 +112,10 @@ def _eval_call_with_type_vars(
         af.__code__, af.__globals__, af.__name__, None, af_args
     )
 
-    old_obj = ctx.current_alias
-    ctx.current_alias = func
+    old_obj = ctx.current_generic_alias
+    ctx.current_generic_alias = func
     try:
         rr = ff(annotationlib.Format.VALUE)
         return _eval_typing.eval_typing(rr["return"])
     finally:
-        ctx.current_alias = old_obj
+        ctx.current_generic_alias = old_obj
