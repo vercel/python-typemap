@@ -229,10 +229,12 @@ def _function_type(func, *, receiver_type):
 
     ret = _ann(sig.return_annotation)
 
+    # TODO: Is doing the tuple for staticmethod/classmethod legit?
+    # Putting a list in makes it unhashable...
     if isinstance(func, staticmethod):
-        return staticmethod[params, ret]
+        return staticmethod[tuple[*params], ret]
     elif isinstance(func, classmethod):
-        return classmethod[specified_receiver, params[1:], ret]
+        return classmethod[specified_receiver, tuple[*params[1:]], ret]
     else:
         return typing.Callable[params, ret]
 
