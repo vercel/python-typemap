@@ -21,12 +21,18 @@ class Boxed:
     args: dict[Any, Any]
 
     str_args: dict[str, Any] = dataclasses.field(init=False)
+    mro: list[Boxed] = dataclasses.field(init=False)
 
     def __post_init__(self):
         object.__setattr__(
             self,
             "str_args",
             {str(k): v for k, v in self.args.items()},
+        )
+        object.__setattr__(
+            self,
+            "mro",
+            _compute_mro(self),
         )
 
     def __repr__(self):
@@ -90,6 +96,8 @@ def box(cls: type[Any]) -> Boxed:
 
     if isinstance(cls, (typing._GenericAlias, types.GenericAlias)):  # type: ignore[attr-defined]
         # XXX this feels out of place, `box()` needs to only accept types.
+        # this never gets activated now, but I want to basically
+        # support this later -sully
         args = dict(
             zip(cls.__origin__.__parameters__, cls.__args__, strict=True)
         )
@@ -103,10 +111,10 @@ def box(cls: type[Any]) -> Boxed:
     return _box(cls, args)
 
 
-def merge_boxed_mro(seqs: list[list[Boxed]]) -> list[Boxed]:
-    res: list[Boxed] = []
+def merge_boxed_mro[T](seqs: list[list[T]]) -> list[T]:
+    res: list[T] = []
     i = 0
-    cand: Boxed | None = None
+    cand: T | None = None
     while 1:
         nonemptyseqs = [seq for seq in seqs if seq]
         if not nonemptyseqs:
@@ -130,13 +138,7 @@ def merge_boxed_mro(seqs: list[list[Boxed]]) -> list[Boxed]:
 
 
 def _compute_mro(C: Boxed) -> list[Boxed]:
-    return merge_boxed_mro(
-        [[C]] + [_compute_mro(b) for b in C.bases] + [list(C.bases)]
-    )
-
-
-def compute_mro(C: type[Any]) -> list[Boxed]:
-    return _compute_mro(box(C))
+    return merge_boxed_mro([[C]] + [b.mro for b in C.bases] + [list(C.bases)])
 
 
 def make_func(
@@ -173,7 +175,8 @@ def make_func(
 def apply(
     cls: type[Any], ctx: _eval_typing.EvalContext
 ) -> type[_eval_typing._EvalProxy]:
-    mro_boxed = compute_mro(cls)
+    cls_boxed = box(cls)
+    mro_boxed = cls_boxed.mro
 
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
@@ -188,6 +191,9 @@ def apply(
             "__origin__": cls,
         },
     )
+
+    # TODO: I think we want to create the whole mro chain...
+    # before we evaluate the contents?
 
     # Run through the mro
     for boxed in reversed(mro_boxed):
