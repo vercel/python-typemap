@@ -22,7 +22,12 @@ class Boxed:
         object.__setattr__(
             self,
             "str_args",
-            {str(k): v for k, v in self.args.items()},
+            {
+                # Use __name__ when available instead of str()
+                # str(TypeVar('A')) returns '~A'
+                (k.__name__ if hasattr(k, '__name__') else str(k)): v
+                for k, v in self.args.items()
+            },
         )
 
     def __repr__(self):
@@ -159,6 +164,21 @@ def make_func(
     return new_func
 
 
+def _get_closure_types(af: types.FunctionType) -> dict[str, type]:
+    # Generate a fallback mapping of closure classes.
+    # This is needed for locally defined generic types which reference
+    # themselves in their type annotations.
+    if not af.__closure__:
+        return {}
+    return {
+        name: variable.cell_contents
+        for name, variable in zip(
+            af.__code__.co_freevars, af.__closure__, strict=True
+        )
+        if isinstance(variable.cell_contents, type)
+    }
+
+
 def apply(cls: type[Any]) -> dict[str, Any]:
     mro_boxed = compute_mro(cls)
 
@@ -166,15 +186,23 @@ def apply(cls: type[Any]) -> dict[str, Any]:
     dct: dict[str, Any] = {}
 
     for boxed in reversed(mro_boxed):
-        if af := getattr(boxed.cls, "__annotate__", None):
+        if af := typing.cast(
+            types.FunctionType, getattr(boxed.cls, "__annotate__", None)
+        ):
             # Class has annotations, let's resolve generic arguments
 
+            closure_types = _get_closure_types(af)
+
+            def get_class_annotate_variable(name: str) -> typing.Any:
+                if name == "__classdict__":
+                    return boxed.cls.__dict__
+                elif name in boxed.str_args:
+                    return boxed.str_args[name]
+                else:
+                    return closure_types[name]
+
             args = tuple(
-                types.CellType(
-                    boxed.cls.__dict__
-                    if name == "__classdict__"
-                    else boxed.str_args[name]
-                )
+                types.CellType(get_class_annotate_variable(name))
                 for name in af.__code__.co_freevars
             )
 
@@ -205,7 +233,9 @@ def apply(cls: type[Any]) -> dict[str, Any]:
             stuff = inspect.unwrap(orig)
 
             if isinstance(stuff, types.FunctionType):
-                if af := getattr(stuff, "__annotate__", None):
+                if af := typing.cast(
+                    types.FunctionType, getattr(stuff, "__annotate__", None)
+                ):
                     params = dict(
                         zip(
                             map(str, stuff.__type_params__),
@@ -214,14 +244,20 @@ def apply(cls: type[Any]) -> dict[str, Any]:
                         )
                     )
 
+                    closure_types = _get_closure_types(af)
+
+                    def get_inner_annotate_variable(name: str) -> typing.Any:
+                        if name == "__classdict__":
+                            return boxed.cls.__dict__
+                        elif name in params:
+                            return params[name]
+                        elif name in boxed.str_args:
+                            return boxed.str_args[name]
+                        else:
+                            return closure_types[name]
+
                     args = tuple(
-                        types.CellType(
-                            boxed.cls.__dict__
-                            if name == "__classdict__"
-                            else params[name]
-                            if name in params
-                            else boxed.str_args[name]
-                        )
+                        types.CellType(get_inner_annotate_variable(name))
                         for name in af.__code__.co_freevars
                     )
 
