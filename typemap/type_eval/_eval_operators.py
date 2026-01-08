@@ -54,6 +54,9 @@ def get_annotated_type_hints(cls, **kwargs):
     for acls in cls.__mro__:
         if not hasattr(acls, "__annotations__"):
             continue
+        # XXX: This is super janky; we should just use the real mro
+        # and not flatten things
+        sources = getattr(acls, "__defn_sources__", {})
         for k in acls.__annotations__:
             if k not in hints:
                 quals = set()
@@ -73,7 +76,7 @@ def get_annotated_type_hints(cls, **kwargs):
                     else:
                         break
 
-                hints[k] = ty, tuple(sorted(quals)), acls
+                hints[k] = ty, tuple(sorted(quals)), sources.get(k, acls)
 
         # Stop early if we are done.
         if len(hints) == len(ohints):
@@ -84,6 +87,7 @@ def get_annotated_type_hints(cls, **kwargs):
 def get_annotated_method_hints(tp):
     hints = {}
     for ptp in reversed(tp.mro()):
+        sources = getattr(ptp, "__defn_sources__", {})
         for name, attr in ptp.__dict__.items():
             if isinstance(
                 attr,
@@ -97,10 +101,11 @@ def get_annotated_method_hints(tp):
                 if attr is typing._no_init_or_replace_init:
                     continue
 
+                rtp = sources.get(name, ptp)
                 hints[name] = (
-                    _function_type(attr, receiver_type=ptp),
+                    _function_type(attr, receiver_type=rtp),
                     ("ClassVar",),
-                    ptp,
+                    rtp,
                 )
 
     return hints

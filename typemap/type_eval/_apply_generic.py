@@ -273,6 +273,8 @@ def apply(
     # before we evaluate the contents?
 
     # FIXME: right now we flatten out all the attributes... but should we??
+    # XXX: Yeah, a lot of work is put into copying everything into every
+    # class and it is not worth it, at all.
 
     new = {}
 
@@ -302,6 +304,7 @@ def apply(
 
         annos: dict[str, Any] = {}
         dct: dict[str, Any] = {}
+        sources: dict[str, Any] = {}
 
         cboxed.__local_annotations__, cboxed.__local_defns__ = _get_local_defns(
             boxed
@@ -310,9 +313,12 @@ def apply(
             cbase = new[base]
             annos.update(cbase.__local_annotations__)
             dct.update(cbase.__local_defns__)  # uh.
+            for k in [*cbase.__local_annotations__, *cbase.__local_defns__]:
+                sources[k] = cbase
 
         cboxed.__defn_names__ = set(dct)
         cboxed.__annotations__ = annos
+        cboxed.__defn_sources__ = sources
         cboxed.__generalized_mro__ = [new[b] for b in boxed.mro]
 
         for k, v in dct.items():
