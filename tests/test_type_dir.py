@@ -2,7 +2,6 @@ import textwrap
 import typing
 from typing import Literal, Never, TypeVar, Union
 
-import pytest
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
@@ -313,9 +312,6 @@ def _get_member(members, name):
     )
 
 
-@pytest.mark.xfail(
-    reason="Members does not actually report the correct origin class!"
-)
 def test_type_members_attr_():
     d = eval_typing(Members[Final])
     member = _get_member(d, "ordinary")
@@ -328,7 +324,7 @@ def test_type_members_func_1a():
     d = eval_typing(Members[Final])
     member = _get_member(d, "foo")
     assert typing.get_origin(member) is Member
-    name, typ, quals, _origin = typing.get_args(member)
+    name, typ, quals, origin = typing.get_args(member)
     assert name == typing.Literal["foo"]
     assert quals == typing.Literal["ClassVar"]
 
@@ -336,23 +332,13 @@ def test_type_members_func_1a():
         str(typ)
         == "\
 typing.Callable[[\
-typemap.typing.Param[typing.Literal['self'], tests.test_type_dir.Final, typing.Never], \
+typemap.typing.Param[typing.Literal['self'], tests.test_type_dir.Base[int], typing.Never], \
 typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], \
 typemap.typing.Param[typing.Literal['b'], int, typing.Literal['keyword', \
 'default']]], \
 dict[str, int]]"
     )
 
-
-@pytest.mark.xfail(
-    reason="Members does not actually report the correct origin class!"
-)
-def test_type_members_func_1b():
-    # This should be merged up with 1a once it is fixed
-    d = eval_typing(Members[Final])
-    member = _get_member(d, "foo")
-    assert typing.get_origin(member) is Member
-    _, _, _, origin = typing.get_args(member)
     assert origin.__name__ == "Base[int]"
 
 
@@ -367,7 +353,7 @@ def test_type_members_func_2():
     assert (
         str(typ)
         == "\
-classmethod[tests.test_type_dir.Final, tuple[typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int]]"
+classmethod[tests.test_type_dir.Base[int], tuple[typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int]]"
     )
 
 
