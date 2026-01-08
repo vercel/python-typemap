@@ -286,6 +286,27 @@ def test_type_dir_7():
     assert d is int
 
 
+class Simple[T]:
+    simple: T
+
+
+class Funny[T](Simple[list[T]]):
+    pass
+
+
+class Funny2(Funny[int]):
+    pass
+
+
+def test_type_dir_8():
+    d = eval_typing(Funny2)
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class Funny2:
+            simple: list[int]
+    """)
+
+
 def _get_member(members, name):
     return next(
         iter(m for m in members.__args__ if m.__args__[0].__args__[0] == name)

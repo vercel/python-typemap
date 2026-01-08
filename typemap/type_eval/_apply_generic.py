@@ -4,7 +4,11 @@ import inspect
 import types
 import typing
 
+from typing import _GenericAlias as typing_GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+
+
 from . import _eval_typing
+from . import _typing_inspect
 
 if typing.TYPE_CHECKING:
     from typing import Any
@@ -44,8 +48,17 @@ class Boxed:
             b.dump(_level=_level + 1)
 
 
+def substitute(ty, args):
+    if ty in args:
+        return args[ty]
+    elif isinstance(ty, (typing_GenericAlias, types.GenericAlias)):
+        return ty.__origin__[*[substitute(t, args) for t in ty.__args__]]
+    else:
+        return ty
+
+
 def box(cls: type[Any]) -> Boxed:
-    def _box(cls: type[Any], args: dict[str, Any]) -> Boxed:
+    def _box(cls: type[Any], args: dict[Any, Any]) -> Boxed:
         boxed_bases: list[Boxed] = []
 
         orig_bases = cls.__dict__.get("__orig_bases__")
@@ -60,14 +73,12 @@ def box(cls: type[Any]) -> Boxed:
 
                 if issubclass(base, typing.Generic):
                     if base_params := getattr(base, "__parameters__", None):
+                        # obase should be _GenericAlias...
                         boxed_args = {}
                         for param, arg in zip(
                             base_params, obase.__args__, strict=True
                         ):
-                            if arg in args:
-                                boxed_args[param] = args[arg]
-                            else:
-                                boxed_args[param] = arg
+                            boxed_args[param] = substitute(arg, args)
                     else:
                         boxed_args = {}
 
@@ -85,7 +96,7 @@ def box(cls: type[Any]) -> Boxed:
         cls = cls.__origin__
     else:
         if params := getattr(cls, "__parameters__", None):
-            args = {p: p for p in params}
+            args = {p: _typing_inspect.param_default(p) for p in params}
         else:
             args = {}
 
@@ -120,7 +131,7 @@ def merge_boxed_mro(seqs: list[list[Boxed]]) -> list[Boxed]:
 
 def _compute_mro(C: Boxed) -> list[Boxed]:
     return merge_boxed_mro(
-        [[C]] + list(map(_compute_mro, C.bases)) + [list(C.bases)]
+        [[C]] + [_compute_mro(b) for b in C.bases] + [list(C.bases)]
     )
 
 

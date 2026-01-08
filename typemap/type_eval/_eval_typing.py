@@ -9,7 +9,7 @@ import sys
 import types
 import typing
 
-from typing import _GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+from typing import _GenericAlias as typing_GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 
 
 if typing.TYPE_CHECKING:
@@ -282,7 +282,12 @@ def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
 
 
 @_eval_types_impl.register
-def _eval_types_generic(obj: types.GenericAlias, ctx: EvalContext):
+def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
+    """Eval a types.GenericAlias -- typically an applied type alias
+
+    This is typically an application of a type alias... except it can
+    also be an application of a built-in type (like list, tuple, dict)
+    """
     new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
 
     new_obj = obj.__origin__[new_args]  # type: ignore[index]
@@ -315,9 +320,10 @@ def _eval_types_generic(obj: types.GenericAlias, ctx: EvalContext):
 
 
 @_eval_types_impl.register
-def _eval_typing_generic(obj: _GenericAlias, ctx: EvalContext):
+def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
+    """Eval a typing._GenericAlias -- an applied user-defined class"""
     # generic *classes* are typing._GenericAlias while generic type
-    # aliases are # types.GenericAlias? Why in the world.
+    # aliases are types.GenericAlias? Why in the world.
     if func := _eval_funcs.get(obj.__origin__):
         new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
         ret = func(*new_args, ctx=ctx)
