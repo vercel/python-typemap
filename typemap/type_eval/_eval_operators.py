@@ -423,10 +423,7 @@ def _get_defaults(base_head):
         return (typing.Any, SpecialFormEllipsis)
 
     if params := _get_params(base_head):
-        return tuple(
-            typing.Any if t.__default__ == typing.NoDefault else t.__default__
-            for t in params
-        )
+        return tuple(_typing_inspect.param_default(p) for p in params)
 
     return (typing.Any,) * arity
 

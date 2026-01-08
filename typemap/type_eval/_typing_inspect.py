@@ -149,6 +149,10 @@ def is_eval_proxy(t: Any) -> TypeGuard[type[_eval_typing._EvalProxy]]:
     return isinstance(t, type) and issubclass(t, _eval_typing._EvalProxy)
 
 
+def param_default(p) -> Any:
+    return Any if p.__default__ == typing.NoDefault else p.__default__
+
+
 __all__ = (
     "is_annotated",
     "is_forward_ref",
