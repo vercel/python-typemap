@@ -21,8 +21,16 @@ def format_class(cls: type) -> str:
         code += f"    {attr_name}: {attr_type_s}\n"
 
     for attr in cls.__dict__.values():
+        if attr is typing._no_init_or_replace_init:
+            continue
+        if isinstance(attr, classmethod):
+            attr = inspect.unwrap(attr)
+            code += f"    @classmethod\n"
+        elif isinstance(attr, staticmethod):
+            attr = inspect.unwrap(attr)
+            code += f"    @staticmethod\n"
+        # Intentionally not elif; classmethod and staticmethod cases
+        # fall through
         if isinstance(attr, (types.FunctionType, types.MethodType)):
-            if attr is typing._no_init_or_replace_init:
-                continue
             code += f"    def {format_meth(attr)}: ...\n"
     return code

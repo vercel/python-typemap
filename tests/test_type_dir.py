@@ -2,6 +2,8 @@ import textwrap
 import typing
 from typing import Literal, Never, TypeVar, Union
 
+import pytest
+
 from typemap.type_eval import eval_typing
 from typemap.typing import (
     Attrs,
@@ -53,7 +55,7 @@ class Base[T]:
         pass
 
     @staticmethod
-    def sbase[Z](cls, a: OrGotcha[T] | Z | None, b: K) -> dict[str, T | Z]:
+    def sbase[Z](a: OrGotcha[T] | Z | None, b: K) -> dict[str, T | Z]:
         pass
 
 
@@ -69,7 +71,6 @@ class Last[O]:
     last: O | Literal[True]
 
 
-# XXX: the mixing of int and float as arguments to Base is questionable!
 class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
     pass
 
@@ -199,8 +200,10 @@ def test_type_dir_1():
             ordinary: str
             def foo(self, a: int | None, *, b: int = 0) -> dict[str, int]: ...
             def base[Z](self, a: int | Z | None, b: ~K) -> dict[str, int | Z]: ...
+            @classmethod
             def cbase(cls, a: int | None, b: ~K) -> dict[str, int]: ...
-            def sbase[Z](cls, a: int | Literal['gotcha!'] | Z | None, b: ~K) -> dict[str, int | Z]: ...
+            @staticmethod
+            def sbase[Z](a: int | Literal['gotcha!'] | Z | None, b: ~K) -> dict[str, int | Z]: ...
     """)
 
 
@@ -279,24 +282,84 @@ def test_type_dir_6():
 
 
 def test_type_dir_7():
-    d = eval_typing(Members[Final])
-    foo = next(
-        iter(m for m in d.__args__ if m.__args__[0].__args__[0] == "foo")
+    d = eval_typing(BaseArg[Final])
+    assert d is int
+
+
+def _get_member(members, name):
+    return next(
+        iter(m for m in members.__args__ if m.__args__[0].__args__[0] == name)
     )
-    # XXX: drop self?
+
+
+@pytest.mark.xfail(
+    reason="Members does not actually report the correct origin class!"
+)
+def test_type_members_attr_():
+    d = eval_typing(Members[Final])
+    member = _get_member(d, "ordinary")
+    assert typing.get_origin(member) is Member
+    _, _, _, origin = typing.get_args(member)
+    assert origin.__name__ == "Ordinary"
+
+
+def test_type_members_func_1a():
+    d = eval_typing(Members[Final])
+    member = _get_member(d, "foo")
+    assert typing.get_origin(member) is Member
+    name, typ, quals, _origin = typing.get_args(member)
+    assert name == typing.Literal["foo"]
+    assert quals == typing.Literal["ClassVar"]
+
     assert (
-        str(foo)
+        str(typ)
         == "\
-typemap.typing.Member[typing.Literal['foo'], \
 typing.Callable[[\
-typemap.typing.Param[typing.Literal['self'], typing.Any, typing.Never], \
+typemap.typing.Param[typing.Literal['self'], tests.test_type_dir.Final, typing.Never], \
 typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], \
 typemap.typing.Param[typing.Literal['b'], int, typing.Literal['keyword', \
 'default']]], \
-dict[str, int]], typing.Literal['ClassVar'], tests.test_type_dir.Final]"
+dict[str, int]]"
     )
 
 
-def test_type_dir_8():
-    d = eval_typing(BaseArg[Final])
-    assert d is int
+@pytest.mark.xfail(
+    reason="Members does not actually report the correct origin class!"
+)
+def test_type_members_func_1b():
+    # This should be merged up with 1a once it is fixed
+    d = eval_typing(Members[Final])
+    member = _get_member(d, "foo")
+    assert typing.get_origin(member) is Member
+    _, _, _, origin = typing.get_args(member)
+    assert origin.__name__ == "Base[int]"
+
+
+def test_type_members_func_2():
+    d = eval_typing(Members[Final])
+    member = _get_member(d, "cbase")
+    assert typing.get_origin(member) is Member
+    name, typ, quals, _origin = typing.get_args(member)
+    assert name == typing.Literal["cbase"]
+    assert quals == typing.Literal["ClassVar"]
+
+    assert (
+        str(typ)
+        == "\
+classmethod[tests.test_type_dir.Final, [typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int]]"
+    )
+
+
+def test_type_members_func_3():
+    d = eval_typing(Members[Final])
+    member = _get_member(d, "sbase")
+    assert typing.get_origin(member) is Member
+    name, typ, quals, _origin = typing.get_args(member)
+    assert name == typing.Literal["sbase"]
+    assert quals == typing.Literal["ClassVar"]
+
+    assert (
+        str(typ)
+        == "\
+staticmethod[[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
+    )

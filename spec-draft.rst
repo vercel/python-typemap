@@ -148,9 +148,9 @@ Object inspection and creation
 * ``Member[N: Literal[str], T, Q: MemberQuals, D]`` - ``N`` is the name, ``T`` is the type, ``Q`` is a union of qualifiers, ``D`` is the defining class of the member
 * ``MemberQuals = Literal['ClassVar', 'Final']`` - ``MemberQuals`` is the type of "qualifiers" that can apply to a member; currently ClassVar and Final
 
-TODO: How do we indicate ``@classmethod`` and ``@staticmethod``; should we have wrapper types for them. (That *kind of* matches reality...)
+Methods are returned as callables using the new ``Param`` based extended callables. staticmethod and classmethod will return ``staticmethod`` and ``classmethod`` types, which are subscriptable as of 3.14.
 
-TODO: What do we do about decorators in general, *at runtime*...
+TODO: What do we do about decorators in general, *at runtime*... This seems pretty cursed. We can probably sometimes evaluate them, if there are annotations at runtime.
 
 We also have helpers for extracting those names; they are all definable in terms of ``GetArg``.
 (These names are too long -- but we can't do ``Type``. I kind of want to do the *longer* ``MemberName``?)

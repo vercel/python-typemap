@@ -129,10 +129,15 @@ def compute_mro(C: type[Any]) -> list[Boxed]:
 
 
 def make_func(
-    func: types.FunctionType,
+    orig_func: types.FunctionType
+    | types.MethodType
+    | staticmethod
+    | classmethod,
     annos: dict[str, Any],
 ) -> types.FunctionType:
-    new_func = types.FunctionType(
+    func = inspect.unwrap(orig_func)  # type: ignore[arg-type]
+
+    new_func: Any = types.FunctionType(
         func.__code__,
         func.__globals__,
         "__call__",
@@ -145,6 +150,11 @@ def make_func(
     new_func.__name__ = func.__name__
     new_func.__annotations__ = annos
     new_func.__type_params__ = func.__type_params__
+
+    if isinstance(orig_func, staticmethod):
+        new_func = staticmethod(new_func)
+    elif isinstance(orig_func, classmethod):
+        new_func = classmethod(new_func)
 
     return new_func
 
@@ -188,11 +198,11 @@ def apply(cls: type[Any]) -> dict[str, Any]:
         elif af := getattr(boxed.cls, "__annotations__", None):
             annos.update(af)
 
-        for name, stuff in boxed.cls.__dict__.items():
+        for name, orig in boxed.cls.__dict__.items():
             if name in typing.EXCLUDED_ATTRIBUTES:  # type: ignore[attr-defined]
                 continue
 
-            stuff = inspect.unwrap(stuff)
+            stuff = inspect.unwrap(orig)
 
             if isinstance(stuff, types.FunctionType):
                 if af := getattr(stuff, "__annotate__", None):
@@ -220,7 +230,7 @@ def apply(cls: type[Any]) -> dict[str, Any]:
                     )
                     rr = ff(annotationlib.Format.VALUE)
 
-                    dct[name] = make_func(stuff, rr)
+                    dct[name] = make_func(orig, rr)
                 elif af := getattr(stuff, "__annotations__", None):
                     dct[name] = stuff
 

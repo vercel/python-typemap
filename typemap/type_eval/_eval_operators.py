@@ -85,12 +85,20 @@ def get_annotated_method_hints(tp):
     hints = {}
     for ptp in reversed(tp.mro()):
         for name, attr in ptp.__dict__.items():
-            if isinstance(attr, (types.FunctionType, types.MethodType)):
+            if isinstance(
+                attr,
+                (
+                    types.FunctionType,
+                    types.MethodType,
+                    staticmethod,
+                    classmethod,
+                ),
+            ):
                 if attr is typing._no_init_or_replace_init:
                     continue
 
                 hints[name] = (
-                    _function_type(attr, is_method=True),
+                    _function_type(attr, receiver_type=ptp),
                     ("ClassVar",),
                     ptp,
                 )
@@ -176,7 +184,7 @@ def _eval_IsSubSimilar(lhs, rhs, *, ctx):
 ##################################################################
 
 
-def _function_type(func, *, is_method):
+def _function_type(func, *, receiver_type):
     root = inspect.unwrap(func)
     sig = inspect.signature(root)
     # XXX: __type_params__!!!
@@ -186,14 +194,18 @@ def _function_type(func, *, is_method):
     def _ann(x):
         return typing.Any if x is empty else x
 
+    specified_receiver = receiver_type
+
     params = []
-    for _i, p in enumerate(sig.parameters.values()):
-        # XXX: what should we do about self?
-        # should we track classmethod/staticmethod somehow?
-        # mypy stores all this stuff in the SymbolNodes (FuncDef, etc),
-        # even though it kind of really is a type/descriptor thing
-        # if i == 0 and is_method:
-        #     continue
+    for i, p in enumerate(sig.parameters.values()):
+        ann = p.annotation
+        # Special handling for first argument on methods.
+        if i == 0 and receiver_type and not isinstance(func, staticmethod):
+            if ann is empty:
+                ann = receiver_type
+            else:
+                specified_receiver = ann
+
         has_name = p.kind in (
             inspect.Parameter.POSITIONAL_OR_KEYWORD,
             inspect.Parameter.KEYWORD_ONLY,
@@ -210,12 +222,19 @@ def _function_type(func, *, is_method):
         params.append(
             Param[
                 typing.Literal[p.name if has_name else None],
-                _ann(p.annotation),
+                _ann(ann),
                 typing.Literal[*quals] if quals else typing.Never,
             ]
         )
 
-    return typing.Callable[params, _ann(sig.return_annotation)]
+    ret = _ann(sig.return_annotation)
+
+    if isinstance(func, staticmethod):
+        return staticmethod[params, ret]
+    elif isinstance(func, classmethod):
+        return classmethod[specified_receiver, params[1:], ret]
+    else:
+        return typing.Callable[params, ret]
 
 
 @type_eval.register_evaluator(Attrs)
@@ -317,6 +336,11 @@ def _fix_type(tp):
 # subscripting added in PEP 585.
 _BUILTIN_GENERIC_ARITIES = {
     tuple: 2,  # variadic, like Callable...
+    collections.abc.Callable: 2,  # special syntax
+    # TODO: Need special handling for the ParamSpec?
+    staticmethod: 2,
+    classmethod: 3,
+    # Normal and boring stuff
     list: 1,
     dict: 2,
     set: 1,
@@ -338,7 +362,6 @@ _BUILTIN_GENERIC_ARITIES = {
     collections.abc.Reversible: 1,
     collections.abc.Container: 1,
     collections.abc.Collection: 1,
-    collections.abc.Callable: 2,  # special syntax
     collections.abc.Set: 1,
     collections.abc.MutableSet: 1,
     collections.abc.Mapping: 2,
