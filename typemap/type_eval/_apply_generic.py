@@ -253,6 +253,16 @@ def _get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
     return annos, dct
 
 
+def _type_repr(t: Any) -> str:
+    if isinstance(t, type):
+        if t.__module__ == "builtins":
+            return t.__qualname__
+        else:
+            return f"{t.__module__}.{t.__qualname__}"
+    else:
+        return repr(t)
+
+
 def apply(
     cls: type[Any], ctx: _eval_typing.EvalContext
 ) -> type[_eval_typing._EvalProxy]:
@@ -274,14 +284,18 @@ def apply(
         # we stop flattening attributes into every class
         name = boxed.cls.__name__
         cboxed: Any
+
+        args = tuple(boxed.args.values())
+        args_str = ", ".join(_type_repr(a) for a in args)
+        fullname = f"{name}[{args_str}]" if args_str else name
         cboxed = type(
-            boxed.cls.__name__,
+            fullname,
             (_eval_typing._EvalProxy,),
             {
                 "__module__": boxed.cls.__module__,
-                "__name__": name,
+                "__name__": fullname,
                 "__origin__": boxed.cls,
-                "__local_args__": tuple(boxed.args.values()),
+                "__local_args__": args,
             },
         )
         ctx.seen[boxed.alias_type()] = new[boxed] = cboxed
