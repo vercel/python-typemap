@@ -114,6 +114,7 @@ def test_eval_types_3():
         """)
 
 
+type UnlabeledTree = list[UnlabeledTree]
 type IntTree = int | list[IntTree]
 type GenericTree[T] = T | list[GenericTree[T]]
 type XNode[X, Y] = X | list[YNode[X, Y]]
@@ -202,6 +203,18 @@ def test_type_from_union_01():
 
 
 def test_type_from_union_02():
+    d = eval_typing(FromUnion[UnlabeledTree])
+    assert _is_generic_permutation(d, tuple[list[UnlabeledTree]])
+
+    d = eval_typing(GetArg[d, tuple, 0])
+    assert d == list[UnlabeledTree]
+    d = eval_typing(GetArg[d, list, 0])
+    assert d == list[UnlabeledTree]
+    d = eval_typing(FromUnion[d])
+    assert _is_generic_permutation(d, tuple[list[UnlabeledTree]])
+
+
+def test_type_from_union_03():
     d = eval_typing(FromUnion[IntTree])
     assert _is_generic_permutation(d, tuple[int, list[IntTree]])
 
@@ -213,7 +226,7 @@ def test_type_from_union_02():
     assert _is_generic_permutation(d, tuple[int, list[IntTree]])
 
 
-def test_type_from_union_03():
+def test_type_from_union_04():
     d = eval_typing(FromUnion[GenericTree[str]])
     assert _is_generic_permutation(d, tuple[str, list[GenericTree[str]]])
 
@@ -225,7 +238,7 @@ def test_type_from_union_03():
     assert _is_generic_permutation(d, tuple[str, list[GenericTree[str]]])
 
 
-def test_type_from_union_04():
+def test_type_from_union_05():
     d = eval_typing(FromUnion[XYTree[int, str]])
     assert _is_generic_permutation(
         d,
@@ -269,7 +282,7 @@ def test_type_from_union_04():
     assert y == str | list[int | list[YNode[int, str]]]
 
 
-def test_type_from_union_05():
+def test_type_from_union_06():
     d = eval_typing(FromUnion[NestedTree])
     assert _is_generic_permutation(
         d,
