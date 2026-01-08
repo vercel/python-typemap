@@ -172,6 +172,81 @@ def make_func(
     return new_func
 
 
+def _get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
+    annos: dict[str, Any] = {}
+    dct: dict[str, Any] = {}
+
+    if af := getattr(boxed.cls, "__annotate__", None):
+        # Class has annotations, let's resolve generic arguments
+
+        args = tuple(
+            types.CellType(
+                boxed.cls.__dict__
+                if name == "__classdict__"
+                else boxed.str_args[name]
+            )
+            for name in af.__code__.co_freevars
+        )
+
+        ff = types.FunctionType(
+            af.__code__, af.__globals__, af.__name__, None, args
+        )
+        rr = ff(annotationlib.Format.VALUE)
+
+        if rr:
+            for k, v in rr.items():
+                if isinstance(v, str):
+                    # Handle cases where annotation is explicitly a string,
+                    # e.g.:
+                    #
+                    #   class Foo[X]:
+                    #       x: "Foo[X | None]"
+
+                    annos[k] = eval(v, af.__globals__, boxed.str_args)
+                else:
+                    annos[k] = v
+    elif af := getattr(boxed.cls, "__annotations__", None):
+        annos.update(af)
+
+    for name, orig in boxed.cls.__dict__.items():
+        if name in typing.EXCLUDED_ATTRIBUTES:  # type: ignore[attr-defined]
+            continue
+
+        stuff = inspect.unwrap(orig)
+
+        if isinstance(stuff, types.FunctionType):
+            if af := getattr(stuff, "__annotate__", None):
+                params = dict(
+                    zip(
+                        map(str, stuff.__type_params__),
+                        stuff.__type_params__,
+                        strict=True,
+                    )
+                )
+
+                args = tuple(
+                    types.CellType(
+                        boxed.cls.__dict__
+                        if name == "__classdict__"
+                        else params[name]
+                        if name in params
+                        else boxed.str_args[name]
+                    )
+                    for name in af.__code__.co_freevars
+                )
+
+                ff = types.FunctionType(
+                    af.__code__, af.__globals__, af.__name__, None, args
+                )
+                rr = ff(annotationlib.Format.VALUE)
+
+                dct[name] = make_func(orig, rr)
+            elif af := getattr(stuff, "__annotations__", None):
+                dct[name] = stuff
+
+    return annos, dct
+
+
 def apply(
     cls: type[Any], ctx: _eval_typing.EvalContext
 ) -> type[_eval_typing._EvalProxy]:
@@ -197,73 +272,9 @@ def apply(
 
     # Run through the mro
     for boxed in reversed(mro_boxed):
-        if af := getattr(boxed.cls, "__annotate__", None):
-            # Class has annotations, let's resolve generic arguments
-
-            args = tuple(
-                types.CellType(
-                    boxed.cls.__dict__
-                    if name == "__classdict__"
-                    else boxed.str_args[name]
-                )
-                for name in af.__code__.co_freevars
-            )
-
-            ff = types.FunctionType(
-                af.__code__, af.__globals__, af.__name__, None, args
-            )
-            rr = ff(annotationlib.Format.VALUE)
-
-            if rr:
-                for k, v in rr.items():
-                    if isinstance(v, str):
-                        # Handle cases where annotation is explicitly a string,
-                        # e.g.:
-                        #
-                        #   class Foo[X]:
-                        #       x: "Foo[X | None]"
-
-                        annos[k] = eval(v, af.__globals__, boxed.str_args)
-                    else:
-                        annos[k] = v
-        elif af := getattr(boxed.cls, "__annotations__", None):
-            annos.update(af)
-
-        for name, orig in boxed.cls.__dict__.items():
-            if name in typing.EXCLUDED_ATTRIBUTES:  # type: ignore[attr-defined]
-                continue
-
-            stuff = inspect.unwrap(orig)
-
-            if isinstance(stuff, types.FunctionType):
-                if af := getattr(stuff, "__annotate__", None):
-                    params = dict(
-                        zip(
-                            map(str, stuff.__type_params__),
-                            stuff.__type_params__,
-                            strict=True,
-                        )
-                    )
-
-                    args = tuple(
-                        types.CellType(
-                            boxed.cls.__dict__
-                            if name == "__classdict__"
-                            else params[name]
-                            if name in params
-                            else boxed.str_args[name]
-                        )
-                        for name in af.__code__.co_freevars
-                    )
-
-                    ff = types.FunctionType(
-                        af.__code__, af.__globals__, af.__name__, None, args
-                    )
-                    rr = ff(annotationlib.Format.VALUE)
-
-                    dct[name] = make_func(orig, rr)
-                elif af := getattr(stuff, "__annotations__", None):
-                    dct[name] = stuff
+        lannos, ldct = _get_local_defns(boxed)
+        annos.update(lannos)
+        dct.update(ldct)
 
     for k, v in annos.items():
         annos[k] = _eval_typing._eval_types(v, ctx=ctx)
