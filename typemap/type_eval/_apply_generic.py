@@ -35,6 +35,12 @@ class Boxed:
             _compute_mro(self),
         )
 
+    def alias_type(self):
+        if self.args:
+            return self.cls[*self.args.values()]
+        else:
+            return self.cls
+
     def __repr__(self):
         return f"Boxed<{self.cls} {self.args}>"
 
@@ -253,39 +259,58 @@ def apply(
     cls_boxed = box(cls)
     mro_boxed = cls_boxed.mro
 
-    annos: dict[str, Any] = {}
-    dct: dict[str, Any] = {}
-
-    # We create it early so we can add it to seen, to handle recursion
-    ctx.seen[cls] = ret = type(
-        cls.__name__,
-        (_eval_typing._EvalProxy,),
-        {
-            "__module__": cls.__module__,
-            "__name__": cls.__name__,
-            "__origin__": cls,
-        },
-    )
-
     # TODO: I think we want to create the whole mro chain...
     # before we evaluate the contents?
 
-    # Run through the mro
+    # FIXME: right now we flatten out all the attributes... but should we??
+
+    new = {}
+
+    # Run through the mro and populate everything
     for boxed in reversed(mro_boxed):
-        lannos, ldct = _get_local_defns(boxed)
-        annos.update(lannos)
-        dct.update(ldct)
+        # We create it early so we can add it to seen, to handle recursion
+        # XXX: currently we are doing this even for types with no generics...
+        # that simplifies the flow... - probably keep it this way until
+        # we stop flattening attributes into every class
+        name = boxed.cls.__name__
+        cboxed: Any
+        cboxed = type(
+            boxed.cls.__name__,
+            (_eval_typing._EvalProxy,),
+            {
+                "__module__": boxed.cls.__module__,
+                "__name__": name,
+                "__origin__": boxed.cls,
+                "__local_args__": tuple(boxed.args.values()),
+            },
+        )
+        ctx.seen[boxed.alias_type()] = new[boxed] = cboxed
 
-    for k, v in annos.items():
-        annos[k] = _eval_typing._eval_types(v, ctx=ctx)
+        annos: dict[str, Any] = {}
+        dct: dict[str, Any] = {}
 
-    for k, v in dct.items():
-        dct[k] = _eval_typing._eval_types(v, ctx=ctx)
+        cboxed.__local_annotations__, cboxed.__local_defns__ = _get_local_defns(
+            boxed
+        )
+        for base in reversed(boxed.mro):
+            cbase = new[base]
+            annos.update(cbase.__local_annotations__)
+            dct.update(cbase.__local_defns__)  # uh.
 
-    dct["__annotations__"] = annos
-    dct["__generalized_mro__"] = mro_boxed
+        cboxed.__defn_names__ = set(dct)
+        cboxed.__annotations__ = annos
+        cboxed.__generalized_mro__ = [new[b] for b in boxed.mro]
 
-    for k, v in dct.items():
-        setattr(ret, k, v)
+        for k, v in dct.items():
+            setattr(cboxed, k, v)
 
-    return ret
+    # Run through the mro again and evaluate everything
+    for cboxed in new.values():
+        for k, v in cboxed.__annotations__.items():
+            cboxed.__annotations__[k] = _eval_typing._eval_types(v, ctx=ctx)
+
+        for k in cboxed.__defn_names__:
+            v = cboxed.__dict__[k]
+            setattr(cboxed, k, _eval_typing._eval_types(v, ctx=ctx))
+
+    return new[cls_boxed]

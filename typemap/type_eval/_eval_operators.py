@@ -302,9 +302,9 @@ def _get_raw_args(tp, base_head, ctx) -> typing.Any:
 
     # Scan the fully-annotated MRO to find the base
     elif gen_mro := getattr(evaled, "__generalized_mro__", None):
-        for box in gen_mro:
-            if box.cls is base_head:
-                return tuple(box.args.values())
+        for anc in gen_mro:
+            if _typing_inspect.get_head(anc) is base_head:
+                return anc.__local_args__
         return None
 
     else:
