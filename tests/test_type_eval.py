@@ -696,3 +696,12 @@ def test_eval_length_01():
 
     d = eval_typing(Length[tuple[int, ...]])
     assert d == Literal[None]
+
+
+type WrapInTuple[T] = tuple[T]
+type ApplyToElements[T, F] = tuple[*[F[x] for x in Iter[T]]]
+
+
+def test_eval_higher_order():
+    d = eval_typing(ApplyToElements[tuple[int, str], WrapInTuple])
+    assert d == tuple[tuple[int], tuple[str]]
