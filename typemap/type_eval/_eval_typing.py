@@ -277,6 +277,10 @@ def _eval_type_var(obj: typing.TypeVar, ctx: EvalContext):
 
 @_eval_types_impl.register
 def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
+    # If the type alias has type parameters, it hasn't been applied yet.
+    if obj.__type_params__:
+        return obj
+
     assert obj.__module__  # FIXME: or can this really happen?
     func = obj.evaluate_value
     mod = sys.modules[obj.__module__]
