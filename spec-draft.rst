@@ -281,3 +281,31 @@ Oh, we could maybe do better but it would require some new machinery.
 * ``Member[T]``, when statically checking a type alias, could be treated as having some type like ``tuple[Member[KeyOf[T], object???, str], ...]``
 * ``GetAttr[T, S: KeyOf[T]]`` - but this isn't supported yet. TS supports it.
 * We would also need to do context sensitive type bound inference
+
+----
+
+
+=============================
+Direct associated type access
+=============================
+
+What we *really* want for this is to write::
+
+  class Member[N: str, T, Q: MemberQuals = typing.Never, D = typing.Never]:
+      type name = N
+      type tp = T
+      type quals = Q
+      type definer = D
+
+And then we could just write ``m.name`` and have it do the right thing. (Ties broken by MRO of course).
+This would be super nice.
+
+The problem is that if the LHS isn't already evaluated, we'll get back just an alias with no idea what the LHS was, and we won't be able to substitute in the variables.
+
+TODO: DECIDE
+
+Ideas:
+ 1. Have it only work if the LHS is an evaluated variable somehow. That is kind of unsatisfying.
+ 2. Use something other than ``type foo =`` to do this. Like, ``name: N = associated_type()`` and have that be a descriptor. (Use ``__set_name__`` to be able to track things.)
+ 3. Add a decorator or base class that replaces the GenericTypeAliases with the descriptor from above.
+ 4. Make ``GenericTypeAlias`` a descriptor (do the above for testing).
