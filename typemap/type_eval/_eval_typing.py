@@ -1,5 +1,6 @@
 import annotationlib
 
+import collections.abc
 import contextlib
 import contextvars
 import dataclasses
@@ -231,7 +232,10 @@ def _eval_types(obj: typing.Any, ctx: EvalContext):
         ctx.resolved |= {x: x for x in child_ctx.known_recursive_types.keys()}
         ctx.known_recursive_types |= child_ctx.known_recursive_types
 
-    ctx.resolved[obj] = evaled
+    # Don't cache iterators as they are stateful and can only be consumed once.
+    # This is important for Iter results that may be used multiple times.
+    if not isinstance(evaled, collections.abc.Iterator):
+        ctx.resolved[obj] = evaled
     return evaled
 
 

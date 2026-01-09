@@ -640,7 +640,7 @@ def test_never_is():
     assert d is True
 
 
-def test_eval_iter():
+def test_eval_iter_01():
     d = eval_typing(Iter[tuple[int, str]])
     assert tuple(d) == (int, str)
 
@@ -652,6 +652,22 @@ def test_eval_iter():
 
     d = eval_typing(Iter[tuple[()]])
     assert tuple(d) == ()
+
+
+type DuplicateTuple[T] = tuple[*[x for x in Iter[T]], *[x for x in Iter[T]]]
+type ConcatTupleWithSelf[T] = ConcatTuples[T, T]
+
+
+def test_eval_iter_02():
+    # ensure iterating duplicate tuples can be iterated multiple times
+    d = eval_typing(ConcatTuples[tuple[int, str], tuple[int, str]])
+    assert d == tuple[int, str, int, str]
+
+    d = eval_typing(DuplicateTuple[tuple[int, str]])
+    assert d == tuple[int, str, int, str]
+
+    d = eval_typing(ConcatTupleWithSelf[tuple[int, str]])
+    assert d == tuple[int, str, int, str]
 
 
 def test_eval_length_01():
