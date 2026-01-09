@@ -544,8 +544,27 @@ def test_eval_getarg_custom_04():
     assert eval_typing(GetArg[t, A, 1]) == Never
 
 
-@pytest.mark.xfail(reason="Should this work?")
+TestTypeVar = TypeVar("TestTypeVar")
+
+
 def test_eval_getarg_custom_05():
+    # TypeVar declared outside of scope of class
+    class ATree(Generic[TestTypeVar]):
+        val: list[ATree[TestTypeVar]]
+
+    t = ATree[int]
+    assert eval_typing(GetArg[t, ATree, 0]) is int
+    assert eval_typing(GetArg[t, ATree, -1]) is int
+    assert eval_typing(GetArg[t, ATree, 1]) == Never
+
+    t = ATree
+    assert eval_typing(GetArg[t, ATree, 0]) is Any
+    assert eval_typing(GetArg[t, ATree, -1]) is Any
+    assert eval_typing(GetArg[t, ATree, 1]) == Never
+
+
+def test_eval_getarg_custom_06():
+    # TypeVar declared inside scope of class
     A = TypeVar("A")
 
     class ATree(Generic[A]):
@@ -562,8 +581,8 @@ def test_eval_getarg_custom_05():
     assert eval_typing(GetArg[t, ATree, 1]) == Never
 
 
-@pytest.mark.xfail(reason="Should this work?")
-def test_eval_getarg_custom_06():
+def test_eval_getarg_custom_07():
+    # Doubly recursive generic types
     A = TypeVar("A")
     B = TypeVar("B")
 
@@ -585,6 +604,30 @@ def test_eval_getarg_custom_06():
     assert eval_typing(GetArg[t, ABTree, 0]) is Any
     assert eval_typing(GetArg[t, ABTree, 1]) is Any
     assert eval_typing(GetArg[t, ABTree, 2]) == Never
+
+
+def test_eval_getarg_custom_08():
+    # Generic class with generic methods
+    T = TypeVar("T")
+
+    class Container(Generic[T]):
+        data: list[T]
+
+        def get[T](self, index: int, default: T) -> int | T: ...
+        def map[U](self, func: Callable[[int], U]) -> list[U]: ...
+        def convert[T](self, func: Callable[[int], T]) -> Container2[T]: ...
+
+    class Container2[T]: ...
+
+    t = Container[int]
+    assert eval_typing(GetArg[t, Container, 0]) is int
+    assert eval_typing(GetArg[t, Container, -1]) is int
+    assert eval_typing(GetArg[t, Container, 1]) == Never
+
+    t = Container
+    assert eval_typing(GetArg[t, Container, 0]) is Any
+    assert eval_typing(GetArg[t, Container, -1]) is Any
+    assert eval_typing(GetArg[t, Container, 1]) == Never
 
 
 def test_uppercase_never():
