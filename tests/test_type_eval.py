@@ -817,11 +817,19 @@ def test_eval_or():
     assert d == Literal[False]
 
 
+type ShorterTuple[L, R] = If[LessThan[Length[L], Length[R]], L, R]
+
+
 def test_eval_if():
     d = eval_typing(If[Literal[True], int, str])
     assert d is int
     d = eval_typing(If[Literal[False], int, str])
     assert d is str
+
+    d = eval_typing(ShorterTuple[tuple[int], tuple[str, str]])
+    assert d == tuple[int]
+    d = eval_typing(ShorterTuple[tuple[int, int], tuple[str]])
+    assert d == tuple[str]
 
 
 def test_uppercase_never():
