@@ -23,7 +23,6 @@ from typemap.typing import (
     GetAttr,
     GreaterThan,
     GreaterThanOrEqual,
-    If,
     IsSubSimilar,
     IsSubtype,
     Iter,
@@ -521,19 +520,6 @@ _literal_binary_op(LessThanOrEqual, op=lambda lhs, rhs: lhs <= rhs)
 _literal_unary_op(Not, op=lambda val: not val)
 _literal_binary_op(And, op=lambda lhs, rhs: lhs and rhs)
 _literal_binary_op(Or, op=lambda lhs, rhs: lhs or rhs)
-
-
-##################################################################
-
-
-@type_eval.register_evaluator(If)
-def _eval_If(cond, then_branch, else_branch, *, ctx):
-    cond_val = _from_literal(cond, ctx)
-    return (
-        _eval_types(then_branch, ctx)
-        if cond_val
-        else _eval_types(else_branch, ctx)
-    )
 
 
 ##################################################################

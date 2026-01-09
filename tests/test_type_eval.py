@@ -826,6 +826,11 @@ def test_eval_if():
     d = eval_typing(If[Literal[False], int, str])
     assert d is str
 
+    d = eval_typing(If[True, int, str])
+    assert d is int
+    d = eval_typing(If[False, int, str])
+    assert d is str
+
     d = eval_typing(ShorterTuple[tuple[int], tuple[str, str]])
     assert d == tuple[int]
     d = eval_typing(ShorterTuple[tuple[int, int], tuple[str]])

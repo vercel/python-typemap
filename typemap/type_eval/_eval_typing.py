@@ -19,6 +19,7 @@ if typing.TYPE_CHECKING:
     from typing import Any
 
 from . import _apply_generic
+from typemap.typing import If
 
 
 __all__ = ("eval_typing",)
@@ -354,6 +355,14 @@ def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
     """Eval a typing._GenericAlias -- an applied user-defined class"""
     # generic *classes* are typing._GenericAlias while generic type
     # aliases are types.GenericAlias? Why in the world.
+
+    if obj.__origin__ == If:
+        cond = _eval_types(obj.__args__[0], ctx)
+        if cond is True or cond == typing.Literal[True]:
+            return _eval_types(obj.__args__[1], ctx)
+        else:
+            return _eval_types(obj.__args__[2], ctx)
+
     new_args = tuple(_eval_types(arg, ctx) for arg in typing.get_args(obj))
 
     if func := _eval_funcs.get(obj.__origin__):
