@@ -299,7 +299,7 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
     func = obj.evaluate_value
 
     # obj.__args__ matches the declared parameter order, but args are expected
-    # to be in alphabetical order.
+    # to be in the same order as func.__code__.co_freevars.
     args_by_name = dict(
         zip(
             (p.__name__ for p in obj.__origin__.__type_params__),
