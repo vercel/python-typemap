@@ -75,6 +75,7 @@ def substitute(ty, args):
 
 
 def box(cls: type[Any]) -> Boxed:
+    # TODO: We want a cache for this!!
     def _box(cls: type[Any], args: dict[Any, Any]) -> Boxed:
         boxed_bases: list[Boxed] = []
 
@@ -106,9 +107,6 @@ def box(cls: type[Any]) -> Boxed:
         return Boxed(cls, boxed_bases, args)
 
     if isinstance(cls, (typing._GenericAlias, types.GenericAlias)):  # type: ignore[attr-defined]
-        # XXX this feels out of place, `box()` needs to only accept types.
-        # this never gets activated now, but I want to basically
-        # support this later -sully
         args = dict(
             zip(cls.__origin__.__parameters__, cls.__args__, strict=True)
         )
@@ -194,11 +192,10 @@ def _get_closure_types(af: types.FunctionType) -> dict[str, type]:
         for name, variable in zip(
             af.__code__.co_freevars, af.__closure__, strict=True
         )
-        if isinstance(variable.cell_contents, type)
     }
 
 
-def _get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
+def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
 
@@ -237,6 +234,7 @@ def _get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
                 else:
                     annos[k] = v
     elif af := getattr(boxed.cls, "__annotations__", None):
+        # TODO: substitute vars in this case
         annos.update(af)
 
     for name, orig in boxed.cls.__dict__.items():
@@ -293,6 +291,7 @@ def _type_repr(t: Any) -> str:
         return repr(t)
 
 
+# XXX: This is all dead now???
 def apply(
     cls: type[Any], ctx: _eval_typing.EvalContext
 ) -> type[_eval_typing._EvalProxy]:
@@ -336,7 +335,7 @@ def apply(
         dct: dict[str, Any] = {}
         sources: dict[str, Any] = {}
 
-        cboxed.__local_annotations__, cboxed.__local_defns__ = _get_local_defns(
+        cboxed.__local_annotations__, cboxed.__local_defns__ = get_local_defns(
             boxed
         )
         for base in reversed(boxed.mro):

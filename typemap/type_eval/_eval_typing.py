@@ -11,6 +11,7 @@ import types
 import typing
 
 from typing import _GenericAlias as typing_GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+from typing import _CallableGenericAlias as typing_CallableGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 
 
 if typing.TYPE_CHECKING:
@@ -259,14 +260,6 @@ def _eval_func(
 
 @_eval_types_impl.register
 def _eval_type_type(obj: type, ctx: EvalContext):
-    if isinstance(obj, type) and issubclass(obj, typing.Generic):
-        try:
-            return _apply_generic.apply(obj, ctx)
-        except Exception:
-            # XXX: should apply handle this?
-            ctx.seen.pop(obj, None)
-            raise
-
     return obj
 
 
@@ -341,14 +334,29 @@ def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
     """Eval a typing._GenericAlias -- an applied user-defined class"""
     # generic *classes* are typing._GenericAlias while generic type
     # aliases are types.GenericAlias? Why in the world.
+    new_args = tuple(_eval_types(arg, ctx) for arg in typing.get_args(obj))
+
     if func := _eval_funcs.get(obj.__origin__):
-        new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
         ret = func(*new_args, ctx=ctx)
         # return _eval_types(ret, ctx)  # ???
         return ret
+    else:
+        return obj.__origin__[new_args]  # type: ignore[index]
 
-    # TODO: Actually evaluate in this case!
-    return obj
+
+@_eval_types_impl.register
+def _eval_callable(obj: typing_CallableGenericAlias, ctx: EvalContext):
+    """Eval a typing._CallableGenericAlias"""
+
+    def _eval_ty_or_list(obj):
+        if isinstance(obj, list):
+            return [_eval_types(t, ctx) for t in obj]
+        else:
+            return _eval_types(obj, ctx)
+
+    new_args = tuple(_eval_ty_or_list(arg) for arg in typing.get_args(obj))
+    # origin for Callable is collections.abc.Callable which kind of annoying
+    return typing.Callable[*new_args]
 
 
 @_eval_types_impl.register

@@ -9,6 +9,7 @@ import types
 import typing
 
 from typemap import type_eval
+from typemap.type_eval import _apply_generic
 from typemap.type_eval import _typing_inspect
 from typemap.type_eval._eval_typing import _eval_types
 from typemap.typing import (
@@ -34,6 +35,7 @@ from typemap.typing import (
     Uppercase,
 )
 
+
 ##################################################################
 
 
@@ -49,46 +51,47 @@ def get_annotated_type_hints(cls, **kwargs):
 
     This traverses the mro and finds the definition site for each annotation.
     """
-    ohints = typing.get_type_hints(cls, **kwargs)
+
+    # TODO: Cache the box (slash don't need it??)
+    box = _apply_generic.box(cls)
+
     hints = {}
-    for acls in cls.__mro__:
-        if not hasattr(acls, "__annotations__"):
-            continue
-        # XXX: This is super janky; we should just use the real mro
-        # and not flatten things
-        sources = getattr(acls, "__defn_sources__", {})
-        for k in acls.__annotations__:
-            if k not in hints:
-                quals = set()
-                ty = ohints[k]
+    for abox in reversed(box.mro):
+        acls = abox.alias_type()
 
-                # Strip ClassVar/Final from ty and add them to quals
-                while True:
-                    for form in [typing.ClassVar, typing.Final]:
-                        if _typing_inspect.is_special_form(ty, form):
-                            quals.add(form.__name__)
-                            ty = (
-                                typing.get_args(ty)[0]
-                                if typing.get_args(ty)
-                                else typing.Any
-                            )
-                            break
-                    else:
+        annos, _ = _apply_generic.get_local_defns(abox)
+        for k, ty in annos.items():
+            quals = set()
+
+            # Strip ClassVar/Final from ty and add them to quals
+            while True:
+                for form in [typing.ClassVar, typing.Final]:
+                    if _typing_inspect.is_special_form(ty, form):
+                        quals.add(form.__name__)
+                        ty = (
+                            typing.get_args(ty)[0]
+                            if typing.get_args(ty)
+                            else typing.Any
+                        )
                         break
+                else:
+                    break
 
-                hints[k] = ty, tuple(sorted(quals)), sources.get(k, acls)
+            hints[k] = ty, tuple(sorted(quals)), acls
 
-        # Stop early if we are done.
-        if len(hints) == len(ohints):
-            break
     return hints
 
 
-def get_annotated_method_hints(tp):
+def get_annotated_method_hints(cls):
+    # TODO: Cache the box (slash don't need it??)
+    box = _apply_generic.box(cls)
+
     hints = {}
-    for ptp in reversed(tp.mro()):
-        sources = getattr(ptp, "__defn_sources__", {})
-        for name, attr in ptp.__dict__.items():
+    for abox in reversed(box.mro):
+        acls = abox.alias_type()
+
+        _, dct = _apply_generic.get_local_defns(abox)
+        for name, attr in dct.items():
             if isinstance(
                 attr,
                 (
@@ -101,11 +104,10 @@ def get_annotated_method_hints(tp):
                 if attr is typing._no_init_or_replace_init:
                     continue
 
-                rtp = sources.get(name, ptp)
                 hints[name] = (
-                    _function_type(attr, receiver_type=rtp),
+                    _function_type(attr, receiver_type=acls),
                     ("ClassVar",),
-                    rtp,
+                    acls,
                 )
 
     return hints
@@ -250,7 +252,12 @@ def _eval_Attrs(tp, *, ctx):
 
     return tuple[
         *[
-            Member[typing.Literal[n], t, _mk_literal_union(*qs), d]
+            Member[
+                typing.Literal[n],
+                _eval_types(t, ctx),
+                _mk_literal_union(*qs),
+                d,
+            ]
             for n, (t, qs, d) in hints.items()
         ]
     ]
@@ -265,7 +272,9 @@ def _eval_Members(tp, *, ctx):
     }
 
     attrs = [
-        Member[typing.Literal[n], t, _mk_literal_union(*qs), d]
+        Member[
+            typing.Literal[n], _eval_types(t, ctx), _mk_literal_union(*qs), d
+        ]
         for n, (t, qs, d) in hints.items()
     ]
 
@@ -306,15 +315,13 @@ def _get_raw_args(tp, base_head, ctx) -> typing.Any:
         return typing.get_args(evaled)
 
     # Scan the fully-annotated MRO to find the base
-    elif gen_mro := getattr(evaled, "__generalized_mro__", None):
-        for anc in gen_mro:
-            if _typing_inspect.get_head(anc) is base_head:
-                return anc.__local_args__
-        return None
+    box = _apply_generic.box(tp)
+    for anc in box.mro:
+        if anc.cls is base_head:
+            return tuple(anc.args.values())
 
-    else:
-        # or error??
-        return None
+    # or error??
+    return None
 
 
 def _get_args(tp, base, ctx) -> typing.Any:
