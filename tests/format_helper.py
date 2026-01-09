@@ -4,8 +4,8 @@ import types
 import typing
 
 
-def format_class(cls: type) -> str:
-    def format_meth(meth):
+def format_class_basic(cls: type) -> str:
+    def format_meth(name, meth):
         root = inspect.unwrap(meth)
         sig = inspect.signature(root)
 
@@ -13,14 +13,14 @@ def format_class(cls: type) -> str:
         if params := root.__type_params__:
             ts = "[" + ", ".join(str(p) for p in params) + "]"
 
-        return f"{root.__name__}{ts}{sig}"
+        return f"{name}{ts}{sig}"
 
     code = f"class {cls.__name__}:\n"
     for attr_name, attr_type in cls.__annotations__.items():
         attr_type_s = annotationlib.type_repr(attr_type)
         code += f"    {attr_name}: {attr_type_s}\n"
 
-    for attr in cls.__dict__.values():
+    for name, attr in cls.__dict__.items():
         if attr is typing._no_init_or_replace_init:
             continue
         if isinstance(attr, classmethod):
@@ -32,5 +32,11 @@ def format_class(cls: type) -> str:
         # Intentionally not elif; classmethod and staticmethod cases
         # fall through
         if isinstance(attr, (types.FunctionType, types.MethodType)):
-            code += f"    def {format_meth(attr)}: ...\n"
+            code += f"    def {format_meth(name, attr)}: ...\n"
     return code
+
+
+def format_class(cls):
+    from typemap.type_eval import flatten_class
+
+    return format_class_basic(flatten_class(cls))

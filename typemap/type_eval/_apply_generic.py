@@ -281,6 +281,26 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
     return annos, dct
 
 
+def flatten_class(cls: type) -> type:
+    # This is a hacky version of flatten_class that works by using
+    # NewProtocol on Members!
+    #
+    # It works except for methods, since NewProtocol doesn't understand those.
+    from typemap.typing import (
+        Iter,
+        Members,
+        NewProtocol,
+    )
+
+    type ClsAlias = NewProtocol[*[m for m in Iter[Members[cls]]]]  # type: ignore[valid-type]
+    nt = _eval_typing.eval_typing(ClsAlias)
+    nt.__name__ = cls.__name__
+    nt.__qualname__ = cls.__qualname__
+    del nt.__subclasshook__
+
+    return nt
+
+
 def _type_repr(t: Any) -> str:
     if isinstance(t, type):
         if t.__module__ == "builtins":

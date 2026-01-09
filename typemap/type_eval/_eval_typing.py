@@ -273,7 +273,9 @@ def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
     assert obj.__module__  # FIXME: or can this really happen?
     func = obj.evaluate_value
     mod = sys.modules[obj.__module__]
-    ff = types.FunctionType(func.__code__, mod.__dict__, None, None, ())
+    ff = types.FunctionType(
+        func.__code__, mod.__dict__, None, None, func.__closure__
+    )
     unpacked = ff(annotationlib.Format.VALUE)
     return _eval_types(unpacked, ctx)
 
