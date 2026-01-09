@@ -1,5 +1,3 @@
-import pytest
-
 import collections
 import textwrap
 import unittest
@@ -14,6 +12,8 @@ from typing import (
     TypeVar,
     Union,
 )
+
+import pytest
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
@@ -730,3 +730,42 @@ def test_eval_literal_idempotent_01():
         nt = eval_typing(t)
         assert t == nt
         t = nt
+
+
+def test_callable_to_signature():
+    from typemap.type_eval._eval_operators import _callable_type_to_signature
+    from typemap.typing import Param
+
+    # Test the example from the docstring:
+    # def func(
+    #     a: int,
+    #     /,
+    #     b: int,
+    #     c: int = 0,
+    #     *args: int,
+    #     d: int,
+    #     e: int = 0,
+    #     **kwargs: int
+    # ) -> int:
+    callable_type = Callable[
+        [
+            Param[None, int],
+            Param[Literal["b"], int],
+            Param[Literal["c"], int, Literal["default"]],
+            Param[None, int, Literal["*"]],
+            Param[Literal["d"], int, Literal["keyword"]],
+            Param[Literal["e"], int, Literal["default", "keyword"]],
+            Param[None, int, Literal["**"]],
+        ],
+        int,
+    ]
+
+    sig = _callable_type_to_signature(callable_type)
+
+    params = list(sig.parameters.values())
+    assert len(params) == 7
+
+    assert str(sig) == (
+        '(_arg0: int, /, b: int, c: int = Ellipsis, *args: int, '
+        'd: int, e: int = Ellipsis, **kwargs: int) -> int'
+    )

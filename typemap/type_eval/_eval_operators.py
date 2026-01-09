@@ -9,8 +9,7 @@ import types
 import typing
 
 from typemap import type_eval
-from typemap.type_eval import _apply_generic
-from typemap.type_eval import _typing_inspect
+from typemap.type_eval import _apply_generic, _typing_inspect
 from typemap.type_eval._eval_typing import _eval_types
 from typemap.typing import (
     Attrs,
@@ -34,7 +33,6 @@ from typemap.typing import (
     Uncapitalize,
     Uppercase,
 )
-
 
 ##################################################################
 
@@ -189,6 +187,115 @@ def _eval_IsSubSimilar(lhs, rhs, *, ctx):
 
 
 ##################################################################
+
+
+def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
+    """Convert a Callable type with Param specs to an inspect.Signature.
+
+    The callable_type should be of the form:
+        Callable[
+            [
+                Param[name, type, quals],
+                ...
+            ],
+            return_type,
+        ]
+
+    Where:
+        - name is None for positional-only or variadic params, or a string
+        - type is the parameter type annotation
+        - quals is a Literal with any of: "*", "**", "keyword", "default"
+          or Never if no qualifiers
+    """
+    args = typing.get_args(callable_type)
+    if len(args) != 2:
+        raise TypeError(f"Expected Callable[[...], ret], got {callable_type}")
+
+    param_types, return_type = args
+
+    # Handle the case where param_types is a list of Param types
+    if not isinstance(param_types, (list, tuple)):
+        raise TypeError(f"Expected list of Param types, got {param_types}")
+
+    parameters: list[inspect.Parameter] = []
+    saw_keyword_only = False
+
+    for param_type in param_types:
+        # Extract Param arguments: Param[name, type, quals]
+        origin = typing.get_origin(param_type)
+        if origin is not Param:
+            raise TypeError(f"Expected Param type, got {param_type}")
+
+        param_args = typing.get_args(param_type)
+        if len(param_args) < 2:
+            raise TypeError(
+                f"Param must have at least name and type, got {param_type}"
+            )
+
+        name_type = param_args[0]
+        annotation = param_args[1]
+        quals_type = param_args[2] if len(param_args) > 2 else typing.Never
+
+        # Extract name from Literal[name] or None
+        if _typing_inspect.is_literal(name_type):
+            name = typing.get_args(name_type)[0]
+        else:
+            name = None
+
+        # Extract qualifiers from Literal["*", "**", ...] or Never
+        quals: set[str] = set()
+        if quals_type is not typing.Never:
+            if _typing_inspect.is_literal(quals_type):
+                qual_args = typing.get_args(quals_type)
+                quals = set(qual_args)
+            else:
+                quals = set()
+
+        # Determine parameter kind and default
+        kind: inspect._ParameterKind
+        if "**" in quals:
+            kind = inspect.Parameter.VAR_KEYWORD
+            name = name or "kwargs"
+        elif "*" in quals:
+            kind = inspect.Parameter.VAR_POSITIONAL
+            name = name or "args"
+            # XXX: not sure we need this
+            saw_keyword_only = True
+        elif "keyword" in quals:
+            kind = inspect.Parameter.KEYWORD_ONLY
+            saw_keyword_only = True
+        elif name is None:
+            kind = inspect.Parameter.POSITIONAL_ONLY
+        elif saw_keyword_only:
+            kind = inspect.Parameter.KEYWORD_ONLY
+        else:
+            kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
+
+        # Handle default value
+        default: typing.Any
+        if "default" in quals:
+            # We don't have the actual default value, use a sentinel
+            default = ...
+        else:
+            default = inspect.Parameter.empty
+
+        # Generate a name for positional-only params if needed
+        if name is None:
+            name = f"_arg{len(parameters)}"
+
+        parameters.append(
+            inspect.Parameter(
+                name=name,
+                kind=kind,
+                default=default,
+                annotation=annotation,
+            )
+        )
+
+    return inspect.Signature(
+        parameters=parameters,
+        return_annotation=return_type,
+    )
 
 
 def _function_type(func, *, receiver_type):
