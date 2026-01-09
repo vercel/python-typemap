@@ -17,18 +17,28 @@ from typing import (
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
+    And,
     Attrs,
+    Equals,
     FromUnion,
     GetArg,
     GetArgs,
     GetAttr,
     GetName,
     GetType,
+    GreaterThan,
+    GreaterThanOrEqual,
+    If,
     Is,
     Iter,
     Length,
+    LessThan,
+    LessThanOrEqual,
     Member,
     NewProtocol,
+    Not,
+    NotEquals,
+    Or,
     SpecialFormEllipsis,
     StrConcat,
     StrSlice,
@@ -665,6 +675,153 @@ def test_consistency_01():
 
     t = eval_typing(Fails[tuple[int, str]])
     assert t == Literal[False]
+
+
+def test_eval_equals():
+    d = eval_typing(Equals[Literal[1], Literal[1]])
+    assert d == Literal[True]
+    d = eval_typing(Equals[Literal[1], Literal[2]])
+    assert d == Literal[False]
+
+    d = eval_typing(Equals[1, 1])
+    assert d == Literal[True]
+    d = eval_typing(Equals[1, 2])
+    assert d == Literal[False]
+
+
+def test_eval_not_equals():
+    d = eval_typing(NotEquals[Literal[1], Literal[1]])
+    assert d == Literal[False]
+    d = eval_typing(NotEquals[Literal[1], Literal[2]])
+    assert d == Literal[True]
+
+    d = eval_typing(NotEquals[1, 1])
+    assert d == Literal[False]
+    d = eval_typing(NotEquals[1, 2])
+    assert d == Literal[True]
+
+
+def test_eval_greater_than():
+    d = eval_typing(GreaterThan[Literal[1], Literal[1]])
+    assert d == Literal[False]
+    d = eval_typing(GreaterThan[Literal[1], Literal[2]])
+    assert d == Literal[False]
+    d = eval_typing(GreaterThan[Literal[2], Literal[1]])
+    assert d == Literal[True]
+
+    d = eval_typing(GreaterThan[1, 1])
+    assert d == Literal[False]
+    d = eval_typing(GreaterThan[1, 2])
+    assert d == Literal[False]
+    d = eval_typing(GreaterThan[2, 1])
+    assert d == Literal[True]
+
+
+def test_eval_greater_than_or_equal():
+    d = eval_typing(GreaterThanOrEqual[Literal[1], Literal[1]])
+    assert d == Literal[True]
+    d = eval_typing(GreaterThanOrEqual[Literal[1], Literal[2]])
+    assert d == Literal[False]
+    d = eval_typing(GreaterThanOrEqual[Literal[2], Literal[1]])
+    assert d == Literal[True]
+
+    d = eval_typing(GreaterThanOrEqual[1, 1])
+    assert d == Literal[True]
+    d = eval_typing(GreaterThanOrEqual[1, 2])
+    assert d == Literal[False]
+    d = eval_typing(GreaterThanOrEqual[2, 1])
+    assert d == Literal[True]
+
+
+def test_eval_less_than():
+    d = eval_typing(LessThan[Literal[1], Literal[1]])
+    assert d == Literal[False]
+    d = eval_typing(LessThan[Literal[1], Literal[2]])
+    assert d == Literal[True]
+    d = eval_typing(LessThan[Literal[2], Literal[1]])
+    assert d == Literal[False]
+
+    d = eval_typing(LessThan[1, 1])
+    assert d == Literal[False]
+    d = eval_typing(LessThan[1, 2])
+    assert d == Literal[True]
+    d = eval_typing(LessThan[2, 1])
+    assert d == Literal[False]
+
+
+def test_eval_less_than_or_equal():
+    d = eval_typing(LessThanOrEqual[Literal[1], Literal[1]])
+    assert d == Literal[True]
+    d = eval_typing(LessThanOrEqual[Literal[1], Literal[2]])
+    assert d == Literal[True]
+    d = eval_typing(LessThanOrEqual[Literal[2], Literal[1]])
+    assert d == Literal[False]
+
+    d = eval_typing(LessThanOrEqual[1, 1])
+    assert d == Literal[True]
+    d = eval_typing(LessThanOrEqual[1, 2])
+    assert d == Literal[True]
+    d = eval_typing(LessThanOrEqual[2, 1])
+    assert d == Literal[False]
+
+
+def test_eval_not():
+    d = eval_typing(Not[Literal[True]])
+    assert d == Literal[False]
+    d = eval_typing(Not[Literal[False]])
+    assert d == Literal[True]
+
+    d = eval_typing(Not[True])
+    assert d == Literal[False]
+    d = eval_typing(Not[False])
+    assert d == Literal[True]
+
+
+def test_eval_and():
+    d = eval_typing(And[Literal[True], Literal[True]])
+    assert d == Literal[True]
+    d = eval_typing(And[Literal[True], Literal[False]])
+    assert d == Literal[False]
+    d = eval_typing(And[Literal[False], Literal[True]])
+    assert d == Literal[False]
+    d = eval_typing(And[Literal[False], Literal[False]])
+    assert d == Literal[False]
+
+    d = eval_typing(And[True, True])
+    assert d == Literal[True]
+    d = eval_typing(And[True, False])
+    assert d == Literal[False]
+    d = eval_typing(And[False, True])
+    assert d == Literal[False]
+    d = eval_typing(And[False, False])
+    assert d == Literal[False]
+
+
+def test_eval_or():
+    d = eval_typing(Or[Literal[True], Literal[True]])
+    assert d == Literal[True]
+    d = eval_typing(Or[Literal[True], Literal[False]])
+    assert d == Literal[True]
+    d = eval_typing(Or[Literal[False], Literal[True]])
+    assert d == Literal[True]
+    d = eval_typing(Or[Literal[False], Literal[False]])
+    assert d == Literal[False]
+
+    d = eval_typing(Or[True, True])
+    assert d == Literal[True]
+    d = eval_typing(Or[True, False])
+    assert d == Literal[True]
+    d = eval_typing(Or[False, True])
+    assert d == Literal[True]
+    d = eval_typing(Or[False, False])
+    assert d == Literal[False]
+
+
+def test_eval_if():
+    d = eval_typing(If[Literal[True], int, str])
+    assert d is int
+    d = eval_typing(If[Literal[False], int, str])
+    assert d is str
 
 
 def test_uppercase_never():

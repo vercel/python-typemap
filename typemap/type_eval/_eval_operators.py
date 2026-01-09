@@ -13,20 +13,30 @@ from typemap.type_eval import _apply_generic
 from typemap.type_eval import _typing_inspect
 from typemap.type_eval._eval_typing import _eval_types
 from typemap.typing import (
+    And,
     Attrs,
     Capitalize,
+    Equals,
     FromUnion,
     GetArg,
     GetArgs,
     GetAttr,
+    GreaterThan,
+    GreaterThanOrEqual,
+    If,
     IsSubSimilar,
     IsSubtype,
     Iter,
     Length,
+    LessThan,
+    LessThanOrEqual,
     Lowercase,
     Member,
     Members,
     NewProtocol,
+    Not,
+    NotEquals,
+    Or,
     Param,
     SpecialFormEllipsis,
     StrConcat,
@@ -477,6 +487,56 @@ def _eval_Length(tp, *, ctx) -> typing.Any:
     else:
         # XXX: Or should we return Never?
         raise TypeError(f"Invalid type argument to Length: {tp} is not a tuple")
+
+
+##################################################################
+
+
+def _literal_unary_op(typ, op):
+    @_lift_over_unions
+    def func(val, *, ctx):
+        return typing.Literal[op(_from_literal(val, ctx))]
+
+    type_eval.register_evaluator(typ)(func)
+
+
+def _literal_binary_op(typ, op):
+    @_lift_over_unions
+    def func(lhs, rhs, *, ctx):
+        return typing.Literal[
+            op(_from_literal(lhs, ctx), _from_literal(rhs, ctx))
+        ]
+
+    type_eval.register_evaluator(typ)(func)
+
+
+_literal_binary_op(Equals, op=lambda lhs, rhs: lhs == rhs)
+_literal_binary_op(NotEquals, op=lambda lhs, rhs: lhs != rhs)
+_literal_binary_op(GreaterThan, op=lambda lhs, rhs: lhs > rhs)
+_literal_binary_op(LessThan, op=lambda lhs, rhs: lhs < rhs)
+_literal_binary_op(GreaterThanOrEqual, op=lambda lhs, rhs: lhs >= rhs)
+_literal_binary_op(LessThanOrEqual, op=lambda lhs, rhs: lhs <= rhs)
+
+
+_literal_unary_op(Not, op=lambda val: not val)
+_literal_binary_op(And, op=lambda lhs, rhs: lhs and rhs)
+_literal_binary_op(Or, op=lambda lhs, rhs: lhs or rhs)
+
+
+##################################################################
+
+
+@type_eval.register_evaluator(If)
+def _eval_If(cond, then_branch, else_branch, *, ctx):
+    cond_val = _from_literal(cond, ctx)
+    return (
+        _eval_types(then_branch, ctx)
+        if cond_val
+        else _eval_types(else_branch, ctx)
+    )
+
+
+##################################################################
 
 
 def _string_literal_op(typ, op):

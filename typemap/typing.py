@@ -70,6 +70,46 @@ class Length[S: tuple]:
     pass
 
 
+class Equals[L, R]:
+    pass
+
+
+class NotEquals[L, R]:
+    pass
+
+
+class GreaterThan[L, R]:
+    pass
+
+
+class LessThan[L, R]:
+    pass
+
+
+class GreaterThanOrEqual[L, R]:
+    pass
+
+
+class LessThanOrEqual[L, R]:
+    pass
+
+
+class Not[T]:
+    pass
+
+
+class And[L, R]:
+    pass
+
+
+class Or[L, R]:
+    pass
+
+
+class If[Cond, Then, Else]:
+    pass
+
+
 class Uppercase[S: str]:
     pass
 
