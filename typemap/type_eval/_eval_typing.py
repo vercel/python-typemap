@@ -188,6 +188,16 @@ def _is_type_alias_type(obj: typing.Any) -> bool:
     )
 
 
+def _apply_type(base, args):
+    # Some type aliases (like Final) get mad if they get a 1-ary tuple...
+    # TODO: Should we special case 0?
+    # (Should we fill in Anys???)
+    if len(args) == 1:
+        return base[args[0]]
+    else:
+        return base[*args]
+
+
 def _eval_types(obj: typing.Any, ctx: EvalContext):
     # Found a recursive alias, we need to unwind it
     if obj in ctx.alias_stack:
@@ -289,7 +299,7 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
     """
     new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
 
-    new_obj = obj.__origin__[new_args]  # type: ignore[index]
+    new_obj = _apply_type(obj.__origin__, new_args)
     if isinstance(obj.__origin__, type):
         # This is a GenericAlias over a Python class, e.g. `dict[str, int]`
         # Let's reconstruct it by evaluating all arguments
@@ -343,7 +353,7 @@ def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
         # return _eval_types(ret, ctx)  # ???
         return ret
     else:
-        return obj.__origin__[new_args]  # type: ignore[index]
+        return _apply_type(obj.__origin__, new_args)
 
 
 @_eval_types_impl.register
@@ -358,7 +368,7 @@ def _eval_callable(obj: typing_CallableGenericAlias, ctx: EvalContext):
 
     new_args = tuple(_eval_ty_or_list(arg) for arg in typing.get_args(obj))
     # origin for Callable is collections.abc.Callable which kind of annoying
-    return typing.Callable[*new_args]
+    return _apply_type(typing.Callable, new_args)
 
 
 @_eval_types_impl.register
