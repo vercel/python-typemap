@@ -306,6 +306,15 @@ def test_type_dir_8():
     """)
 
 
+def test_type_dir_9():
+    d = eval_typing(Last[bool])
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class Last[bool]:
+            last: bool | typing.Literal[True]
+    """)
+
+
 def _get_member(members, name):
     return next(
         iter(m for m in members.__args__ if m.__args__[0].__args__[0] == name)
