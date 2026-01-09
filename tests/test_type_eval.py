@@ -134,6 +134,17 @@ class TB:
     y: list[object]
 
 
+type GetA1[A, B] = A
+type GetA2[B, A] = A
+
+
+def test_eval_arg_order():
+    d = eval_typing(GetA1[int, str])
+    assert d is int
+    d = eval_typing(GetA2[str, int])
+    assert d is int
+
+
 def test_type_getattr_union_1():
     d = eval_typing(GetAttr[TA | TB, Literal["x"]])
     assert d == int | str
@@ -640,7 +651,7 @@ def test_never_is():
     assert d is True
 
 
-def test_eval_iter():
+def test_eval_iter_01():
     d = eval_typing(Iter[tuple[int, str]])
     assert tuple(d) == (int, str)
 

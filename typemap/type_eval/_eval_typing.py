@@ -298,7 +298,20 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
 
     func = obj.evaluate_value
 
-    args = tuple(types.CellType(_eval_types(arg, ctx)) for arg in obj.__args__)
+    # obj.__args__ matches the declared parameter order, but args are expected
+    # to be in the same order as func.__code__.co_freevars.
+    args_by_name = dict(
+        zip(
+            (p.__name__ for p in obj.__origin__.__type_params__),
+            obj.__args__,
+            strict=False,
+        )
+    )
+
+    args = tuple(
+        types.CellType(_eval_types(args_by_name[name], ctx))
+        for name in func.__code__.co_freevars
+    )
     mod = sys.modules[obj.__module__]
 
     with _child_context() as child_ctx:
