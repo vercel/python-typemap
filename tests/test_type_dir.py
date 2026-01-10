@@ -204,7 +204,7 @@ def test_type_dir_1a():
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
             def foo(self: tests.test_type_dir.Base[int], a: int | None, *, b: int = ...) -> dict[str, int]: ...
-            def base[Z](self: self: tests.test_type_dir.Base[int], a: int | Z | None, b: ~K) -> dict[str, int | Z]: ...
+            def base[Z](self: tests.test_type_dir.Base[int], a: int | Z | None, b: ~K) -> dict[str, int | Z]: ...
             @classmethod
             def cbase(cls: type[tests.test_type_dir.Base[int]], a: int | None, b: ~K) -> dict[str, int]: ...
             @staticmethod
@@ -410,6 +410,8 @@ def test_type_members_func_3():
 
     assert (
         str(typ)
+        #          == "\
+        # staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
         == "\
-staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
+typemap.typing.GenericCallable[tuple[Z], staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]]"
     )

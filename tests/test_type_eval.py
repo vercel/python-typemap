@@ -766,6 +766,6 @@ def test_callable_to_signature():
     assert len(params) == 7
 
     assert str(sig) == (
-        '(_arg0: int, /, b: int, c: int = Ellipsis, *args: int, '
-        'd: int, e: int = Ellipsis, **kwargs: int) -> int'
+        '(_arg0: int, /, b: int, c: int = ..., *args: int, '
+        'd: int, e: int = ..., **kwargs: int) -> int'
     )

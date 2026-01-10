@@ -15,6 +15,7 @@ from typemap.typing import (
     Attrs,
     Capitalize,
     FromUnion,
+    GenericCallable,
     GetArg,
     GetArgs,
     GetAttr,
@@ -38,9 +39,14 @@ from typemap.typing import (
 
 
 def _from_literal(val):
-    assert _typing_inspect.is_literal(val)
-    # XXX: check length?
-    return val.__args__[0]
+    if _typing_inspect.is_literal(val):
+        # TODO: check length?
+        return val.__args__[0]
+    elif val is type(None):
+        return None
+    else:
+        # TODO: check it is some literal
+        return val
 
 
 def _eval_literal(val, ctx):
@@ -191,9 +197,9 @@ def _eval_IsSubSimilar(lhs, rhs, *, ctx):
 
 ##################################################################
 
+
 def _get_quals(quals_type):
     # Extract qualifiers from Literal["*", "**", ...] or Never
-    quals: set[str] = set()
     if _typing_inspect.is_literal(quals_type):
         qual_args = typing.get_args(quals_type)
         return set(qual_args)
@@ -206,6 +212,7 @@ class _DummyDefault:
     # Putting actual `...` displays as 'Ellipsis'.
     def __repr__(self):
         return "..."
+
 
 _DUMMY_DEFAULT = _DummyDefault()
 
@@ -258,10 +265,7 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
         quals_type = param_args[2] if len(param_args) > 2 else typing.Never
 
         # Extract name from Literal[name] or None
-        if _typing_inspect.is_literal(name_type):
-            name = typing.get_args(name_type)[0]
-        else:
-            name = None
+        name = _from_literal(name_type)
 
         # Extract qualifiers from Literal["*", "**", ...] or Never
         quals: set[str] = set()
@@ -345,13 +349,30 @@ def _is_pos_only(param):
 
 
 def _callable_type_to_method(name, typ):
+    """Turn a callable type into a method.
+
+    I'm not totally sure if this is worth doing! The main accomplishment
+    is in how it pretty prints...
+    """
+
+    type_params = ()
+
     head = typing.get_origin(typ)
-    # XXX: handle other amounts
+    if head is GenericCallable:
+        ttparams, typ = typing.get_args(typ)
+        type_params = typing.get_args(ttparams)
+        head = typing.get_origin(typ)
+
     if head is classmethod:
+        # XXX: handle other amounts
         cls, params, ret = typing.get_args(typ)
         # We have to make class positional only if there is some other
         # positional only argument. Annoying!
-        pname = "cls" if not any(_is_pos_only(p) for p in typing.get_args(params)) else None
+        pname = (
+            "cls"
+            if not any(_is_pos_only(p) for p in typing.get_args(params))
+            else None
+        )
         cls_param = Param[
             typing.Literal[pname],
             type[cls],
@@ -364,7 +385,9 @@ def _callable_type_to_method(name, typ):
     else:
         head = lambda x: x
 
-    return head(_signature_to_function(name, _callable_type_to_signature(typ)))
+    func = _signature_to_function(name, _callable_type_to_signature(typ))
+    func.__type_params__ = type_params
+    return head(func)
 
 
 def _function_type(func, *, receiver_type):
@@ -414,12 +437,16 @@ def _function_type(func, *, receiver_type):
 
     # TODO: Is doing the tuple for staticmethod/classmethod legit?
     # Putting a list in makes it unhashable...
+    f: typing.Any
     if isinstance(func, staticmethod):
-        return staticmethod[tuple[*params], ret]
+        f = staticmethod[tuple[*params], ret]
     elif isinstance(func, classmethod):
-        return classmethod[specified_receiver, tuple[*params[1:]], ret]
+        f = classmethod[specified_receiver, tuple[*params[1:]], ret]
     else:
-        return typing.Callable[params, ret]
+        f = typing.Callable[params, ret]
+    if root.__type_params__:
+        f = GenericCallable[tuple[*root.__type_params__], f]
+    return f
 
 
 @type_eval.register_evaluator(Attrs)
@@ -683,6 +710,7 @@ def _add_quals(typ, quals):
 
 def _is_method_like(typ):
     return typing.get_origin(typ) in (
+        GenericCallable,
         collections.abc.Callable,
         staticmethod,
         classmethod,
