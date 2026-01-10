@@ -396,4 +396,4 @@ def flatten_class_explicit(obj: typing.Any):
         return _flatten_class_explicit(obj, ctx)
 
 
-flatten_class = flatten_class_explicit
+flatten_class = flatten_class_new_proto

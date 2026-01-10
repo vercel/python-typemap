@@ -37,11 +37,14 @@ from typemap.typing import (
 ##################################################################
 
 
-def _from_literal(val, ctx):
-    val = _eval_types(val, ctx)
-    if _typing_inspect.is_literal(val):
-        val = val.__args__[0]
-    return val
+def _from_literal(val):
+    assert _typing_inspect.is_literal(val)
+    # XXX: check length?
+    return val.__args__[0]
+
+
+def _eval_literal(val, ctx):
+    return _from_literal(_eval_types(val, ctx))
 
 
 def get_annotated_type_hints(cls, **kwargs):
@@ -188,6 +191,24 @@ def _eval_IsSubSimilar(lhs, rhs, *, ctx):
 
 ##################################################################
 
+def _get_quals(quals_type):
+    # Extract qualifiers from Literal["*", "**", ...] or Never
+    quals: set[str] = set()
+    if _typing_inspect.is_literal(quals_type):
+        qual_args = typing.get_args(quals_type)
+        return set(qual_args)
+    else:
+        return set()
+
+
+class _DummyDefault:
+    # A dummy class to assign to defaults that will display as '...'
+    # Putting actual `...` displays as 'Ellipsis'.
+    def __repr__(self):
+        return "..."
+
+_DUMMY_DEFAULT = _DummyDefault()
+
 
 def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
     """Convert a Callable type with Param specs to an inspect.Signature.
@@ -275,7 +296,7 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
         default: typing.Any
         if "default" in quals:
             # We don't have the actual default value, use a sentinel
-            default = ...
+            default = _DUMMY_DEFAULT
         else:
             default = inspect.Parameter.empty
 
@@ -296,6 +317,54 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
         parameters=parameters,
         return_annotation=return_type,
     )
+
+
+def _signature_to_function(name: str, sig: inspect.Signature):
+    """
+    Creates a new function with a specific inspect.Signature.
+    """
+
+    def fn(*args, **kwargs):
+        raise NotImplementedError
+
+    fn.__name__ = fn.__qualname__ = name
+    fn.__signature__ = sig  # type: ignore[attr-defined]
+    fn.__annotations__ = {
+        p.name: p.annotation
+        for p in sig.parameters.values()
+        if p.annotation is not inspect.Parameter.empty
+    }
+
+    return fn
+
+
+def _is_pos_only(param):
+    name, _, quals = typing.get_args(param)
+    name = _from_literal(name)
+    return name is None and not (_get_quals(quals) & {"*", "**"})
+
+
+def _callable_type_to_method(name, typ):
+    head = typing.get_origin(typ)
+    # XXX: handle other amounts
+    if head is classmethod:
+        cls, params, ret = typing.get_args(typ)
+        # We have to make class positional only if there is some other
+        # positional only argument. Annoying!
+        pname = "cls" if not any(_is_pos_only(p) for p in typing.get_args(params)) else None
+        cls_param = Param[
+            typing.Literal[pname],
+            type[cls],
+            typing.Never,
+        ]
+        typ = typing.Callable[[cls_param] + list(typing.get_args(params)), ret]
+    elif head is staticmethod:
+        params, ret = typing.get_args(typ)
+        typ = typing.Callable[list(typing.get_args(params)), ret]
+    else:
+        head = lambda x: x
+
+    return head(_signature_to_function(name, _callable_type_to_signature(typ)))
 
 
 def _function_type(func, *, receiver_type):
@@ -407,7 +476,7 @@ def _eval_FromUnion(tp, *, ctx):
 def _eval_GetAttr(lhs, prop, *, ctx):
     # TODO: the prop missing, etc!
     # XXX: extras?
-    name = _from_literal(prop, ctx)
+    name = _eval_literal(prop, ctx)
     return typing.get_type_hints(lhs)[name]
 
 
@@ -556,7 +625,7 @@ def _eval_GetArg(tp, base, idx, *, ctx) -> typing.Any:
         return typing.Never
 
     try:
-        return _fix_type(args[_from_literal(idx, ctx)])
+        return _fix_type(args[_eval_literal(idx, ctx)])
     except IndexError:
         return typing.Never
 
@@ -589,7 +658,7 @@ def _eval_Length(tp, *, ctx) -> typing.Any:
 def _string_literal_op(typ, op):
     @_lift_over_unions
     def func(*args, ctx):
-        return typing.Literal[op(*[_from_literal(x, ctx) for x in args])]
+        return typing.Literal[op(*[_eval_literal(x, ctx) for x in args])]
 
     type_eval.register_evaluator(typ)(func)
 
@@ -612,17 +681,30 @@ def _add_quals(typ, quals):
     return typ
 
 
+def _is_method_like(typ):
+    return typing.get_origin(typ) in (
+        collections.abc.Callable,
+        staticmethod,
+        classmethod,
+    )
+
+
 @type_eval.register_evaluator(NewProtocol)
 def _eval_NewProtocol(*etyps: Member, ctx):
     dct: dict[str, object] = {}
-    dct["__annotations__"] = {
-        # XXX: Should eval_typing on the etyps evaluate the arguments??
-        _from_literal(name, ctx): _add_quals(
-            _eval_types(typ, ctx),
-            _eval_types(quals, ctx),
-        )
-        for name, typ, quals, _ in (typing.get_args(prop) for prop in etyps)
-    }
+    dct["__annotations__"] = annos = {}
+
+    for tname, typ, quals, _ in (typing.get_args(prop) for prop in etyps):
+        name = _eval_literal(tname, ctx)
+        typ = _eval_types(typ, ctx)
+        tquals = _eval_types(quals, ctx)
+
+        if type_eval.issubsimilar(
+            typing.Literal["ClassVar"], tquals
+        ) and _is_method_like(typ):
+            dct[name] = _callable_type_to_method(name, typ)
+        else:
+            annos[name] = _add_quals(typ, tquals)
 
     module_name = __name__
     name = "NewProtocol"

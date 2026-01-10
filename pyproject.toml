@@ -56,6 +56,7 @@ extend-ignore = [
     "E402", # module-import-not-at-top-of-file
     "E252", # missing-whitespace-around-parameter-equals
     "F541", # f-string-missing-placeholders
+    "E731", # don't assign lambdas
 ]
 
 [tool.ruff.lint.per-file-ignores]
