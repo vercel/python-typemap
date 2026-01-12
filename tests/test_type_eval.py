@@ -221,6 +221,24 @@ def test_type_strings_6():
     assert d == Literal["bcd"]
 
 
+type ReplacePrefix[S: str, P: str, N: str] = If[
+    Equals[StrSlice[S, 0, Length[P]], P],
+    StrConcat[N, StrSlice[S, 2, Literal[None]]],
+    S,
+]
+
+
+def test_type_strings_7():
+    d = eval_typing(
+        ReplacePrefix[Literal["x_a"], Literal["x_"], Literal["hi_"]]
+    )
+    assert d == Literal["hi_a"]
+    d = eval_typing(
+        ReplacePrefix[Literal["x_a"], Literal["y_"], Literal["hi_"]]
+    )
+    assert d == Literal["x_a"]
+
+
 def _is_generic_permutation(t1, t2):
     return t1.__origin__ == t2.__origin__ and collections.Counter(
         t1.__args__
