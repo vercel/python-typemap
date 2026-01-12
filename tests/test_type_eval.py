@@ -886,6 +886,19 @@ type FilterPrefix2[T, Pint: str, Pstr: str] = NewProtocol[
         )
     ]
 ]
+type FilterPrefix3[T, P: str, N: str] = NewProtocol[
+    *[
+        (
+            x
+            if not Is[StrSlice[GetName[x], 0, Length[P]], P]
+            else Member[
+                StrConcat[N, StrSlice[GetName[x], Length[P], Literal[None]]],
+                GetType[x],
+            ]
+        )
+        for x in Iter[Attrs[T]]
+    ]
+]
 
 
 def test_filter_prefix_1():
@@ -906,6 +919,20 @@ def test_filter_prefix_2():
         class FilterPrefix2[tests.test_type_eval.Prefixed, typing.Literal['x_'], typing.Literal['y_']]:
             x_a: int
             y_b: str
+        """)
+
+
+def test_filter_prefix_3():
+    d = eval_typing(FilterPrefix3[Prefixed, Literal["y_"], Literal["z_"]])
+    fmt = format_helper.format_class(d)
+    assert fmt == textwrap.dedent("""\
+        class FilterPrefix3[tests.test_type_eval.Prefixed, typing.Literal['y_'], typing.Literal['z_']]:
+            x_a: int
+            x_b: str
+            x_c: float
+            z_a: int
+            z_b: str
+            z_c: float
         """)
 
 
