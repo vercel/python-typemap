@@ -8,6 +8,11 @@ __all__ = ("issubsimilar",)
 def issubsimilar(lhs: typing.Any, rhs: typing.Any) -> bool:
     # TODO: Need to handle some cases
 
+    if lhs is None:
+        lhs = type(None)
+    if rhs is None:
+        rhs = type(None)
+
     # N.B: All of the 'bool's in these are because black otherwise
     # formats the two-conditional chains in an unconscionably bad way.
 

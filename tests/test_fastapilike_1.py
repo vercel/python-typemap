@@ -48,9 +48,7 @@ type AllOptional[T] = NewProtocol[
     ]
 ]
 
-type NotOptional[T] = Union[
-    *[x for x in Iter[FromUnion[T]] if not Is[x, type(None)]]
-]
+type NotOptional[T] = Union[*[x for x in Iter[FromUnion[T]] if not Is[x, None]]]
 type FixPublicType[T] = DropAnnotations[
     # Drop the | None for the primary keys
     NotOptional[T] if Is[Literal[PropQuals.PRIMARY], GetAnnotations[T]] else T
