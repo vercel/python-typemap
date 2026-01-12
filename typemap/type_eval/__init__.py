@@ -4,6 +4,7 @@ from ._eval_typing import (
     register_evaluator,
     _EvalProxy,
 )
+from ._apply_generic import flatten_class
 
 # XXX: this needs to go second due to nasty circularity -- try to fix that!!
 from ._eval_call import eval_call
@@ -18,6 +19,7 @@ __all__ = (
     "eval_typing",
     "register_evaluator",
     "eval_call",
+    "flatten_class",
     "issubtype",
     "issubsimilar",
     "_EvalProxy",

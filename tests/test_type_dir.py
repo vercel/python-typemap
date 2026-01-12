@@ -154,7 +154,7 @@ type NoLiterals2[T] = NewProtocol[
 ]
 
 
-# Subtyping this forces real type evaluation
+# Subtyping Eval used to do something
 class Eval[T]:
     pass
 
@@ -175,14 +175,14 @@ def test_type_dir_link_1():
     d = eval_typing(Loop)
     loop = d.__annotations__["loop"]
     assert loop is d
-    assert loop is not Foo
+    assert loop is Loop
 
 
 def test_type_dir_link_2():
     d = eval_typing(Foo)
     loop = d.__annotations__["bar"].__annotations__["foo"]
     assert loop is d
-    assert loop is not Foo
+    assert loop is Foo
 
 
 def test_type_dir_1():
@@ -280,11 +280,6 @@ def test_type_dir_6():
     """)
 
 
-def test_type_dir_7():
-    d = eval_typing(BaseArg[Final])
-    assert d is int
-
-
 class Simple[T]:
     simple: T
 
@@ -297,7 +292,7 @@ class Funny2(Funny[int]):
     pass
 
 
-def test_type_dir_8():
+def test_type_dir_7():
     d = eval_typing(Funny2)
 
     assert format_helper.format_class(d) == textwrap.dedent("""\
@@ -306,13 +301,27 @@ def test_type_dir_8():
     """)
 
 
+def test_type_dir_9():
+    d = eval_typing(Last[bool])
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class Last[bool]:
+            last: bool | typing.Literal[True]
+    """)
+
+
+def test_type_dir_get_arg_1():
+    d = eval_typing(BaseArg[Final])
+    assert d is int
+
+
 def _get_member(members, name):
     return next(
         iter(m for m in members.__args__ if m.__args__[0].__args__[0] == name)
     )
 
 
-def test_type_members_attr_():
+def test_type_members_attr_1():
     d = eval_typing(Members[Final])
     member = _get_member(d, "ordinary")
     assert typing.get_origin(member) is Member
@@ -320,7 +329,25 @@ def test_type_members_attr_():
     assert origin.__name__ == "Ordinary"
 
 
-def test_type_members_func_1a():
+def test_type_members_attr_2():
+    d = eval_typing(Members[Final])
+    member = _get_member(d, "last")
+    assert typing.get_origin(member) is Member
+    _, typ, _, origin = typing.get_args(member)
+    assert typ == int | Literal[True]
+    assert str(origin) == "tests.test_type_dir.Last[int]"
+
+
+def test_type_members_attr_3():
+    d = eval_typing(Members[Last[int]])
+    member = _get_member(d, "last")
+    assert typing.get_origin(member) is Member
+    _, typ, _, origin = typing.get_args(member)
+    assert typ == int | Literal[True]
+    assert str(origin) == "tests.test_type_dir.Last[int]"
+
+
+def test_type_members_func_1():
     d = eval_typing(Members[Final])
     member = _get_member(d, "foo")
     assert typing.get_origin(member) is Member
@@ -339,7 +366,7 @@ typemap.typing.Param[typing.Literal['b'], int, typing.Literal['keyword', \
 dict[str, int]]"
     )
 
-    assert origin.__name__ == "Base[int]"
+    assert str(origin) == "tests.test_type_dir.Base[int]"
 
 
 def test_type_members_func_2():

@@ -108,10 +108,8 @@ def test_qblike_3():
         class select[...]:
             x: tests.test_qblike.Property[int]
             w: tests.test_qblike.Property[list[str]]
-            z: tests.test_qblike.Link[PropsOnly[typemap.typing.GetArg[\
-tests.test_qblike.Link[tests.test_qblike.Tgt], tests.test_qblike.Link, 0]]]
+            z: tests.test_qblike.Link[tests.test_qblike.PropsOnly[tests.test_qblike.Tgt]]
         """)
-    # z: tests.test_qblike.Link[PropsOnly[tests.test_qblike.Tgt]]
 
     res = eval_typing(GetAttr[ret, Literal["z"]])
     tgt = res.__args__[0]

@@ -75,6 +75,7 @@ def substitute(ty, args):
 
 
 def box(cls: type[Any]) -> Boxed:
+    # TODO: We want a cache for this!!
     def _box(cls: type[Any], args: dict[Any, Any]) -> Boxed:
         boxed_bases: list[Boxed] = []
 
@@ -106,9 +107,6 @@ def box(cls: type[Any]) -> Boxed:
         return Boxed(cls, boxed_bases, args)
 
     if isinstance(cls, (typing._GenericAlias, types.GenericAlias)):  # type: ignore[attr-defined]
-        # XXX this feels out of place, `box()` needs to only accept types.
-        # this never gets activated now, but I want to basically
-        # support this later -sully
         args = dict(
             zip(cls.__origin__.__parameters__, cls.__args__, strict=True)
         )
@@ -194,11 +192,10 @@ def _get_closure_types(af: types.FunctionType) -> dict[str, type]:
         for name, variable in zip(
             af.__code__.co_freevars, af.__closure__, strict=True
         )
-        if isinstance(variable.cell_contents, type)
     }
 
 
-def _get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
+def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
 
@@ -237,6 +234,7 @@ def _get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
                 else:
                     annos[k] = v
     elif af := getattr(boxed.cls, "__annotations__", None):
+        # TODO: substitute vars in this case
         annos.update(af)
 
     for name, orig in boxed.cls.__dict__.items():
@@ -283,6 +281,31 @@ def _get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
     return annos, dct
 
 
+def flatten_class_new_proto(cls: type) -> type:
+    # This is a hacky version of flatten_class that works by using
+    # NewProtocol on Members!
+    #
+    # It works except for methods, since NewProtocol doesn't understand those.
+    from typemap.typing import (
+        Iter,
+        Members,
+        NewProtocol,
+    )
+
+    type ClsAlias = NewProtocol[*[m for m in Iter[Members[cls]]]]  # type: ignore[valid-type]
+    nt = _eval_typing.eval_typing(ClsAlias)
+
+    args = typing.get_args(cls)
+    args_str = ", ".join(_type_repr(a) for a in args)
+    args_str = f'[{args_str}]' if args_str else ''
+
+    nt.__name__ = f'{cls.__name__}{args_str}'
+    nt.__qualname__ = f'{cls.__qualname__}{args_str}'
+    del nt.__subclasshook__
+
+    return nt
+
+
 def _type_repr(t: Any) -> str:
     if isinstance(t, type):
         if t.__module__ == "builtins":
@@ -293,7 +316,9 @@ def _type_repr(t: Any) -> str:
         return repr(t)
 
 
-def apply(
+# TODO: Potentially most of this could be ripped out. The internals
+# don't use this at all, it's only used by format_class.
+def _flatten_class_explicit(
     cls: type[Any], ctx: _eval_typing.EvalContext
 ) -> type[_eval_typing._EvalProxy]:
     cls_boxed = box(cls)
@@ -330,13 +355,13 @@ def apply(
                 "__local_args__": args,
             },
         )
-        ctx.seen[boxed.alias_type()] = new[boxed] = cboxed
+        new[boxed] = cboxed
 
         annos: dict[str, Any] = {}
         dct: dict[str, Any] = {}
         sources: dict[str, Any] = {}
 
-        cboxed.__local_annotations__, cboxed.__local_defns__ = _get_local_defns(
+        cboxed.__local_annotations__, cboxed.__local_defns__ = get_local_defns(
             boxed
         )
         for base in reversed(boxed.mro):
@@ -364,3 +389,11 @@ def apply(
             setattr(cboxed, k, _eval_typing._eval_types(v, ctx=ctx))
 
     return new[cls_boxed]
+
+
+def flatten_class_explicit(obj: typing.Any):
+    with _eval_typing._ensure_context() as ctx:
+        return _flatten_class_explicit(obj, ctx)
+
+
+flatten_class = flatten_class_explicit

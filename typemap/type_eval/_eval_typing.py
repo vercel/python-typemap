@@ -11,6 +11,8 @@ import types
 import typing
 
 from typing import _GenericAlias as typing_GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+from typing import _CallableGenericAlias as typing_CallableGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+from typing import _LiteralGenericAlias as typing_LiteralGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 
 
 if typing.TYPE_CHECKING:
@@ -187,6 +189,16 @@ def _is_type_alias_type(obj: typing.Any) -> bool:
     )
 
 
+def _apply_type(base, args):
+    # Some type aliases (like Final) get mad if they get a 1-ary tuple...
+    # TODO: Should we special case 0?
+    # (Should we fill in Anys???)
+    if len(args) == 1:
+        return base[args[0]]
+    else:
+        return base[*args]
+
+
 def _eval_types(obj: typing.Any, ctx: EvalContext):
     # Found a recursive alias, we need to unwind it
     if obj in ctx.alias_stack:
@@ -259,14 +271,6 @@ def _eval_func(
 
 @_eval_types_impl.register
 def _eval_type_type(obj: type, ctx: EvalContext):
-    if isinstance(obj, type) and issubclass(obj, typing.Generic):
-        try:
-            return _apply_generic.apply(obj, ctx)
-        except Exception:
-            # XXX: should apply handle this?
-            ctx.seen.pop(obj, None)
-            raise
-
     return obj
 
 
@@ -275,12 +279,21 @@ def _eval_type_var(obj: typing.TypeVar, ctx: EvalContext):
     return obj
 
 
+# We don't want to evaluate the body of Literals; there's nothing to
+# do there, and doing it puts weird stuff in the caches.
+@_eval_types_impl.register
+def _eval_literal(obj: typing_LiteralGenericAlias, ctx: EvalContext):
+    return obj
+
+
 @_eval_types_impl.register
 def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
     assert obj.__module__  # FIXME: or can this really happen?
     func = obj.evaluate_value
     mod = sys.modules[obj.__module__]
-    ff = types.FunctionType(func.__code__, mod.__dict__, None, None, ())
+    ff = types.FunctionType(
+        func.__code__, mod.__dict__, None, None, func.__closure__
+    )
     unpacked = ff(annotationlib.Format.VALUE)
     return _eval_types(unpacked, ctx)
 
@@ -294,7 +307,7 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
     """
     new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
 
-    new_obj = obj.__origin__[new_args]  # type: ignore[index]
+    new_obj = _apply_type(obj.__origin__, new_args)
     if isinstance(obj.__origin__, type):
         # This is a GenericAlias over a Python class, e.g. `dict[str, int]`
         # Let's reconstruct it by evaluating all arguments
@@ -341,14 +354,29 @@ def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
     """Eval a typing._GenericAlias -- an applied user-defined class"""
     # generic *classes* are typing._GenericAlias while generic type
     # aliases are types.GenericAlias? Why in the world.
+    new_args = tuple(_eval_types(arg, ctx) for arg in typing.get_args(obj))
+
     if func := _eval_funcs.get(obj.__origin__):
-        new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
         ret = func(*new_args, ctx=ctx)
         # return _eval_types(ret, ctx)  # ???
         return ret
+    else:
+        return _apply_type(obj.__origin__, new_args)
 
-    # TODO: Actually evaluate in this case!
-    return obj
+
+@_eval_types_impl.register
+def _eval_callable(obj: typing_CallableGenericAlias, ctx: EvalContext):
+    """Eval a typing._CallableGenericAlias"""
+
+    def _eval_ty_or_list(obj):
+        if isinstance(obj, list):
+            return [_eval_types(t, ctx) for t in obj]
+        else:
+            return _eval_types(obj, ctx)
+
+    new_args = tuple(_eval_ty_or_list(arg) for arg in typing.get_args(obj))
+    # origin for Callable is collections.abc.Callable which kind of annoying
+    return _apply_type(typing.Callable, new_args)
 
 
 @_eval_types_impl.register

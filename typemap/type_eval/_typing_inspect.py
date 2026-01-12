@@ -3,6 +3,7 @@
 # SPDX-FileCopyrightText: Copyright Gel Data Inc. and the contributors.
 
 
+import annotationlib
 import typing
 from types import GenericAlias, UnionType
 from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
@@ -153,7 +154,19 @@ def param_default(p) -> Any:
     return Any if p.__default__ == typing.NoDefault else p.__default__
 
 
+def get_local_type_hints(obj, **kwargs) -> dict[str, Any]:
+    """Return type hints for an object, excluding inherited annotations.
+
+    This works by calling typing.get_type_hints() and then filtering out
+    any keys that don't also appear in annotationlib.get_annotations().
+    """
+    hints = typing.get_type_hints(obj, **kwargs)
+    local_annotations = annotationlib.get_annotations(obj)
+    return {k: v for k, v in hints.items() if k in local_annotations}
+
+
 __all__ = (
+    "get_local_type_hints",
     "is_annotated",
     "is_forward_ref",
     "is_generic_alias",
