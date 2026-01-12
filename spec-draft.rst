@@ -153,12 +153,12 @@ Methods are returned as callables using the new ``Param`` based extended callabl
 
 TODO: What do we do about decorators in general, *at runtime*... This seems pretty cursed. We can probably sometimes evaluate them, if there are annotations at runtime.
 
-We also have helpers for extracting those names; they are all definable in terms of ``GetArg``.
-(These names are too long -- but we can't do ``Type``. I kind of want to do the *longer* ``MemberName``?)
+We also have helpers for extracting those names; they are all definable in terms of ``GetArg``. (Some of them are shared with ``Param``, discussed below.)
+(These names are too long -- but we can't do ``Type``.)
 
-* ``GetName[T: Member]``
-* ``GetType[T: Member]``
-* ``GetQuals[T: Member]``
+* ``GetName[T: Member | Param]``
+* ``GetType[T: Member | Param]``
+* ``GetQuals[T: Member | Param]``
 * ``GetDefiner[T: Member]``
 
 * ``NewProtocolWithBases[Bases, Ps: tuple[Member]]`` - A variant that allows specifying bases too. (UNIMPLEMENTED)
@@ -174,14 +174,10 @@ We also have helpers for extracting those names; they are all definable in terms
 Callable inspection and creation
 --------------------------------
 
-* TODO: Should ``GetArg`` on a callable automatically convert ``[int, str]`` or whatever into something using ``Param``? Or should a separate operator be needed?
+``Callable`` types always have their arguments exposed in the extended Callable format discussed above.
 
-* ``GetParamName[T: Param]``
-* ``GetParamType[T: Param]``
-* ``GetParamQuals[T: Param]``
+The names, type, and qualifiers share getter operations with ``Member``.
 
-This is unsatisfying; maybe they all need to be just ``ParamName`` and also ``MemberName`` above.
-We could also merge the getters for ``Param`` and ``Member``.
 
 ----
 

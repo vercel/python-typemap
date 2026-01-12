@@ -513,6 +513,22 @@ def _eval_GetAttr(tp, prop, *, ctx):
         return typing.Never
 
 
+def _fix_callable_args(base, args):
+    idx = FUNC_LIKES[base]
+    if idx >= len(args):
+        return args
+    args = list(args)
+    special = _fix_type(args[idx])
+    if typing.get_origin(special) is tuple:
+        args[idx] = tuple[
+            *[
+                t if isinstance(t, Param) else Param[typing.Literal[None], t]
+                for t in typing.get_args(special)
+            ]
+        ]
+    return tuple(args)
+
+
 def _get_raw_args(tp, base_head, ctx) -> typing.Any:
     evaled = _eval_types(tp, ctx)
 
@@ -521,7 +537,11 @@ def _get_raw_args(tp, base_head, ctx) -> typing.Any:
         return None
 
     if tp_head is base_head:
-        return typing.get_args(evaled)
+        args = typing.get_args(evaled)
+        if _is_method_like(tp):
+            args = _fix_callable_args(base_head, args)
+
+        return args
 
     # Scan the fully-annotated MRO to find the base
     box = _apply_generic.box(tp)
@@ -544,10 +564,12 @@ def _get_args(tp, base, ctx) -> typing.Any:
 def _fix_type(tp):
     """Fix up a type getting returned from GetArg
 
-    In particular, this means turning a list into a tuple of the list
-    elements and turning ... into SpecialFormEllipsis.
+    In particular, this means turning a list into a tuple of the
+    Paramified list elements and turning ... into SpecialFormEllipsis.
+
     """
     if isinstance(tp, (tuple, list)):
+        # XXX: Can we always do this or is it a problem
         return tuple[*tp]
     elif tp is ...:
         return SpecialFormEllipsis
@@ -714,13 +736,16 @@ def _add_quals(typ, quals):
     return typ
 
 
+FUNC_LIKES = {
+    GenericCallable: 0,
+    collections.abc.Callable: 0,
+    staticmethod: 0,
+    classmethod: 1,
+}
+
+
 def _is_method_like(typ):
-    return typing.get_origin(typ) in (
-        GenericCallable,
-        collections.abc.Callable,
-        staticmethod,
-        classmethod,
-    )
+    return typing.get_origin(typ) in FUNC_LIKES
 
 
 @type_eval.register_evaluator(NewProtocol)

@@ -34,25 +34,25 @@ MemberQuals = typing.Literal["ClassVar", "Final"]
 
 
 class Member[N: str, T, Q: MemberQuals = typing.Never, D = typing.Never]:
-    pass
-
-
-type GetName[T: Member] = GetArg[T, Member, 0]  # type: ignore[valid-type]
-type GetType[T: Member] = GetArg[T, Member, 1]  # type: ignore[valid-type]
-type GetQuals[T: Member] = GetArg[T, Member, 2]  # type: ignore[valid-type]
-type GetDefiner[T: Member] = GetArg[T, Member, 3]  # type: ignore[valid-type]
+    name: N
+    typ: T
+    quals: Q
+    definer: D
 
 
 ParamQuals = typing.Literal["*", "**", "="]
 
 
 class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
-    pass
+    name: N
+    typ: T
+    quals: Q
 
 
-type GetParamName[T: Param] = GetArg[T, Param, 0]  # type: ignore[valid-type]
-type GetParamType[T: Param] = GetArg[T, Param, 1]  # type: ignore[valid-type]
-type GetParamQuals[T: Param] = GetArg[T, Param, 2]  # type: ignore[valid-type]
+type GetName[T: Member | Param] = GetAttr[T, typing.Literal["name"]]
+type GetType[T: Member | Param] = GetAttr[T, typing.Literal["typ"]]
+type GetQuals[T: Member | Param] = GetAttr[T, typing.Literal["quals"]]
+type GetDefiner[T: Member] = GetAttr[T, typing.Literal["definer"]]
 
 
 class Attrs[T]:
