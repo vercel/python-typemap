@@ -652,6 +652,21 @@ def test_eval_getarg_custom_08():
     assert eval_typing(GetArg[t, Container, 1]) == Never
 
 
+type _Works[Ts, I] = Literal[True]
+type Works[Ts] = _Works[Ts, Length[Ts]]
+
+type _Fails[Ts, I] = Literal[False]
+type Fails[Ts] = _Fails[Ts, Literal[0]]
+
+
+def test_consistency_01():
+    t = eval_typing(Works[tuple[int, str]])
+    assert t == Literal[True]
+
+    t = eval_typing(Fails[tuple[int, str]])
+    assert t == Literal[False]
+
+
 def test_uppercase_never():
     d = eval_typing(Uppercase[Never])
     assert d is Never

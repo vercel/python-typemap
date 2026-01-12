@@ -12,6 +12,7 @@ import typing
 
 from typing import _GenericAlias as typing_GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 from typing import _CallableGenericAlias as typing_CallableGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+from typing import _LiteralGenericAlias as typing_LiteralGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 
 
 if typing.TYPE_CHECKING:
@@ -275,6 +276,13 @@ def _eval_type_type(obj: type, ctx: EvalContext):
 
 @_eval_types_impl.register
 def _eval_type_var(obj: typing.TypeVar, ctx: EvalContext):
+    return obj
+
+
+# We don't want to evaluate the body of Literals; there's nothing to
+# do there, and doing it puts weird stuff in the caches.
+@_eval_types_impl.register
+def _eval_literal(obj: typing_LiteralGenericAlias, ctx: EvalContext):
     return obj
 
 
