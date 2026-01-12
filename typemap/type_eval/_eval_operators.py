@@ -21,6 +21,7 @@ from typemap.typing import (
     GetArgs,
     GetAttr,
     GetAnnotations,
+    DropAnnotations,
     IsSubSimilar,
     IsSubtype,
     Iter,
@@ -722,6 +723,16 @@ def _eval_GetAnnotations(tp, *, ctx) -> typing.Any:
     # XXX: Should *this* lift over unions??
     if isinstance(tp, typing_AnnotatedAlias):
         return typing.Literal[*tp.__metadata__]
+    else:
+        return typing.Never
+
+
+@type_eval.register_evaluator(DropAnnotations)
+def _eval_DropAnnotations(tp, *, ctx) -> typing.Any:
+    tp = _eval_types(tp, ctx=ctx)
+    # XXX: Should *this* lift over unions??
+    if isinstance(tp, typing_AnnotatedAlias):
+        return tp.__origin__
     else:
         return tp
 
