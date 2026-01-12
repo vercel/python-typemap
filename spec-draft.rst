@@ -309,3 +309,9 @@ Ideas:
  2. Use something other than ``type name =`` to do this. Like, ``name = associated_type(N)`` and have that be a descriptor.
  3. Add a decorator or base class that replaces the GenericTypeAliases with the descriptor from above.
  4. Make ``GenericTypeAlias`` a descriptor (do the above for testing).
+
+UPDATE: None of this works except maybe the first one, because the descriptor will get called on the *origin class* and not the instantiated ``_GenericAlias``.
+
+We could probably kind of make it work by having a descriptor and having the descriptor *walk the stack* and get the ``self`` from the ``_BaseGenericAlias.__getattr__`` stack frame but that is a horror show...
+
+Yury thinks we don't want to propose anything that requires much modifying of the descriptors...
