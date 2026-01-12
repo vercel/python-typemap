@@ -9,13 +9,13 @@ import types
 import typing
 
 from typemap import type_eval
-from typemap.type_eval import _apply_generic
-from typemap.type_eval import _typing_inspect
+from typemap.type_eval import _apply_generic, _typing_inspect
 from typemap.type_eval._eval_typing import _eval_types
 from typemap.typing import (
     Attrs,
     Capitalize,
     FromUnion,
+    GenericCallable,
     GetArg,
     GetArgs,
     GetAttr,
@@ -35,15 +35,22 @@ from typemap.typing import (
     Uppercase,
 )
 
-
 ##################################################################
 
 
-def _from_literal(val, ctx):
-    val = _eval_types(val, ctx)
+def _from_literal(val):
     if _typing_inspect.is_literal(val):
-        val = val.__args__[0]
-    return val
+        # TODO: check length?
+        return val.__args__[0]
+    elif val is type(None):
+        return None
+    else:
+        # TODO: check it is some literal
+        return val
+
+
+def _eval_literal(val, ctx):
+    return _from_literal(_eval_types(val, ctx))
 
 
 def get_annotated_type_hints(cls, **kwargs):
@@ -191,6 +198,198 @@ def _eval_IsSubSimilar(lhs, rhs, *, ctx):
 ##################################################################
 
 
+def _get_quals(quals_type):
+    # Extract qualifiers from Literal["*", "**", ...] or Never
+    if _typing_inspect.is_literal(quals_type):
+        qual_args = typing.get_args(quals_type)
+        return set(qual_args)
+    else:
+        return set()
+
+
+class _DummyDefault:
+    # A dummy class to assign to defaults that will display as '...'
+    # Putting actual `...` displays as 'Ellipsis'.
+    def __repr__(self):
+        return "..."
+
+
+_DUMMY_DEFAULT = _DummyDefault()
+
+
+def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
+    """Convert a Callable type with Param specs to an inspect.Signature.
+
+    The callable_type should be of the form:
+        Callable[
+            [
+                Param[name, type, quals],
+                ...
+            ],
+            return_type,
+        ]
+
+    Where:
+        - name is None for positional-only or variadic params, or a string
+        - type is the parameter type annotation
+        - quals is a Literal with any of: "*", "**", "keyword", "default"
+          or Never if no qualifiers
+    """
+    args = typing.get_args(callable_type)
+    if len(args) != 2:
+        raise TypeError(f"Expected Callable[[...], ret], got {callable_type}")
+
+    param_types, return_type = args
+
+    # Handle the case where param_types is a list of Param types
+    if not isinstance(param_types, (list, tuple)):
+        raise TypeError(f"Expected list of Param types, got {param_types}")
+
+    parameters: list[inspect.Parameter] = []
+    saw_keyword_only = False
+
+    for param_type in param_types:
+        # Extract Param arguments: Param[name, type, quals]
+        origin = typing.get_origin(param_type)
+        if origin is not Param:
+            raise TypeError(f"Expected Param type, got {param_type}")
+
+        param_args = typing.get_args(param_type)
+        if len(param_args) < 2:
+            raise TypeError(
+                f"Param must have at least name and type, got {param_type}"
+            )
+
+        name_type = param_args[0]
+        annotation = param_args[1]
+        quals_type = param_args[2] if len(param_args) > 2 else typing.Never
+
+        # Extract name from Literal[name] or None
+        name = _from_literal(name_type)
+
+        # Extract qualifiers from Literal["*", "**", ...] or Never
+        quals: set[str] = set()
+        if quals_type is not typing.Never:
+            if _typing_inspect.is_literal(quals_type):
+                qual_args = typing.get_args(quals_type)
+                quals = set(qual_args)
+            else:
+                quals = set()
+
+        # Determine parameter kind and default
+        kind: inspect._ParameterKind
+        if "**" in quals:
+            kind = inspect.Parameter.VAR_KEYWORD
+            name = name or "kwargs"
+        elif "*" in quals:
+            kind = inspect.Parameter.VAR_POSITIONAL
+            name = name or "args"
+            # XXX: not sure we need this
+            saw_keyword_only = True
+        elif "keyword" in quals:
+            kind = inspect.Parameter.KEYWORD_ONLY
+            saw_keyword_only = True
+        elif name is None:
+            kind = inspect.Parameter.POSITIONAL_ONLY
+        elif saw_keyword_only:
+            kind = inspect.Parameter.KEYWORD_ONLY
+        else:
+            kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
+
+        # Handle default value
+        default: typing.Any
+        if "default" in quals:
+            # We don't have the actual default value, use a sentinel
+            default = _DUMMY_DEFAULT
+        else:
+            default = inspect.Parameter.empty
+
+        # Generate a name for positional-only params if needed
+        if name is None:
+            name = f"_arg{len(parameters)}"
+
+        parameters.append(
+            inspect.Parameter(
+                name=name,
+                kind=kind,
+                default=default,
+                annotation=annotation,
+            )
+        )
+
+    return inspect.Signature(
+        parameters=parameters,
+        return_annotation=return_type,
+    )
+
+
+def _signature_to_function(name: str, sig: inspect.Signature):
+    """
+    Creates a new function with a specific inspect.Signature.
+    """
+
+    def fn(*args, **kwargs):
+        raise NotImplementedError
+
+    fn.__name__ = fn.__qualname__ = name
+    fn.__signature__ = sig  # type: ignore[attr-defined]
+    fn.__annotations__ = {
+        p.name: p.annotation
+        for p in sig.parameters.values()
+        if p.annotation is not inspect.Parameter.empty
+    }
+
+    return fn
+
+
+def _is_pos_only(param):
+    name, _, quals = typing.get_args(param)
+    name = _from_literal(name)
+    return name is None and not (_get_quals(quals) & {"*", "**"})
+
+
+def _callable_type_to_method(name, typ):
+    """Turn a callable type into a method.
+
+    I'm not totally sure if this is worth doing! The main accomplishment
+    is in how it pretty prints...
+    """
+
+    type_params = ()
+
+    head = typing.get_origin(typ)
+    if head is GenericCallable:
+        ttparams, typ = typing.get_args(typ)
+        type_params = typing.get_args(ttparams)
+        head = typing.get_origin(typ)
+
+    if head is classmethod:
+        # XXX: handle other amounts
+        cls, params, ret = typing.get_args(typ)
+        # We have to make class positional only if there is some other
+        # positional only argument. Annoying!
+        pname = (
+            "cls"
+            if not any(_is_pos_only(p) for p in typing.get_args(params))
+            else None
+        )
+        cls_param = Param[
+            typing.Literal[pname],
+            type[cls],
+            typing.Never,
+        ]
+        typ = typing.Callable[[cls_param] + list(typing.get_args(params)), ret]
+    elif head is staticmethod:
+        params, ret = typing.get_args(typ)
+        typ = typing.Callable[list(typing.get_args(params)), ret]
+    else:
+        head = lambda x: x
+
+    func = _signature_to_function(name, _callable_type_to_signature(typ))
+    func.__type_params__ = type_params
+    return head(func)
+
+
 def _function_type(func, *, receiver_type):
     root = inspect.unwrap(func)
     sig = inspect.signature(root)
@@ -238,12 +437,16 @@ def _function_type(func, *, receiver_type):
 
     # TODO: Is doing the tuple for staticmethod/classmethod legit?
     # Putting a list in makes it unhashable...
+    f: typing.Any
     if isinstance(func, staticmethod):
-        return staticmethod[tuple[*params], ret]
+        f = staticmethod[tuple[*params], ret]
     elif isinstance(func, classmethod):
-        return classmethod[specified_receiver, tuple[*params[1:]], ret]
+        f = classmethod[specified_receiver, tuple[*params[1:]], ret]
     else:
-        return typing.Callable[params, ret]
+        f = typing.Callable[params, ret]
+    if root.__type_params__:
+        f = GenericCallable[tuple[*root.__type_params__], f]
+    return f
 
 
 @type_eval.register_evaluator(Attrs)
@@ -300,7 +503,7 @@ def _eval_FromUnion(tp, *, ctx):
 def _eval_GetAttr(lhs, prop, *, ctx):
     # TODO: the prop missing, etc!
     # XXX: extras?
-    name = _from_literal(prop, ctx)
+    name = _eval_literal(prop, ctx)
     return typing.get_type_hints(lhs)[name]
 
 
@@ -449,7 +652,7 @@ def _eval_GetArg(tp, base, idx, *, ctx) -> typing.Any:
         return typing.Never
 
     try:
-        return _fix_type(args[_from_literal(idx, ctx)])
+        return _fix_type(args[_eval_literal(idx, ctx)])
     except IndexError:
         return typing.Never
 
@@ -482,7 +685,7 @@ def _eval_Length(tp, *, ctx) -> typing.Any:
 def _string_literal_op(typ, op):
     @_lift_over_unions
     def func(*args, ctx):
-        return typing.Literal[op(*[_from_literal(x, ctx) for x in args])]
+        return typing.Literal[op(*[_eval_literal(x, ctx) for x in args])]
 
     type_eval.register_evaluator(typ)(func)
 
@@ -505,17 +708,31 @@ def _add_quals(typ, quals):
     return typ
 
 
+def _is_method_like(typ):
+    return typing.get_origin(typ) in (
+        GenericCallable,
+        collections.abc.Callable,
+        staticmethod,
+        classmethod,
+    )
+
+
 @type_eval.register_evaluator(NewProtocol)
 def _eval_NewProtocol(*etyps: Member, ctx):
     dct: dict[str, object] = {}
-    dct["__annotations__"] = {
-        # XXX: Should eval_typing on the etyps evaluate the arguments??
-        _from_literal(name, ctx): _add_quals(
-            _eval_types(typ, ctx),
-            _eval_types(quals, ctx),
-        )
-        for name, typ, quals, _ in (typing.get_args(prop) for prop in etyps)
-    }
+    dct["__annotations__"] = annos = {}
+
+    for tname, typ, quals, _ in (typing.get_args(prop) for prop in etyps):
+        name = _eval_literal(tname, ctx)
+        typ = _eval_types(typ, ctx)
+        tquals = _eval_types(quals, ctx)
+
+        if type_eval.issubsimilar(
+            typing.Literal["ClassVar"], tquals
+        ) and _is_method_like(typ):
+            dct[name] = _callable_type_to_method(name, typ)
+        else:
+            annos[name] = _add_quals(typ, tquals)
 
     module_name = __name__
     name = "NewProtocol"

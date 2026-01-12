@@ -58,6 +58,12 @@ class Base[T]:
         pass
 
 
+class CMethod:
+    @classmethod
+    def cbase2(cls, lol: int, /, a: bool | None) -> int:
+        pass
+
+
 class Wrapper[X](Base[X], AnotherBase[X]):
     x: "Wrapper[X | None]"
 
@@ -185,7 +191,7 @@ def test_type_dir_link_2():
     assert loop is Foo
 
 
-def test_type_dir_1():
+def test_type_dir_1a():
     d = eval_typing(Final)
 
     assert format_helper.format_class(d) == textwrap.dedent("""\
@@ -197,12 +203,22 @@ def test_type_dir_1():
             fin: typing.Final[int]
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
-            def foo(self, a: int | None, *, b: int = 0) -> dict[str, int]: ...
-            def base[Z](self, a: int | Z | None, b: ~K) -> dict[str, int | Z]: ...
+            def foo(self: tests.test_type_dir.Base[int], a: int | None, *, b: int = ...) -> dict[str, int]: ...
+            def base[Z](self: tests.test_type_dir.Base[int], a: int | Z | None, b: ~K) -> dict[str, int | Z]: ...
             @classmethod
-            def cbase(cls, a: int | None, b: ~K) -> dict[str, int]: ...
+            def cbase(cls: type[tests.test_type_dir.Base[int]], a: int | None, b: ~K) -> dict[str, int]: ...
             @staticmethod
             def sbase[Z](a: int | Literal['gotcha!'] | Z | None, b: ~K) -> dict[str, int | Z]: ...
+    """)
+
+
+def test_type_dir_1b():
+    d = eval_typing(CMethod)
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class CMethod:
+            @classmethod
+            def cbase2(_arg0: type[tests.test_type_dir.CMethod], _arg1: int, /, a: bool | None) -> int: ...
     """)
 
 
@@ -394,6 +410,8 @@ def test_type_members_func_3():
 
     assert (
         str(typ)
+        #          == "\
+        # staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
         == "\
-staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
+typemap.typing.GenericCallable[tuple[Z], staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]]"
     )

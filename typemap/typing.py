@@ -17,6 +17,19 @@ class SpecialFormEllipsis:
 
 ###
 
+
+# We really need to be able to represent generic function types but it
+# is a problem for all kinds of reasons...
+# Can we bang it into Callable??
+class GenericCallable[
+    TVs: tuple[typing.TypeVar, ...],
+    C: typing.Callable | staticmethod | classmethod,
+]:
+    pass
+
+
+###
+
 MemberQuals = typing.Literal["ClassVar", "Final"]
 
 
