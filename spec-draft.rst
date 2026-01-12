@@ -306,6 +306,6 @@ TODO: DECIDE
 
 Ideas:
  1. Have it only work if the LHS is an evaluated variable somehow. That is kind of unsatisfying.
- 2. Use something other than ``type foo =`` to do this. Like, ``name: N = associated_type()`` and have that be a descriptor. (Use ``__set_name__`` to be able to track things.)
+ 2. Use something other than ``type name =`` to do this. Like, ``name = associated_type(N)`` and have that be a descriptor.
  3. Add a decorator or base class that replaces the GenericTypeAliases with the descriptor from above.
  4. Make ``GenericTypeAlias`` a descriptor (do the above for testing).
