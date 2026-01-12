@@ -34,9 +34,18 @@ class GenericCallable[
 class GetAnnotations[T]:
     """Fetch the annotations of a potentially Annotated type, as Literals.
 
-    GetAnnotated[Annotated[int, 'xxx']] = Literal['xxx']
-    GetAnnotated[Annotated[int, 'xxx', 5]] = Literal['xxx', 5]
-    GetAnnotated[int] = Never
+    GetAnnotations[Annotated[int, 'xxx']] = Literal['xxx']
+    GetAnnotations[Annotated[int, 'xxx', 5]] = Literal['xxx', 5]
+    GetAnnotations[int] = Never
+    """
+
+
+class DropAnnotations[T]:
+    """Drop the annotations of a potentially Annotated type
+
+    DropAnnotations[Annotated[int, 'xxx']] = int
+    DropAnnotations[Annotated[int, 'xxx', 5]] = int
+    DropAnnotations[int] = int
     """
 
 
