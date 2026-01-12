@@ -33,6 +33,7 @@ from typemap.typing import (
     StrConcat,
     StrSlice,
     Uppercase,
+    bool_special_form,
 )
 
 from . import format_helper
@@ -771,9 +772,19 @@ def test_callable_to_signature():
     )
 
 
-type IsNotInt[T] = not Is[T, int]
-type IsNotStr[T] = not Is[T, str]
-type IsNotIntOrStr[T] = IsNotInt[T] and IsNotStr[T]
+@bool_special_form
+class IsNotInt[T]:
+    __expr__ = not Is[T, int]
+
+
+@bool_special_form
+class IsNotStr[T]:
+    __expr__ = not Is[T, str]
+
+
+@bool_special_form
+class IsNotIntOrStr[T]:
+    __expr__ = IsNotInt[T] and IsNotStr[T]
 
 
 type SetOfNotInt[T] = set[T] if IsNotInt[T] else T

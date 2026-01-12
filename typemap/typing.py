@@ -4,6 +4,7 @@ from .type_eval._special_form import (
     _IterGenericAlias,
     _IsGenericAlias,
     _SpecialForm,
+    _register_bool_special_form,
 )
 
 # Not type-level computation but related
@@ -132,3 +133,7 @@ def IsSubSimilar(self, tps):
 
 
 Is = IsSubSimilar
+
+
+def bool_special_form(cls):
+    return _register_bool_special_form(cls)

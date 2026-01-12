@@ -19,7 +19,11 @@ if typing.TYPE_CHECKING:
     from typing import Any
 
 from . import _apply_generic
-from ._special_form import _special_form_evaluator
+from ._special_form import (
+    BoolSpecialMetadata,
+    _bool_special_form_registry,
+    _special_form_evaluator,
+)
 
 
 __all__ = ("eval_typing",)
@@ -346,12 +350,55 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
     return evaled
 
 
+def _eval_bool_special_form(
+    metadata: BoolSpecialMetadata,
+    new_args: tuple[typing.Any, ...],
+    ctx: EvalContext,
+) -> bool:
+    import ast
+
+    original_cls = metadata.cls
+
+    try:
+        namespace = {}
+
+        # Add the class's module
+        if cls_module := sys.modules.get(original_cls.__module__):
+            namespace.update(cls_module.__dict__)
+
+        # Add type parameters with their substituted values
+        type_params = metadata.type_params
+        if type_params and new_args:
+            for param, arg in zip(type_params, new_args, strict=False):
+                namespace[param.__name__] = arg
+
+        expr = compile(
+            ast.Expression(body=metadata.expr_node),  # type: ignore[arg-type]
+            '<bool_expr>',
+            'eval',
+        )
+        bool_expr = eval(expr, namespace)
+
+        # Evaluate the type expression
+        result = _eval_types(bool_expr, ctx)
+
+        return result
+
+    except Exception as e:
+        raise RuntimeError(
+            f"Failed to evaluate special form for {original_cls.__name__}: {e}"
+        ) from e
+
+
 @_eval_types_impl.register
 def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
     """Eval a typing._GenericAlias -- an applied user-defined class"""
     # generic *classes* are typing._GenericAlias while generic type
     # aliases are types.GenericAlias? Why in the world.
     new_args = tuple(_eval_types(arg, ctx) for arg in typing.get_args(obj))
+
+    if metadata := _bool_special_form_registry.get(obj.__origin__):
+        return _eval_bool_special_form(metadata, new_args, ctx)
 
     if func := _eval_funcs.get(obj.__origin__):
         ret = func(*new_args, ctx=ctx)
