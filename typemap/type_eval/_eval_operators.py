@@ -483,9 +483,17 @@ def _eval_Length(tp, *, ctx) -> typing.Any:
             return typing.Literal[len(tp.__args__)]
         else:
             return typing.Literal[None]
+    elif (
+        _typing_inspect.is_generic_alias(tp)
+        and tp.__origin__ is typing.Literal
+        and isinstance(tp.__args__[0], str)
+    ):
+        return typing.Literal[len(tp.__args__[0])]
     else:
         # XXX: Or should we return Never?
-        raise TypeError(f"Invalid type argument to Length: {tp} is not a tuple")
+        raise TypeError(
+            f"Invalid type argument to Length: {tp} is not a tuple or string"
+        )
 
 
 ##################################################################

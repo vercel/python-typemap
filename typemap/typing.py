@@ -66,7 +66,7 @@ class GetArgs[Tp, Base]:
     pass
 
 
-class Length[S: tuple]:
+class Length[S: tuple | str]:
     pass
 
 
