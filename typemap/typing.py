@@ -70,46 +70,6 @@ class Length[S: tuple | str]:
     pass
 
 
-class Equals[L, R]:
-    pass
-
-
-class NotEquals[L, R]:
-    pass
-
-
-class GreaterThan[L, R]:
-    pass
-
-
-class LessThan[L, R]:
-    pass
-
-
-class GreaterThanOrEqual[L, R]:
-    pass
-
-
-class LessThanOrEqual[L, R]:
-    pass
-
-
-class Not[T]:
-    pass
-
-
-class And[L, R]:
-    pass
-
-
-class Or[L, R]:
-    pass
-
-
-class If[Cond, Then, Else]:
-    pass
-
-
 class Uppercase[S: str]:
     pass
 
@@ -164,7 +124,16 @@ class _IsGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
     def __bool__(self):
         evaluator = special_form_evaluator.get()
         if evaluator:
-            return evaluator(self)
+            result = evaluator(self)
+            if result is True or result is False:
+                return result
+            elif (
+                isinstance(result, typing._GenericAlias)
+                and getattr(result, "__origin__", None) is typing.Literal
+            ):
+                return result.__args__[0]
+            else:
+                raise RuntimeError(f"Expected boolean, got {result}")
         else:
             return False
 
@@ -177,6 +146,56 @@ def IsSubtype(self, tps):
 @_SpecialForm
 def IsSubSimilar(self, tps):
     return _IsGenericAlias(self, tps)
+
+
+@_SpecialForm
+def Equals(self, params):
+    return _IsGenericAlias(self, params)
+
+
+@_SpecialForm
+def NotEquals(self, params):
+    return _IsGenericAlias(self, params)
+
+
+@_SpecialForm
+def GreaterThan(self, params):
+    return _IsGenericAlias(self, params)
+
+
+@_SpecialForm
+def LessThan(self, params):
+    return _IsGenericAlias(self, params)
+
+
+@_SpecialForm
+def GreaterThanOrEqual(self, params):
+    return _IsGenericAlias(self, params)
+
+
+@_SpecialForm
+def LessThanOrEqual(self, params):
+    return _IsGenericAlias(self, params)
+
+
+@_SpecialForm
+def Not(self, params):
+    return _IsGenericAlias(self, params)
+
+
+@_SpecialForm
+def And(self, params):
+    return _IsGenericAlias(self, params)
+
+
+@_SpecialForm
+def Or(self, params):
+    return _IsGenericAlias(self, params)
+
+
+@_SpecialForm
+def If(self, params):
+    return _IsGenericAlias(self, params)
 
 
 Is = IsSubSimilar

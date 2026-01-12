@@ -221,11 +221,11 @@ def test_type_strings_6():
     assert d == Literal["bcd"]
 
 
-type ReplacePrefix[S: str, P: str, N: str] = If[
-    Equals[StrSlice[S, 0, Length[P]], P],
-    StrConcat[N, StrSlice[S, 2, Literal[None]]],
-    S,
-]
+type ReplacePrefix[S: str, P: str, N: str] = (
+    StrConcat[N, StrSlice[S, 2, Literal[None]]]
+    if Is[StrSlice[S, 0, Length[P]], P]
+    else S
+)
 
 
 def test_type_strings_7():
@@ -853,6 +853,60 @@ def test_eval_if():
     assert d == tuple[int]
     d = eval_typing(ShorterTuple[tuple[int, int], tuple[str]])
     assert d == tuple[str]
+
+    d = eval_typing(If[True, Literal[True], Literal[False]])
+    assert d == Literal[True]
+    d = eval_typing(If[False, Literal[True], Literal[False]])
+    assert d == Literal[False]
+
+
+class Prefixed:
+    x_a: int
+    x_b: str
+    x_c: float
+    y_a: int
+    y_b: str
+    y_c: float
+
+
+type FilterPrefix[T, P: str] = NewProtocol[
+    *[x for x in Iter[Attrs[T]] if Is[StrSlice[GetName[x], 0, Length[P]], P]]
+]
+type FilterPrefix2[T, Pint: str, Pstr: str] = NewProtocol[
+    *[
+        x
+        for x in Iter[Attrs[T]]
+        if (
+            Is[StrSlice[GetName[x], 0, Length[Pint]], Pint]
+            if Is[GetType[x], int]
+            else (
+                Is[StrSlice[GetName[x], 0, Length[Pstr]], Pstr]
+                and Is[GetType[x], str]
+            )
+        )
+    ]
+]
+
+
+def test_filter_prefix_1():
+    d = eval_typing(FilterPrefix[Prefixed, Literal["x_"]])
+    fmt = format_helper.format_class(d)
+    assert fmt == textwrap.dedent("""\
+        class FilterPrefix[tests.test_type_eval.Prefixed, typing.Literal['x_']]:
+            x_a: int
+            x_b: str
+            x_c: float
+        """)
+
+
+def test_filter_prefix_2():
+    d = eval_typing(FilterPrefix2[Prefixed, Literal["x_"], Literal["y_"]])
+    fmt = format_helper.format_class(d)
+    assert fmt == textwrap.dedent("""\
+        class FilterPrefix2[tests.test_type_eval.Prefixed, typing.Literal['x_'], typing.Literal['y_']]:
+            x_a: int
+            y_b: str
+        """)
 
 
 def test_uppercase_never():
