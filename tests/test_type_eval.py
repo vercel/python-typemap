@@ -769,3 +769,26 @@ def test_callable_to_signature():
         '(_arg0: int, /, b: int, c: int = ..., *args: int, '
         'd: int, e: int = ..., **kwargs: int) -> int'
     )
+
+
+type IsNotInt[T] = not Is[T, int]
+type IsNotStr[T] = not Is[T, str]
+type IsNotIntOrStr[T] = IsNotInt[T] and IsNotStr[T]
+
+
+type SetOfNotInt[T] = set[T] if IsNotInt[T] else T
+type SetOfNotIntOrStr[T] = set[T] if IsNotIntOrStr[T] else T
+
+
+def test_eval_if_generic_01():
+    t = eval_typing(SetOfNotInt[int])
+    assert t is int
+    t = eval_typing(SetOfNotInt[str])
+    assert t == set[str]
+
+    t = eval_typing(SetOfNotIntOrStr[int])
+    assert t is int
+    t = eval_typing(SetOfNotIntOrStr[str])
+    assert t is str
+    t = eval_typing(SetOfNotIntOrStr[float])
+    assert t == set[float]
