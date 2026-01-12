@@ -19,6 +19,7 @@ if typing.TYPE_CHECKING:
     from typing import Any
 
 from . import _apply_generic
+from ._special_form import _special_form_evaluator
 
 
 __all__ = ("eval_typing",)
@@ -113,24 +114,20 @@ _current_context: contextvars.ContextVar[EvalContext | None] = (
 
 @contextlib.contextmanager
 def _ensure_context() -> typing.Iterator[EvalContext]:
-    import typemap.typing as nt
-
     ctx = _current_context.get()
     ctx_set = False
     if ctx is None:
         ctx = EvalContext()
         _current_context.set(ctx)
         ctx_set = True
-    evaluator_token = nt.special_form_evaluator.set(
-        lambda t: _eval_types(t, ctx)
-    )
+    evaluator_token = _special_form_evaluator.set(lambda t: _eval_types(t, ctx))
 
     try:
         yield ctx
     finally:
         if ctx_set:
             _current_context.set(None)
-        nt.special_form_evaluator.reset(evaluator_token)
+        _special_form_evaluator.reset(evaluator_token)
 
 
 def _get_current_context() -> EvalContext:

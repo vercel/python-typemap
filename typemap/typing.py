@@ -1,8 +1,10 @@
-import contextvars
 import typing
-from typing import _GenericAlias  # type: ignore
 
-_SpecialForm: typing.Any = typing._SpecialForm
+from .type_eval._special_form import (
+    _IterGenericAlias,
+    _IsGenericAlias,
+    _SpecialForm,
+)
 
 # Not type-level computation but related
 
@@ -113,33 +115,10 @@ class NewProtocol[*T]:
 
 ##################################################################
 
-# TODO: type better
-special_form_evaluator: contextvars.ContextVar[
-    typing.Callable[[typing.Any], typing.Any] | None
-] = contextvars.ContextVar("special_form_evaluator", default=None)
-
-
-class _IterGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
-    def __iter__(self):
-        evaluator = special_form_evaluator.get()
-        if evaluator:
-            return evaluator(self)
-        else:
-            return iter(typing.TypeVarTuple("_IterDummy"))
-
 
 @_SpecialForm
 def Iter(self, tp):
     return _IterGenericAlias(self, (tp,))
-
-
-class _IsGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
-    def __bool__(self):
-        evaluator = special_form_evaluator.get()
-        if evaluator:
-            return evaluator(self)
-        else:
-            return False
 
 
 @_SpecialForm
