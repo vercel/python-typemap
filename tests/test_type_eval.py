@@ -25,6 +25,7 @@ from typemap.typing import (
     GetAttr,
     GetName,
     GetType,
+    GetAnnotations,
     Is,
     Iter,
     Length,
@@ -838,3 +839,8 @@ def test_type_eval_annotated_02():
 def test_type_eval_annotated_03():
     res = eval_typing(Uppercase[GetAttr[AnnoTest, Literal["b"]]])
     assert res == Literal["TEST"]
+
+
+def test_type_eval_annotated_04():
+    res = eval_typing(GetAnnotations[GetAttr[AnnoTest, Literal["b"]]])
+    assert res == Literal["blah"]

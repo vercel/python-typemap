@@ -191,6 +191,28 @@ We can put more in, but this is what typescript has.
 We can actually implement the case functions in terms of them and a
 bunch of conditionals, but shouldn't (especially if we want it to work for all unicode!).
 
+---------
+Annotated
+---------
+
+Libraries like FastAPI use annotations heavily, and we would like to be able to use annotations to drive type-level computation decision making.
+
+We understand that this may be controversial, as currently Annotated may be fully ignored by typecheckers. The operations proposed are:
+
+* ``GetAnnotations[T]`` - Fetch the annotations of a potentially Annotated type, as Literals. Examples::
+
+    GetAnnotations[Annotated[int, 'xxx']] = Literal['xxx']
+    GetAnnotations[Annotated[int, 'xxx', 5]] = Literal['xxx', 5]
+    GetAnnotations[int] = Never
+
+
+* ``DropAnnotations[T]`` - Drop the annotations of a potentially Annotated type. Examples::
+
+    DropAnnotations[Annotated[int, 'xxx']] = int
+    DropAnnotations[Annotated[int, 'xxx', 5]] = int
+    DropAnnotations[int] = int
+
+
 -------------------
 String manipulation
 -------------------
