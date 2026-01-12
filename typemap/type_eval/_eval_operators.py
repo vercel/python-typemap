@@ -20,6 +20,7 @@ from typemap.typing import (
     GetArg,
     GetArgs,
     GetAttr,
+    GetAnnotations,
     IsSubSimilar,
     IsSubtype,
     Iter,
@@ -715,6 +716,16 @@ def _eval_GetArgs(tp, base, *, ctx) -> typing.Any:
     return tuple[*args]  # type: ignore[valid-type]
 
 
+@type_eval.register_evaluator(GetAnnotations)
+def _eval_GetAnnotations(tp, *, ctx) -> typing.Any:
+    tp = _eval_types(tp, ctx=ctx)
+    # XXX: Should *this* lift over unions??
+    if isinstance(tp, typing_AnnotatedAlias):
+        return typing.Literal[*tp.__metadata__]
+    else:
+        return tp
+
+
 @type_eval.register_evaluator(Length)
 @_lift_over_unions
 def _eval_Length(tp, *, ctx) -> typing.Any:
@@ -728,6 +739,9 @@ def _eval_Length(tp, *, ctx) -> typing.Any:
     else:
         # XXX: Or should we return Never?
         raise TypeError(f"Invalid type argument to Length: {tp} is not a tuple")
+
+
+# String literals
 
 
 def _string_literal_op(typ, op):

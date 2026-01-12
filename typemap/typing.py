@@ -30,6 +30,19 @@ class GenericCallable[
 
 ###
 
+
+class GetAnnotations[T]:
+    """Fetch the annotations of a potentially Annotated type, as Literals.
+
+    GetAnnotated[Annotated[int, 'xxx']] = Literal['xxx']
+    GetAnnotated[Annotated[int, 'xxx', 5]] = Literal['xxx', 5]
+    GetAnnotated[int] = Never
+    """
+
+
+###
+
+
 MemberQuals = typing.Literal["ClassVar", "Final"]
 
 
