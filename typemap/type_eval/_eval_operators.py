@@ -500,11 +500,17 @@ def _eval_FromUnion(tp, *, ctx):
 
 @type_eval.register_evaluator(GetAttr)
 @_lift_over_unions
-def _eval_GetAttr(lhs, prop, *, ctx):
-    # TODO: the prop missing, etc!
+def _eval_GetAttr(tp, prop, *, ctx):
     # XXX: extras?
-    name = _eval_literal(prop, ctx)
-    return typing.get_type_hints(lhs)[name]
+    name = _from_literal(prop)
+    hints = {
+        **get_annotated_type_hints(tp, include_extras=True),
+        **get_annotated_method_hints(tp),
+    }
+    if name in hints:
+        return hints[name][0]
+    else:
+        return typing.Never
 
 
 def _get_raw_args(tp, base_head, ctx) -> typing.Any:
