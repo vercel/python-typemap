@@ -13,6 +13,7 @@ import typing
 from typing import _GenericAlias as typing_GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 from typing import _CallableGenericAlias as typing_CallableGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 from typing import _LiteralGenericAlias as typing_LiteralGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+from typing import _AnnotatedAlias as typing_AnnotatedAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 
 
 if typing.TYPE_CHECKING:
@@ -284,6 +285,15 @@ def _eval_type_var(obj: typing.TypeVar, ctx: EvalContext):
 @_eval_types_impl.register
 def _eval_literal(obj: typing_LiteralGenericAlias, ctx: EvalContext):
     return obj
+
+
+@_eval_types_impl.register
+def _eval_annotated(obj: typing_AnnotatedAlias, ctx: EvalContext):
+    # Don't evaluate the args
+    return typing.Annotated[
+        _eval_types(obj.__origin__, ctx),
+        *obj.__metadata__,
+    ]
 
 
 @_eval_types_impl.register

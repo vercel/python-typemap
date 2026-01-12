@@ -1,6 +1,6 @@
 import textwrap
 import typing
-from typing import Literal, Never, TypeVar, Union
+from typing import Annotated, Literal, Never, TypeVar, Union
 
 
 from typemap.type_eval import eval_typing
@@ -415,3 +415,21 @@ def test_type_members_func_3():
         == "\
 typemap.typing.GenericCallable[tuple[Z], staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]]"
     )
+
+
+##############
+
+type XTest[X] = Annotated[X, 'blah']
+
+
+class F:
+    a: XTest[int]
+
+
+def test_type_dir_annotated_01():
+    res = format_helper.format_class(eval_typing(F))
+
+    assert res == textwrap.dedent("""\
+        class F:
+            a: typing.Annotated[int, 'blah']
+    """)
