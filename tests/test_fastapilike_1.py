@@ -48,14 +48,19 @@ type AllOptional[T] = NewProtocol[
     ]
 ]
 
+# Strip `| None` from a type by iterating over its union components
+# and filtering
 type NotOptional[T] = Union[*[x for x in Iter[FromUnion[T]] if not Is[x, None]]]
+
+# Adjust an attribute type for use in Public below by dropping | None for
+# primary keys and stripping all annotations.
 type FixPublicType[T] = DropAnnotations[
-    # Drop the | None for the primary keys
     NotOptional[T] if Is[Literal[PropQuals.PRIMARY], GetAnnotations[T]] else T
 ]
 
 # Strip out everything that is Hidden and also make the primary key required
-# Drop all the annotations, since this is for returns.
+# Drop all the annotations, since this is for data getting returned to users
+# from the DB, so we don't need default values.
 type Public[T] = NewProtocol[
     *[
         Member[GetName[p], FixPublicType[GetType[p]], GetQuals[p]]
