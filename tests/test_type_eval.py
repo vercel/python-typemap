@@ -2,6 +2,7 @@ import collections
 import textwrap
 import unittest
 from typing import (
+    Annotated,
     Any,
     Callable,
     Generic,
@@ -807,3 +808,33 @@ def test_callable_to_signature():
         '(_arg0: int, /, b: int, c: int = ..., *args: int, '
         'd: int, e: int = ..., **kwargs: int) -> int'
     )
+
+
+##############
+
+type XTest[X] = Annotated[X, 'blah']
+
+
+class AnnoTest:
+    a: XTest[int]
+    b: XTest[Literal["test"]]
+
+
+def test_type_eval_annotated_01():
+    res = format_helper.format_class(eval_typing(AnnoTest))
+
+    assert res == textwrap.dedent("""\
+        class AnnoTest:
+            a: typing.Annotated[int, 'blah']
+            b: typing.Annotated[typing.Literal['test'], 'blah']
+    """)
+
+
+def test_type_eval_annotated_02():
+    res = eval_typing(Is[GetAttr[AnnoTest, Literal["a"]], int])
+    assert res is True
+
+
+def test_type_eval_annotated_03():
+    res = eval_typing(Uppercase[GetAttr[AnnoTest, Literal["b"]]])
+    assert res == Literal["TEST"]

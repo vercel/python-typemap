@@ -7,6 +7,7 @@ import itertools
 import re
 import types
 import typing
+from typing import _AnnotatedAlias as typing_AnnotatedAlias  # type: ignore [attr-defined]  # noqa: PLC2701
 
 from typemap import type_eval
 from typemap.type_eval import _apply_generic, _typing_inspect
@@ -147,11 +148,31 @@ def _mk_literal_union(*parts):
         return typing.Literal[*parts]
 
 
+def _unwrap_anno(tp):
+    if isinstance(tp, typing_AnnotatedAlias):
+        return tp.__origin__
+    else:
+        return tp
+
+
+def _lift_evaluated(func):
+    @functools.wraps(func)
+    def wrapper(*args, ctx):
+        return func(
+            *[_unwrap_anno(_eval_types(arg, ctx)) for arg in args], ctx=ctx
+        )
+
+    return wrapper
+
+
 def _lift_over_unions(func):
     @functools.wraps(func)
     def wrapper(*args, ctx):
         args2 = [_union_elems(x, ctx) for x in args]
-        parts = [func(*x, ctx=ctx) for x in itertools.product(*args2)]
+        parts = [
+            func(*[_unwrap_anno(x) for x in xs], ctx=ctx)
+            for xs in itertools.product(*args2)
+        ]
         return _mk_union(*parts)
 
     return wrapper
@@ -161,6 +182,7 @@ def _lift_over_unions(func):
 
 
 @type_eval.register_evaluator(Iter)
+@_lift_evaluated
 def _eval_Iter(tp, *, ctx):
     tp = _eval_types(tp, ctx)
     if (
@@ -180,19 +202,15 @@ def _eval_Iter(tp, *, ctx):
 
 
 @type_eval.register_evaluator(IsSubtype)
+@_lift_evaluated
 def _eval_IsSubtype(lhs, rhs, *, ctx):
-    return type_eval.issubtype(
-        _eval_types(lhs, ctx),
-        _eval_types(rhs, ctx),
-    )
+    return type_eval.issubtype(lhs, rhs)
 
 
 @type_eval.register_evaluator(IsSubSimilar)
+@_lift_evaluated
 def _eval_IsSubSimilar(lhs, rhs, *, ctx):
-    return type_eval.issubsimilar(
-        _eval_types(lhs, ctx),
-        _eval_types(rhs, ctx),
-    )
+    return type_eval.issubsimilar(lhs, rhs)
 
 
 ##################################################################
@@ -450,6 +468,7 @@ def _function_type(func, *, receiver_type):
 
 
 @type_eval.register_evaluator(Attrs)
+@_lift_over_unions
 def _eval_Attrs(tp, *, ctx):
     hints = get_annotated_type_hints(tp, include_extras=True)
 
@@ -488,6 +507,7 @@ def _eval_Members(tp, *, ctx):
 
 
 @type_eval.register_evaluator(FromUnion)
+@_lift_evaluated
 def _eval_FromUnion(tp, *, ctx):
     if tp in ctx.known_recursive_types:
         return tuple[*_union_elems(ctx.known_recursive_types[tp], ctx)]
