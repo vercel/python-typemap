@@ -1,8 +1,6 @@
 import typing
 
-
 from . import _typing_inspect
-
 
 __all__ = ("issubsimilar",)
 
@@ -38,11 +36,11 @@ def issubsimilar(lhs: typing.Any, rhs: typing.Any) -> bool:
         return issubclass(lhs, rhs)
 
     # literal <:? literal
-    elif bool(
-        _typing_inspect.is_literal(lhs) and _typing_inspect.is_literal(rhs)
-    ):
-        rhs_args = set(typing.get_args(rhs))
-        return all(lv in rhs_args for lv in typing.get_args(lhs))
+    elif _typing_inspect.is_literal(lhs) and _typing_inspect.is_literal(rhs):
+        # We need to check both value and type, since True == 1 but
+        # Literal[True] should not be a subtype of Literal[1]
+        rhs_args = {(t, type(t)) for t in typing.get_args(rhs)}
+        return all((lv, type(lv)) in rhs_args for lv in typing.get_args(lhs))
 
     # XXX: This case is kind of a hack, to support NoLiterals.
     elif rhs is typing.Literal:

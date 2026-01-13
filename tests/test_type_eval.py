@@ -732,6 +732,10 @@ def test_eval_literal_idempotent_01():
         t = nt
 
 
+def test_is_literal_true_vs_one():
+    assert eval_typing(Is[Literal[True], Literal[1]]) is False
+
+
 def test_callable_to_signature():
     from typemap.type_eval._eval_operators import _callable_type_to_signature
     from typemap.typing import Param
