@@ -195,6 +195,9 @@ def _get_closure_types(af: types.FunctionType) -> dict[str, type]:
     }
 
 
+EXCLUDED_ATTRIBUTES = typing.EXCLUDED_ATTRIBUTES - {'__init__'}  # type: ignore[attr-defined]
+
+
 def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
@@ -238,7 +241,7 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
         annos.update(af)
 
     for name, orig in boxed.cls.__dict__.items():
-        if name in typing.EXCLUDED_ATTRIBUTES:  # type: ignore[attr-defined]
+        if name in EXCLUDED_ATTRIBUTES:
             continue
 
         stuff = inspect.unwrap(orig)

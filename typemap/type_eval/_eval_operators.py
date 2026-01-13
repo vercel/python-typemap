@@ -337,6 +337,11 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
             )
         )
 
+    # HACK: Makes output look nicer, but I'm not 100% where it is
+    # sneaking in...
+    if return_type is type(None):
+        return_type = None
+
     return inspect.Signature(
         parameters=parameters,
         return_annotation=return_type,
@@ -418,7 +423,7 @@ def _function_type(func, *, receiver_type):
     empty = inspect.Parameter.empty
 
     def _ann(x):
-        return typing.Any if x is empty else x
+        return typing.Any if x is empty else None if x is type(None) else x
 
     specified_receiver = receiver_type
 
@@ -501,7 +506,6 @@ def _eval_Members(tp, *, ctx):
         ]
         for n, (t, qs, d) in hints.items()
     ]
-
     return tuple[*attrs]
 
 
@@ -794,6 +798,7 @@ def _is_method_like(typ):
 
 
 @type_eval.register_evaluator(NewProtocol)
+@_lift_evaluated
 def _eval_NewProtocol(*etyps: Member, ctx):
     dct: dict[str, object] = {}
     dct["__annotations__"] = annos = {}
@@ -826,5 +831,8 @@ def _eval_NewProtocol(*etyps: Member, ctx):
 
     mcls: type = type(typing.cast(type, typing.Protocol))
     cls = mcls(name, (typing.Protocol,), dct)
-    cls = _eval_types(cls, ctx)
+    # Stick __init__ back in, since Protocol messes with it
+    if '__init__' in dct:
+        cls.__init__ = dct['__init__']
+
     return cls

@@ -2,7 +2,7 @@ import dataclasses
 import enum
 import textwrap
 
-from typing import Annotated, Literal, Union
+from typing import Annotated, Callable, Literal, Union, Self
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
@@ -17,6 +17,8 @@ from typemap.typing import (
     GetName,
     GetQuals,
     Member,
+    Members,
+    Param,
 )
 
 from . import format_helper
@@ -41,6 +43,36 @@ type HasDefault[T, default] = Annotated[
 
 
 ####
+
+type InitFnType[T] = Member[
+    Literal["__init__"],
+    Callable[
+        [
+            Param[Literal["self"], Self],
+            *[
+                Param[
+                    GetName[p],
+                    DropAnnotations[GetType[p]],
+                    Literal["keyword", "default"]
+                    if Is[
+                        Literal[PropQuals.HAS_DEFAULT],
+                        GetAnnotations[GetType[p]],
+                    ]
+                    else Literal["keyword"],
+                ]
+                for p in Iter[Attrs[T]]
+            ],
+        ],
+        None,
+    ],
+    Literal["ClassVar"],
+]
+type AddInit[T] = NewProtocol[
+    InitFnType[T],
+    *[x for x in Iter[Members[T]]],
+]
+
+
 type AllOptional[T] = NewProtocol[
     *[
         Member[GetName[p], GetType[p] | None, GetQuals[p]]
@@ -176,4 +208,30 @@ def test_fastapi_like_3():
             name: typing.Annotated[str | None, _Default(val=None), typing.Literal[<PropQuals.HAS_DEFAULT: 'HAS_DEFAULT'>]]
             age: typing.Annotated[int | None, _Default(val=None), typing.Literal[<PropQuals.HAS_DEFAULT: 'HAS_DEFAULT'>]]
             secret_name: typing.Annotated[str | None, _Default(val=None), typing.Literal[<PropQuals.HAS_DEFAULT: 'HAS_DEFAULT'>]]
+    """)
+
+
+def test_fastapi_like_4():
+    tgt = eval_typing(AddInit[Public[Hero]])
+    fmt = format_helper.format_class(tgt)
+
+    assert fmt == textwrap.dedent("""\
+        class AddInit[tests.test_fastapilike_1.Public[tests.test_fastapilike_1.Hero]]:
+            id: int
+            name: str
+            age: int | None
+            def __init__(self: Self, *, id: int, name: str, age: int | None) -> None: ...
+    """)
+
+
+def test_fastapi_like_6():
+    tgt = eval_typing(AddInit[Update[Hero]])
+    fmt = format_helper.format_class(tgt)
+
+    assert fmt == textwrap.dedent("""\
+        class AddInit[tests.test_fastapilike_1.Update[tests.test_fastapilike_1.Hero]]:
+            name: typing.Annotated[str | None, _Default(val=None), typing.Literal[<PropQuals.HAS_DEFAULT: 'HAS_DEFAULT'>]]
+            age: typing.Annotated[int | None, _Default(val=None), typing.Literal[<PropQuals.HAS_DEFAULT: 'HAS_DEFAULT'>]]
+            secret_name: typing.Annotated[str | None, _Default(val=None), typing.Literal[<PropQuals.HAS_DEFAULT: 'HAS_DEFAULT'>]]
+            def __init__(self: Self, *, name: str | None = ..., age: int | None = ..., secret_name: str | None = ...) -> None: ...
     """)
