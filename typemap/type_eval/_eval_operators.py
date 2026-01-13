@@ -7,7 +7,7 @@ import itertools
 import re
 import types
 import typing
-from typing import _AnnotatedAlias as typing_AnnotatedAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+from typing_extensions import _AnnotatedAlias as typing_AnnotatedAlias
 
 from typemap import type_eval
 from typemap.type_eval import _apply_generic, _typing_inspect
@@ -15,13 +15,13 @@ from typemap.type_eval._eval_typing import _eval_types
 from typemap.typing import (
     Attrs,
     Capitalize,
+    DropAnnotations,
     FromUnion,
     GenericCallable,
+    GetAnnotations,
     GetArg,
     GetArgs,
     GetAttr,
-    GetAnnotations,
-    DropAnnotations,
     IsSubSimilar,
     IsSubtype,
     Iter,
@@ -474,11 +474,8 @@ def _function_type(func, *, receiver_type):
     return f
 
 
-@type_eval.register_evaluator(Attrs)
-@_lift_over_unions
-def _eval_Attrs(tp, *, ctx):
-    hints = get_annotated_type_hints(tp, include_extras=True)
-
+def _hints_to_members(hints, ctx):
+    """Convert a hints dictionary to a tuple of Member types."""
     return tuple[
         *[
             Member[
@@ -492,6 +489,13 @@ def _eval_Attrs(tp, *, ctx):
     ]
 
 
+@type_eval.register_evaluator(Attrs)
+@_lift_over_unions
+def _eval_Attrs(tp, *, ctx):
+    hints = get_annotated_type_hints(tp, include_extras=True)
+    return _hints_to_members(hints, ctx)
+
+
 @type_eval.register_evaluator(Members)
 @_lift_over_unions
 def _eval_Members(tp, *, ctx):
@@ -499,14 +503,7 @@ def _eval_Members(tp, *, ctx):
         **get_annotated_type_hints(tp, include_extras=True),
         **get_annotated_method_hints(tp),
     }
-
-    attrs = [
-        Member[
-            typing.Literal[n], _eval_types(t, ctx), _mk_literal_union(*qs), d
-        ]
-        for n, (t, qs, d) in hints.items()
-    ]
-    return tuple[*attrs]
+    return _hints_to_members(hints, ctx)
 
 
 ##################################################################
