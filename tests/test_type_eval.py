@@ -29,6 +29,7 @@ from typemap.typing import (
     Length,
     Member,
     NewProtocol,
+    Param,
     SpecialFormEllipsis,
     StrConcat,
     StrSlice,
@@ -349,7 +350,8 @@ def test_eval_getargs():
     assert args == tuple[Any, Any]
 
 
-def test_eval_getarg_callable():
+@unittest.skip
+def test_eval_getarg_callable_old():
     # oh hmmmmmmm -- yeah maybe callable could be fully bespoke if we
     # disallowed putting Callable here...!
     t = Callable[[int, str], str]
@@ -364,6 +366,38 @@ def test_eval_getarg_callable():
     args = eval_typing(GetArg[t, Callable, 0])
     assert args == tuple[()]
 
+    t = Callable[..., str]
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert args == SpecialFormEllipsis
+
+    t = Callable
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert args == SpecialFormEllipsis
+
+    t = Callable
+    args = eval_typing(GetArg[t, Callable, 1])
+    assert args == Any
+
+
+def test_eval_getarg_callable():
+    t = Callable[[int, str], str]
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert (
+        args
+        == tuple[
+            Param[Literal[None], int, Never], Param[Literal[None], str, Never]
+        ]
+    )
+
+    t = Callable[int, str]
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert args == tuple[Param[Literal[None], int, Never]]
+
+    t = Callable[[], str]
+    args = eval_typing(GetArg[t, Callable, 0])
+    assert args == tuple[()]
+
+    # XXX: Is this what we want? Or should it be *args, **kwargs
     t = Callable[..., str]
     args = eval_typing(GetArg[t, Callable, 0])
     assert args == SpecialFormEllipsis
