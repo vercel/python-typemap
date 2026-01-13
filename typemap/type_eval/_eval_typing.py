@@ -10,10 +10,12 @@ import sys
 import types
 import typing
 
-from typing import _GenericAlias as typing_GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
-from typing import _CallableGenericAlias as typing_CallableGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
-from typing import _LiteralGenericAlias as typing_LiteralGenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
-from typing import _AnnotatedAlias as typing_AnnotatedAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
+    _GenericAlias as typing_GenericAlias,
+    _CallableGenericAlias as typing_CallableGenericAlias,
+    _LiteralGenericAlias as typing_LiteralGenericAlias,
+    _AnnotatedAlias as typing_AnnotatedAlias,
+)
 
 
 if typing.TYPE_CHECKING:
