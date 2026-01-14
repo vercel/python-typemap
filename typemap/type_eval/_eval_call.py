@@ -22,21 +22,56 @@ def _type(t):
         return type(t)
 
 
-def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> RtType:
+def eval_call(
+    func: types.FunctionType | types.MethodType, /, *args: Any, **kwargs: Any
+) -> RtType:
+    bound_self: Any | None = None
+    if isinstance(func, types.MethodType):
+        bound_self = func.__self__
+        func = func.__func__  # type: ignore[assignment]
+
     arg_types = tuple(_type(t) for t in args)
     kwarg_types = {k: _type(t) for k, t in kwargs.items()}
-    return eval_call_with_types(func, arg_types, kwarg_types)
+    return eval_call_with_types(func, arg_types, kwarg_types, bound_self)
 
 
 def _get_bound_type_args(
-    func: types.FunctionType,
+    func: types.FunctionType | types.MethodType,
     arg_types: tuple[RtType, ...],
     kwarg_types: dict[str, RtType],
+    bound_self: Any | None = None,
 ) -> dict[str, RtType]:
     sig = inspect.signature(func)
-    bound = sig.bind(*arg_types, **kwarg_types)
+    bound = (
+        sig.bind(bound_self, *arg_types, **kwarg_types)
+        if bound_self
+        else sig.bind(*arg_types, **kwarg_types)
+    )
 
     vars: dict[str, RtType] = {}
+
+    # Extract type parameters for bound methods
+    if bound_self and hasattr(bound_self, '__orig_class__'):
+        # Bound to a generic class
+        orig_class = bound_self.__orig_class__
+        origin = orig_class.__origin__
+        type_args = orig_class.__args__
+
+        for type_param, arg in zip(
+            origin.__type_params__,
+            type_args,
+            strict=False,
+        ):
+            vars[type_param.__name__] = arg
+
+        if hasattr(origin, '__dict__'):
+            vars['__classdict__'] = dict(origin.__dict__)
+    elif bound_self:
+        # Bound to a non-generic class
+        bound_class = type(bound_self)
+        if hasattr(bound_class, '__dict__'):
+            vars['__classdict__'] = dict(bound_class.__dict__)
+
     # TODO: duplication, error cases
     for param in sig.parameters.values():
         if (
@@ -77,13 +112,16 @@ def _get_bound_type_args(
 
 
 def eval_call_with_types(
-    func: types.FunctionType,
+    func: types.FunctionType | types.MethodType,
     arg_types: tuple[RtType, ...],
     kwarg_types: dict[str, RtType],
+    bound_self: Any | None = None,
 ) -> RtType:
     vars: dict[str, Any] = {}
-    params = func.__type_params__
-    vars = _get_bound_type_args(func, arg_types, kwarg_types)
+    params = (
+        func.__type_params__ if isinstance(func, types.FunctionType) else ()
+    )
+    vars = _get_bound_type_args(func, arg_types, kwarg_types, bound_self)
     for p in params:
         if p.__name__ not in vars:
             vars[p.__name__] = p
@@ -92,19 +130,24 @@ def eval_call_with_types(
 
 
 def eval_call_with_type_vars(
-    func: types.FunctionType, vars: dict[str, RtType]
+    func: types.FunctionType | types.MethodType,
+    vars: dict[str, RtType],
 ) -> RtType:
     with _eval_typing._ensure_context() as ctx:
         return _eval_call_with_type_vars(func, vars, ctx)
 
 
 def _eval_call_with_type_vars(
-    func: types.FunctionType,
+    func: types.FunctionType | types.MethodType,
     vars: dict[str, RtType],
     ctx: _eval_typing.EvalContext,
 ) -> RtType:
     try:
-        af = func.__annotate__
+        af = (
+            func.__annotate__
+            if isinstance(func, types.FunctionType)
+            else func.__call__.__annotate__
+        )
     except AttributeError:
         raise ValueError("func has no __annotate__ attribute")
     if not af:
