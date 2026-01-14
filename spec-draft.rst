@@ -1,6 +1,5 @@
-===================================
 Unpack of typevars for ``**kwargs``
-===================================
+-----------------------------------
 
 A minor proposal that could be split out maybe:
 
@@ -20,9 +19,8 @@ This is basically a combination of "PEP 692 – Using TypedDict for more precise
 
 This is potentially moderately useful on its own but is being done to support processing **kwargs with type level computation.
 
-==========================
 Extended Callables, take 2
-==========================
+--------------------------
 
 We introduce a ``Param`` type the contains all the information about a function param::
 
@@ -61,9 +59,8 @@ as (we are omiting the ``Literal`` in places)::
     ]
 
 
----------
 Rationale
----------
+^^^^^^^^^
 We need extended callable support, in order to inspect and produce callables via type-level computation. mypy supports `extended callables <https://mypy.readthedocs.io/en/stable/additional_features.html#extended-callable-types>`__ but they are deprecated in favor of callback protocols.
 
 
@@ -77,9 +74,8 @@ I am proposing a fully new extended callable syntax because:
  4. I thought they were missing support for something but may have been wrong. They can handle positional-only.
 
 
-============================================================
 Grammar specification of the extensions to the type language
-============================================================
+------------------------------------------------------------
 
 It's important that there be a clearly specified type language for the type-level computation---we can't just be using some poorly specified subset of all Python.
 
@@ -124,9 +120,8 @@ It's important that there be a clearly specified type language for the type-leve
 
 -----
 
-==============
 Type operators
-==============
+--------------
 
 * ``GetArg[T, Base, Idx: Literal[str]]`` - returns the type argument number ``Idx`` to ``T`` when interpreted as ``Base``, or ``Never`` if it cannot be. (That is, if we have  ``class A(B[C]): ...``, then ``GetArg[A, B, 0] == C`` while ``GetArg[A, A, 0] == Never``).
   N.B: *Unfortunately* ``Base`` must be a proper class, *not* a protocol. So, for example, ``GetArg[Ty, Iterable, 0]]`` to get the type of something
@@ -138,9 +133,8 @@ Type operators
 * ``FromUnion[T]`` - returns a tuple containing all of the union elements, or a 1-ary tuple containing T if it is not a union.
 
 
-------------------------------
 Object inspection and creation
-------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 * ``NewProtocol[*Ps: Member]``
 
@@ -171,9 +165,8 @@ We also have helpers for extracting those names; they are all definable in terms
   TODO: How should GetAttr interact with descriptors/classmethod? I am leaning towards it should apply the descriptor...
 
 
---------------------------------
 Callable inspection and creation
---------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ``Callable`` types always have their arguments exposed in the extended Callable format discussed above.
 
@@ -186,9 +179,8 @@ TODO: Should we make ``GetInit`` be literal types of default parameter values to
 
 * ``Length[T: tuple]`` - get the length of a tuple as an int literal (or ``Literal[None]`` if it is unbounded)
 
----------
 Annotated
----------
+^^^^^^^^^
 
 Libraries like FastAPI use annotations heavily, and we would like to be able to use annotations to drive type-level computation decision making.
 
@@ -208,9 +200,8 @@ We understand that this may be controversial, as currently Annotated may be full
     DropAnnotations[int] = int
 
 
----------
 InitField
----------
+^^^^^^^^^
 
 We want to be able to support transforming types based on dataclasses/attrs/pydantic style field descriptors.  In order to do that, we need to be able to consume things like calls to ``Field``.
 
@@ -232,9 +223,8 @@ So if we write::
 
 then we would infer the type ``InitField[TypedDict('...', {'default': Literal[0]})]`` for the initializer, and that would be made available as the ``Init`` field of the ``Member``.
 
--------------------
 String manipulation
--------------------
+^^^^^^^^^^^^^^^^^^^
 
 String manipulation operations for string Literal types.
 We can put more in, but this is what typescript has.
@@ -260,9 +250,8 @@ Two possibilities for creating parameterized functions/types. They are kind of m
 
 How to *inspect* generic function types? Honestly, it doesn't really work in Typescript. Maybe we don't need to deal with it either.
 
-=====================
 Big (open?) questions
-=====================
+---------------------
 
 1.
 Can we actually implement Is (IsSubtype) at runtime in a satisfactory way? (PROBABLE DECISION: external library *and* restricted checking.)
