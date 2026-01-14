@@ -31,6 +31,28 @@ class GenericCallable[
 ###
 
 
+class InitField[KwargDict: BaseTypedDict]:
+    """Base class to support dataclass.Field type initializers!
+
+    Will require some magical treatment in typecheckers...
+    """
+
+    __kwargs: KwargDict
+
+    def __init__(self, **kwargs: typing.Unpack[KwargDict]) -> None:  # type: ignore[misc]
+        self.__kwargs = kwargs  # type: ignore[assignment]
+
+    def get_kwargs(self) -> KwargDict:
+        return self.__kwargs
+
+    def __repr__(self) -> str:
+        args = ', '.join(f'{k}={v!r}' for k, v in self.__kwargs.items())
+        return f'{type(self).__name__}({args})'
+
+
+###
+
+
 class GetAnnotations[T]:
     """Fetch the annotations of a potentially Annotated type, as Literals.
 
@@ -55,10 +77,17 @@ class DropAnnotations[T]:
 MemberQuals = typing.Literal["ClassVar", "Final"]
 
 
-class Member[N: str, T, Q: MemberQuals = typing.Never, D = typing.Never]:
+class Member[
+    N: str,
+    T,
+    Q: MemberQuals = typing.Never,
+    I = typing.Never,
+    D = typing.Never,
+]:
     name: N
     typ: T
     quals: Q
+    init: I
     definer: D
 
 
@@ -74,6 +103,7 @@ class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
 type GetName[T: Member | Param] = GetAttr[T, typing.Literal["name"]]
 type GetType[T: Member | Param] = GetAttr[T, typing.Literal["typ"]]
 type GetQuals[T: Member | Param] = GetAttr[T, typing.Literal["quals"]]
+type GetInit[T: Member] = GetAttr[T, typing.Literal["init"]]
 type GetDefiner[T: Member] = GetAttr[T, typing.Literal["definer"]]
 
 

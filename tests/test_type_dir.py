@@ -1,7 +1,6 @@
 import textwrap
 import typing
-from typing import Literal, Never, TypeVar, Union
-
+from typing import Literal, Never, TypeVar, TypedDict, Union, ReadOnly
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
@@ -11,6 +10,7 @@ from typemap.typing import (
     GetName,
     GetQuals,
     GetType,
+    InitField,
     Is,
     Iter,
     Member,
@@ -341,7 +341,7 @@ def test_type_members_attr_1():
     d = eval_typing(Members[Final])
     member = _get_member(d, "ordinary")
     assert typing.get_origin(member) is Member
-    _, _, _, origin = typing.get_args(member)
+    _, _, _, _, origin = typing.get_args(member)
     assert origin.__name__ == "Ordinary"
 
 
@@ -349,7 +349,7 @@ def test_type_members_attr_2():
     d = eval_typing(Members[Final])
     member = _get_member(d, "last")
     assert typing.get_origin(member) is Member
-    _, typ, _, origin = typing.get_args(member)
+    _, typ, _, _, origin = typing.get_args(member)
     assert typ == int | Literal[True]
     assert str(origin) == "tests.test_type_dir.Last[int]"
 
@@ -358,7 +358,7 @@ def test_type_members_attr_3():
     d = eval_typing(Members[Last[int]])
     member = _get_member(d, "last")
     assert typing.get_origin(member) is Member
-    _, typ, _, origin = typing.get_args(member)
+    _, typ, _, _, origin = typing.get_args(member)
     assert typ == int | Literal[True]
     assert str(origin) == "tests.test_type_dir.Last[int]"
 
@@ -367,7 +367,7 @@ def test_type_members_func_1():
     d = eval_typing(Members[Final])
     member = _get_member(d, "foo")
     assert typing.get_origin(member) is Member
-    name, typ, quals, origin = typing.get_args(member)
+    name, typ, quals, _, origin = typing.get_args(member)
     assert name == typing.Literal["foo"]
     assert quals == typing.Literal["ClassVar"]
 
@@ -389,7 +389,7 @@ def test_type_members_func_2():
     d = eval_typing(Members[Final])
     member = _get_member(d, "cbase")
     assert typing.get_origin(member) is Member
-    name, typ, quals, _origin = typing.get_args(member)
+    name, typ, quals, _origin, _ = typing.get_args(member)
     assert name == typing.Literal["cbase"]
     assert quals == typing.Literal["ClassVar"]
 
@@ -404,7 +404,7 @@ def test_type_members_func_3():
     d = eval_typing(Members[Final])
     member = _get_member(d, "sbase")
     assert typing.get_origin(member) is Member
-    name, typ, quals, _origin = typing.get_args(member)
+    name, typ, quals, _origin, _ = typing.get_args(member)
     assert name == typing.Literal["sbase"]
     assert quals == typing.Literal["ClassVar"]
 
@@ -415,3 +415,30 @@ def test_type_members_func_3():
         == "\
 typemap.typing.GenericCallable[tuple[Z], staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]]"
     )
+
+
+# Test initializers
+
+
+class FieldArgs(TypedDict, total=False):
+    foo: ReadOnly[bool]
+    bar: ReadOnly[int]
+
+
+class Field[T: FieldArgs](InitField[T]):
+    pass
+
+
+class Inited:
+    foo: int = 10
+    bar: bool = Field(foo=False)
+
+
+def test_type_dir_inits_1():
+    d = eval_typing(Inited)
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class Inited:
+            foo: int = 10
+            bar: bool = Field(foo=False)
+    """)
