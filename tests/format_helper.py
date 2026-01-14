@@ -18,7 +18,11 @@ def format_class_basic(cls: type) -> str:
     code = f"class {cls.__name__}:\n"
     for attr_name, attr_type in cls.__annotations__.items():
         attr_type_s = annotationlib.type_repr(attr_type)
-        code += f"    {attr_name}: {attr_type_s}\n"
+        if attr_name in cls.__dict__:
+            eq = f' = {cls.__dict__[attr_name]!r}'
+        else:
+            eq = ''
+        code += f"    {attr_name}: {attr_type_s}{eq}\n"
 
     for name, attr in cls.__dict__.items():
         if attr is typing._no_init_or_replace_init:

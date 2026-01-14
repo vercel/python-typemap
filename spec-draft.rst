@@ -146,7 +146,7 @@ Object inspection and creation
 
 
 * ``Members[T]`` produces a ``tuple`` of ``Member`` types.
-* ``Member[N: Literal[str], T, Q: MemberQuals, D]`` - ``N`` is the name, ``T`` is the type, ``Q`` is a union of qualifiers, ``D`` is the defining class of the member
+* ``Member[N: Literal[str], T, Q: MemberQuals, Init, D]`` - ``N`` is the name, ``T`` is the type, ``Q`` is a union of qualifiers, ``Init`` is the literal type of the class initializer (under what conditions!?) and ``D`` is the defining class of the member
 * ``MemberQuals = Literal['ClassVar', 'Final']`` - ``MemberQuals`` is the type of "qualifiers" that can apply to a member; currently ClassVar and Final
 
 Methods are returned as callables using the new ``Param`` based extended callables. staticmethod and classmethod will return ``staticmethod`` and ``classmethod`` types, which are subscriptable as of 3.14.
@@ -159,6 +159,7 @@ We also have helpers for extracting those names; they are all definable in terms
 * ``GetName[T: Member | Param]``
 * ``GetType[T: Member | Param]``
 * ``GetQuals[T: Member | Param]``
+* ``GetInit[T: Member]``
 * ``GetDefiner[T: Member]``
 
 * ``NewProtocolWithBases[Bases, Ps: tuple[Member]]`` - A variant that allows specifying bases too. (UNIMPLEMENTED)
@@ -177,6 +178,8 @@ Callable inspection and creation
 ``Callable`` types always have their arguments exposed in the extended Callable format discussed above.
 
 The names, type, and qualifiers share getter operations with ``Member``.
+
+TODO: Should we make ``GetInit`` be literal types of default parameter values too?
 
 
 ----
@@ -204,6 +207,30 @@ We understand that this may be controversial, as currently Annotated may be full
     DropAnnotations[Annotated[int, 'xxx', 5]] = int
     DropAnnotations[int] = int
 
+
+---------
+InitField
+---------
+
+We want to be able to support transforming types based on dataclasses/attrs/pydantic style field descriptors.  In order to do that, we need to be able to consume things like calls to ``Field``.
+
+Our strategy for this is to introduce a new type ``InitField[KwargDict]`` that collects arguments defined by a ``KwargDict: TypedDict``::
+
+  class InitField[KwargDict: BaseTypedDict]:
+      def __init__(self, **kwargs: typing.Unpack[KwargDict]) -> None:
+          ...
+
+      def _get_kwargs(self) -> KwargDict:
+          ...
+
+When ``InitField`` or (more likely) a subtype of it is instantiated inside a class body, we infer a *more specific* type for it, based on ``Literal`` types for all the arguments passed.
+
+So if we write::
+
+  class A:
+      foo: int = InitField(default=0)
+
+then we would infer the type ``InitField[TypedDict('...', {'default': Literal[0]})]`` for the initializer, and that would be made available as the ``Init`` field of the ``Member``.
 
 -------------------
 String manipulation

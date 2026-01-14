@@ -22,6 +22,7 @@ from typemap.typing import (
     GetArg,
     GetArgs,
     GetAttr,
+    InitField,
     IsSubSimilar,
     IsSubtype,
     Iter,
@@ -56,6 +57,21 @@ def _eval_literal(val, ctx):
     return _from_literal(_eval_types(val, ctx))
 
 
+def _make_init_type(v):
+    # Usually it's just a literal, but sometimes we need to handle
+    # InitField.
+    if isinstance(v, InitField):
+        return type(v)[
+            typing.TypedDict(
+                type(v).__name__,
+                {k: _make_init_type(sv) for k, sv in v.get_kwargs().items()},
+            )
+        ]
+    else:
+        # Wrap in tuple when creating Literal in case it *is* a tuple
+        return typing.Literal[(v,)]
+
+
 def get_annotated_type_hints(cls, **kwargs):
     """Get the type hints/quals for a cls annotated with definition site.
 
@@ -87,7 +103,13 @@ def get_annotated_type_hints(cls, **kwargs):
                 else:
                     break
 
-            hints[k] = ty, tuple(sorted(quals)), acls
+            if k in abox.cls.__dict__:
+                # Wrap in tuple when creating Literal in case it *is* a tuple
+                init = _make_init_type(abox.cls.__dict__[k])
+            else:
+                init = typing.Never
+
+            hints[k] = ty, tuple(sorted(quals)), init, acls
 
     return hints
 
@@ -117,6 +139,7 @@ def get_annotated_method_hints(cls):
                 hints[name] = (
                     _function_type(attr, receiver_type=acls),
                     ("ClassVar",),
+                    object,
                     acls,
                 )
 
@@ -482,9 +505,10 @@ def _hints_to_members(hints, ctx):
                 typing.Literal[n],
                 _eval_types(t, ctx),
                 _mk_literal_union(*qs),
+                init,
                 d,
             ]
-            for n, (t, qs, d) in hints.items()
+            for n, (t, qs, init, d) in hints.items()
         ]
     ]
 
@@ -794,13 +818,31 @@ def _is_method_like(typ):
     return typing.get_origin(typ) in FUNC_LIKES
 
 
+def _unpack_init(dct, name, init):
+    """Unpack an initializer type into a __dict__.
+
+    If init is a literal with a single value, then dct[name] gets that
+    value. If it is an InitField subclass, we recursively unpack the
+    TypedDict it is parameterized over into a new InitField object,
+    and include that.
+    """
+    origin = typing.get_origin(init)
+    if _typing_inspect.is_literal(init) and len(init.__args__) == 1:
+        dct[name] = init.__args__[0]
+    if isinstance(origin, type) and issubclass(origin, InitField):
+        args = {}
+        for k, v in typing.get_type_hints(init.__args__[0]).items():
+            _unpack_init(args, k, v)
+        dct[name] = origin(**args)
+
+
 @type_eval.register_evaluator(NewProtocol)
 @_lift_evaluated
 def _eval_NewProtocol(*etyps: Member, ctx):
     dct: dict[str, object] = {}
     dct["__annotations__"] = annos = {}
 
-    for tname, typ, quals, _ in (typing.get_args(prop) for prop in etyps):
+    for tname, typ, quals, init, _ in (typing.get_args(prop) for prop in etyps):
         name = _eval_literal(tname, ctx)
         typ = _eval_types(typ, ctx)
         tquals = _eval_types(quals, ctx)
@@ -811,6 +853,7 @@ def _eval_NewProtocol(*etyps: Member, ctx):
             dct[name] = _callable_type_to_method(name, typ)
         else:
             annos[name] = _add_quals(typ, tquals)
+            _unpack_init(dct, name, init)
 
     module_name = __name__
     name = "NewProtocol"

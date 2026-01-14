@@ -24,7 +24,7 @@ from typemap.typing import (
 from . import format_helper
 
 
-class PropQuals(enum.StrEnum):
+class PropQuals(enum.Enum):
     HIDDEN = "HIDDEN"
     PRIMARY = "PRIMARY"
     HAS_DEFAULT = "HAS_DEFAULT"
@@ -100,13 +100,6 @@ type AddInit[T] = NewProtocol[
     *tuple[*Members[T]],
 ]
 """
-
-type AllOptional[T] = NewProtocol[
-    *[
-        Member[GetName[p], GetType[p] | None, GetQuals[p]]
-        for p in Iter[Attrs[T]]
-    ]
-]
 
 # Strip `| None` from a type by iterating over its union components
 # and filtering
