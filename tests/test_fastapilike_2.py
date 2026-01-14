@@ -65,13 +65,6 @@ type FixPublicType[T, Init] = (
     else T
 )
 
-# Extract the default type from an Init field.
-# If it is a Field, then we try pulling out the "default" field,
-# otherwise we return the type itself.
-type GetDefault[Init] = (
-    GetFieldItem[Init, Literal["default"]] if Sub[Init, Field] else Init
-)
-
 # Strip out everything that is Hidden and also make the primary key required
 # Drop all the annotations, since this is for data getting returned to users
 # from the DB, so we don't need default values.
@@ -82,6 +75,13 @@ type Public[T] = NewProtocol[
         if not Sub[Literal[True], GetFieldItem[GetInit[p], Literal["hidden"]]]
     ]
 ]
+
+# Extract the default type from an Init field.
+# If it is a Field, then we try pulling out the "default" field,
+# otherwise we return the type itself.
+type GetDefault[Init] = (
+    GetFieldItem[Init, Literal["default"]] if Sub[Init, Field] else Init
+)
 
 # Create takes everything but the primary key and preserves defaults
 type Create[T] = NewProtocol[

@@ -36,7 +36,8 @@ type FilterLinks[T] = Link[PropsOnly[GetArg[T, Link, 0]]] if Sub[T, Link] else T
 
 
 def select[K: BaseTypedDict](
-    __rcv: A,
+    rcv: A,
+    /,
     **kwargs: Unpack[K],
 ) -> NewProtocol[
     *[
