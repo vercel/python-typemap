@@ -8,7 +8,7 @@ from typemap.typing import (
     NewProtocol,
     Iter,
     Attrs,
-    Is,
+    Sub,
     GetType,
     Member,
     GetName,
@@ -28,11 +28,11 @@ class Link[T]:
 
 
 type PropsOnly[T] = NewProtocol[
-    *[p for p in Iter[Attrs[T]] if Is[GetType[p], Property]]
+    *[p for p in Iter[Attrs[T]] if Sub[GetType[p], Property]]
 ]
 
 # Conditional type alias!
-type FilterLinks[T] = Link[PropsOnly[GetArg[T, Link, 0]]] if Is[T, Link] else T
+type FilterLinks[T] = Link[PropsOnly[GetArg[T, Link, 0]]] if Sub[T, Link] else T
 
 
 def select[K: BaseTypedDict](

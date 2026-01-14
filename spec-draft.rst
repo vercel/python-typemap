@@ -94,7 +94,7 @@ It's important that there be a clearly specified type language for the type-leve
    # Type conditional checks are just boolean compositions of
    # subtype checking.
    <type-bool> =
-         Is[<type>, <type>]
+         Sub[<type>, <type>]
        | not <type-bool>
        | <type-bool> and <type-bool>
        | <type-bool> or <type-bool>
@@ -254,7 +254,7 @@ Big (open?) questions
 ---------------------
 
 1.
-Can we actually implement Is (IsSubtype) at runtime in a satisfactory way? (PROBABLE DECISION: external library *and* restricted checking.)
+Can we actually implement IsSubtype at runtime in a satisfactory way? (PROBABLE DECISION: external library *and* restricted checking.)
  - There is a lot that needs to happen, like protocols and variance inference and callable subtyping (which might require matching against type vars...)
    Jukka points out that lots of type information is frequently missing at runtime too: attributes are frequently unannotated and
 

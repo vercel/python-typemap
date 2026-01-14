@@ -204,4 +204,4 @@ def IsSubSimilar(self, tps):
     return _IsGenericAlias(self, tps)
 
 
-Is = IsSubSimilar
+Sub = IsSubSimilar

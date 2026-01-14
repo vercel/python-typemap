@@ -11,7 +11,7 @@ from typemap.typing import (
     GetQuals,
     GetType,
     InitField,
-    Is,
+    Sub,
     Iter,
     Member,
     Members,
@@ -80,7 +80,7 @@ class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
     pass
 
 
-type BaseArg[T] = GetArg[T, Base, 0] if Is[T, Base] else Never
+type BaseArg[T] = GetArg[T, Base, 0] if Sub[T, Base] else Never
 
 
 type AllOptional[T] = NewProtocol[
@@ -101,7 +101,7 @@ type Capitalize[T] = NewProtocol[
 ]
 
 type Prims[T] = NewProtocol[
-    *[p for p in Iter[Attrs[T]] if Is[GetType[p], int | str]]
+    *[p for p in Iter[Attrs[T]] if Sub[GetType[p], int | str]]
 ]
 
 type NoLiterals1[T] = NewProtocol[
@@ -114,7 +114,7 @@ type NoLiterals1[T] = NewProtocol[
                     for t in Iter[FromUnion[GetType[p]]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
-                    if not Is[t, Literal]
+                    if not Sub[t, Literal]
                 ]
             ],
             GetQuals[p],
@@ -130,10 +130,10 @@ type NoLiterals1[T] = NewProtocol[
 type IsLiteral[T] = (
     Literal[True]
     if (
-        (Is[T, str] and not Is[str, T])
-        or (Is[T, bytes] and not Is[bytes, T])
-        or (Is[T, bool] and not Is[bool, T])
-        or (Is[T, int] and not Is[int, T])
+        (Sub[T, str] and not Sub[str, T])
+        or (Sub[T, bytes] and not Sub[bytes, T])
+        or (Sub[T, bool] and not Sub[bool, T])
+        or (Sub[T, int] and not Sub[int, T])
         # XXX: enum, None
     )
     else Literal[False]
@@ -150,7 +150,7 @@ type NoLiterals2[T] = NewProtocol[
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     # if not IsSubtype[t, Literal]
-                    if not Is[IsLiteral[t], Literal[True]]
+                    if not Sub[IsLiteral[t], Literal[True]]
                 ]
             ],
             GetQuals[p],
