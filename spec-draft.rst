@@ -183,14 +183,6 @@ The names, type, and qualifiers share getter operations with ``Member``.
 
 * ``Length[T: tuple]`` - get the length of a tuple as an int literal (or ``Literal[None]`` if it is unbounded)
 
-----
-
-String manipulation operations for string Literal types.
-We can put more in, but this is what typescript has.
-``Slice`` and ``Concat`` are a poor man's literal template.
-We can actually implement the case functions in terms of them and a
-bunch of conditionals, but shouldn't (especially if we want it to work for all unicode!).
-
 ---------
 Annotated
 ---------
@@ -216,6 +208,12 @@ We understand that this may be controversial, as currently Annotated may be full
 -------------------
 String manipulation
 -------------------
+
+String manipulation operations for string Literal types.
+We can put more in, but this is what typescript has.
+``Slice`` and ``Concat`` are a poor man's literal template.
+We can actually implement the case functions in terms of them and a
+bunch of conditionals, but shouldn't (especially if we want it to work for all unicode!).
 
 
 * ``Slice[S: Literal[str], Start: Literal[int | None], End: Literal[int | None]]``
