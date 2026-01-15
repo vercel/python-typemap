@@ -120,3 +120,13 @@ def test_call_bound_method_04():
     c = C[int]()
     ret = eval_call(c.invoke, "!!!")
     assert ret is Literal["!!!"]
+
+
+def test_call_local_type_01():
+    class C: ...
+
+    def invoke() -> C:
+        return C()
+
+    ret = eval_call(invoke)
+    assert ret is C

@@ -153,8 +153,15 @@ def _eval_call_with_type_vars(
     if not af:
         raise ValueError("func has no __annotate__ attribute")
 
+    closure_vars_by_name = dict(
+        zip(func.__code__.co_freevars, func.__closure__ or (), strict=True)
+    )
+
     af_args = tuple(
-        types.CellType(vars[name]) for name in af.__code__.co_freevars
+        types.CellType(vars[name])
+        if name in vars
+        else closure_vars_by_name[name]
+        for name in af.__code__.co_freevars
     )
 
     ff = types.FunctionType(
