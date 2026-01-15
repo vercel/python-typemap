@@ -171,6 +171,99 @@ from a ``default`` argument to a field or specified directly as an
 initializer).
 
 
+Prisma-style ORMs
+-----------------
+
+`Prisma <#prisma_>`_, a popular ORM for TypeScript, allows writing
+queries like (adapted from `this example <#prisma-example_>`_::
+
+  const user = await prisma.user.findMany({
+    select: {
+      name: true,
+      email: true,
+      posts: true,
+    },
+  });
+
+for which the inferred type will be something like::
+
+    {
+        email: string;
+        name: string | null;
+        posts: {
+            id: number;
+            title: string;
+            content: string | null;
+            authorId: number | null;
+        }[];
+    }[]
+
+Here, the output type is a combination of both existing information
+about the type of ``prisma.user`` and the type of the argument to
+``findMany``. It returns an array of objects containing the properties
+of ``user`` that were requested; one of the requested elements,
+``posts``, is a "relation" referencing another model; it has *all* of
+its properties fetched but not its relations.
+
+We would like to be able to do something similar in Python, perhaps
+with a schema defined like::
+
+    class Comment:
+        id: Property[int]
+        name: Property[str]
+        poster: Link[User]
+
+
+    class Post:
+        id: Property[int]
+
+        title: Property[str]
+        content: Property[str]
+
+        comments: MultiLink[Comment]
+        author: Link[Comment]
+
+
+    class User:
+        id: Property[int]
+
+        name: Property[str]
+        email: Property[str]
+        posts: Link[Post]
+
+(In Prisma, a code generator generates type definitions based on a
+prisma schema in its own custom format; you could imagine something
+similar here, or that the definitions were hand written)
+
+and a call like::
+
+    db.select(
+        User,
+        name=True,
+        email=True,
+        posts=True,
+    )
+
+which would have return type ``list[<User>]`` where::
+
+    class <User>:
+        name: str
+        email: str
+        posts: list[<Post>]
+
+    class <Post>
+        id: int
+        title: str
+        content: str
+
+
+Implementation
+''''''''''''''
+
+We have a more `worked example <#qb-test_>`_ in our test suite.
+
+
+
 Specification
 =============
 
@@ -186,7 +279,7 @@ Backwards Compatibility
 Security Implications
 =====================
 
-[How could a malicious user take advantage of this new feature?]
+None are expected.
 
 
 How to Teach This
@@ -210,6 +303,12 @@ Rejected Ideas
 Open Issues
 ===========
 
+* What is the best way to type base-class driven transformations using
+  ``__init_subclass__`` or (*shudder* metaclasses).
+
+* How to deal with situations where we are building new *nominal*
+  types and might want to reference them?
+
 [Any points that are still being decided/discussed.]
 
 
@@ -228,7 +327,9 @@ Footnotes
 .. _#pydantic: https://docs.pydantic.dev/latest/
 .. _#fastapi-tutorial: https://fastapi.tiangolo.com/tutorial/sql-databases/#heroupdate-the-data-model-to-update-a-hero
 .. _#fastapi-test: https://github.com/geldata/typemap/blob/main/tests/test_fastapilike_2.py
-
+.. _#prisma: https://www.prisma.io/
+.. _#prisma-example: https://github.com/prisma/prisma-examples/tree/latest/orm/express
+.. _#qb-test: https://github.com/geldata/typemap/blob/main/tests/test_qblike_2.py
 
 Copyright
 =========
