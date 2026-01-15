@@ -25,12 +25,6 @@ different conditions of Python typing.
 Motivation
 ==========
 
-[Clearly explain why the existing language specification is inadequate to address the problem that the PEP solves.]
-
-
-Rationale
-=========
-
 Python has a gradual type system, but at the heart of it is a fairly
 conventional and tame static type system.  In Python as a language, on
 the other hand, it is not unusual to perform complex metaprogramming,
@@ -41,7 +35,7 @@ libraries come with custom mypy plugins, and a special-case
 ``@dataclass_transform`` decorator was added specifically to cover the
 case of dataclass-like transformations (:pep:`PEP 681 <681>`).
 
-pydantic, dataclasses, sqlalchemy
+Examples: pydantic/fastapi, dataclasses, sqlalchemy
 
 Automatically deriving FastAPI CRUD models
 ------------------------------------------
@@ -262,6 +256,56 @@ Implementation
 
 We have a more `worked example <#qb-test_>`_ in our test suite.
 
+dataclasses-style method generation
+-----------------------------------
+
+We would additionally like to be able to generate method signatures
+based on the attributes of an object. The most well-known example of
+this is probably generating ``__init__`` methods for dataclasses,
+which we present a simplified example of. (In our test suites, this is
+merged with the FastAPI-style example above, but it need not be).
+
+This kind of pattern is widespread enough that :pep:`PEP 681 <681>`
+was created to represent a lowest-common denominator subset of what
+existing libraries do.
+
+::
+    # Generate the Member field for __init__ for a class
+    type InitFnType[T] = Member[
+        Literal["__init__"],
+        Callable[
+            [
+                Param[Literal["self"], Self],
+                *[
+                    Param[
+                        GetName[p],
+                        GetType[p],
+                        # All arguments are keyword-only
+                        # It takes a default if a default is specified in the class
+                        Literal["keyword"]
+                        if Sub[
+                            GetDefault[GetInit[p]],
+                            Never,
+                        ]
+                        else Literal["keyword", "default"],
+                    ]
+                    for p in Iter[Attrs[T]]
+                ],
+            ],
+            None,
+        ],
+        Literal["ClassVar"],
+    ]
+    type AddInit[T] = NewProtocol[
+        InitFnType[T],
+        *[x for x in Iter[Members[T]]],
+    ]
+
+
+Rationale
+=========
+
+[Describe why particular design decisions were made.]
 
 
 Specification
