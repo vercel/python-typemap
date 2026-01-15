@@ -10,6 +10,7 @@ from typemap.typing import (
     GetType,
     GetName,
     Member,
+    NamedParam,
     Param,
     StrConcat,
 )
@@ -49,7 +50,7 @@ type Schemaify[T] = NewProtocol[
             Callable[
                 [
                     Param[Literal["self"], Schemaify[T]],
-                    Param[Literal["schema"], Schema, Literal["keyword"]],
+                    NamedParam[Literal["schema"], Schema, Literal["keyword"]],
                 ],
                 GetType[p],
             ],

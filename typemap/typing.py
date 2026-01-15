@@ -1,5 +1,6 @@
 import contextvars
 import typing
+from typing import Literal
 from typing import _GenericAlias  # type: ignore
 
 _SpecialForm: typing.Any = typing._SpecialForm
@@ -74,7 +75,7 @@ class DropAnnotations[T]:
 ###
 
 
-MemberQuals = typing.Literal["ClassVar", "Final"]
+MemberQuals = Literal["ClassVar", "Final"]
 
 
 class Member[
@@ -91,7 +92,7 @@ class Member[
     definer: D
 
 
-ParamQuals = typing.Literal["*", "**", "="]
+ParamQuals = Literal["*", "**", "keyword", "default"]
 
 
 class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
@@ -100,11 +101,20 @@ class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
     quals: Q
 
 
-type GetName[T: Member | Param] = GetAttr[T, typing.Literal["name"]]
-type GetType[T: Member | Param] = GetAttr[T, typing.Literal["typ"]]
-type GetQuals[T: Member | Param] = GetAttr[T, typing.Literal["quals"]]
-type GetInit[T: Member] = GetAttr[T, typing.Literal["init"]]
-type GetDefiner[T: Member] = GetAttr[T, typing.Literal["definer"]]
+type PosParam[T] = Param[Literal[None], T]
+type PosDefaultParam[T] = Param[Literal[None], T, Literal["default"]]
+type DefaultParam[N: str, T] = Param[N, T, Literal["default"]]
+type NamedParam[N: str, T] = Param[N, T, Literal["keyword"]]
+type NamedDefaultParam[N: str, T] = Param[N, T, Literal["keyword", "default"]]
+type ArgsParam[T] = Param[Literal[None], T, Literal["*"]]
+type KwargsParam[T] = Param[Literal[None], T, Literal["**"]]
+
+
+type GetName[T: Member | Param] = GetAttr[T, Literal["name"]]
+type GetType[T: Member | Param] = GetAttr[T, Literal["typ"]]
+type GetQuals[T: Member | Param] = GetAttr[T, Literal["quals"]]
+type GetInit[T: Member] = GetAttr[T, Literal["init"]]
+type GetDefiner[T: Member] = GetAttr[T, Literal["definer"]]
 
 
 class Attrs[T]:

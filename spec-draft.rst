@@ -24,10 +24,18 @@ Extended Callables, take 2
 
 We introduce a ``Param`` type the contains all the information about a function param::
 
-  class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
-      pass
+    class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
+        pass
 
-  ParamQuals = typing.Literal["*", "**", "default", "keyword"]
+    ParamQuals = typing.Literal["*", "**", "default", "keyword"]
+
+    type PosParam[T] = Param[Literal[None], T]
+    type PosDefaultParam[T] = Param[Literal[None], T, Literal["default"]]
+    type DefaultParam[N: str, T] = Param[N, T, Literal["default"]]
+    type NamedParam[N: str, T] = Param[N, T, Literal["keyword"]]
+    type NamedDefaultParam[N: str, T] = Param[N, T, Literal["keyword", "default"]]
+    type ArgsParam[T] = Param[Literal[None], T, Literal["*"]]
+    type KwargsParam[T] = Param[Literal[None], T, Literal["**"]]
 
 And then, we can represent the type of a function like::
 
@@ -58,6 +66,21 @@ as (we are omiting the ``Literal`` in places)::
         int,
     ]
 
+
+or, using the type abbreviations we provide::
+
+    Callable[
+        [
+            PosParam[int],
+            Param["b", int],
+            DefaultParam["c", int,
+            ArgsParam[int, "*"],
+            NamedParam["d", int],
+            NamedDefaultParam["e", int],
+            KwargsParam[int],
+        ],
+        int,
+    ]
 
 Rationale
 '''''''''
