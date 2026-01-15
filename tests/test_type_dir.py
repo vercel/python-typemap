@@ -218,7 +218,7 @@ def test_type_dir_1b():
     assert format_helper.format_class(d) == textwrap.dedent("""\
         class CMethod:
             @classmethod
-            def cbase2(_arg0: type[tests.test_type_dir.CMethod], _arg1: int, /, a: bool | None) -> int: ...
+            def cbase2(cls: type[tests.test_type_dir.CMethod], lol: int, /, a: bool | None) -> int: ...
     """)
 
 

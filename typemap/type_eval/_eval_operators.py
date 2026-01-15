@@ -335,7 +335,7 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
         elif "keyword" in quals:
             kind = inspect.Parameter.KEYWORD_ONLY
             saw_keyword_only = True
-        elif name is None:
+        elif "positional" in quals or name is None:
             kind = inspect.Parameter.POSITIONAL_ONLY
         elif saw_keyword_only:
             kind = inspect.Parameter.KEYWORD_ONLY
@@ -395,8 +395,10 @@ def _signature_to_function(name: str, sig: inspect.Signature):
 
 def _is_pos_only(param):
     name, _, quals = typing.get_args(param)
-    name = _from_literal(name)
-    return name is None and not (_get_quals(quals) & {"*", "**"})
+    qual_set = _get_quals(quals)
+    return "positional" in qual_set or (
+        name is None and not (_get_quals(quals) & {"*", "**"})
+    )
 
 
 def _callable_type_to_method(name, typ):
@@ -419,16 +421,9 @@ def _callable_type_to_method(name, typ):
         cls, params, ret = typing.get_args(typ)
         # We have to make class positional only if there is some other
         # positional only argument. Annoying!
-        pname = (
-            "cls"
-            if not any(_is_pos_only(p) for p in typing.get_args(params))
-            else None
-        )
-        cls_param = Param[
-            typing.Literal[pname],
-            type[cls],
-            typing.Never,
-        ]
+        has_pos_only = any(_is_pos_only(p) for p in typing.get_args(params))
+        quals = typing.Literal["positional"] if has_pos_only else typing.Never
+        cls_param = Param[typing.Literal["cls"], type[cls], quals]
         typ = typing.Callable[[cls_param] + list(typing.get_args(params)), ret]
     elif head is staticmethod:
         params, ret = typing.get_args(typ)
@@ -485,10 +480,6 @@ def _function_type(func, *, receiver_type):
             else:
                 specified_receiver = ann
 
-        has_name = p.kind in (
-            inspect.Parameter.POSITIONAL_OR_KEYWORD,
-            inspect.Parameter.KEYWORD_ONLY,
-        )
         quals = []
         if p.kind == inspect.Parameter.VAR_POSITIONAL:
             quals.append("*")
@@ -496,11 +487,13 @@ def _function_type(func, *, receiver_type):
             quals.append("**")
         if p.kind == inspect.Parameter.KEYWORD_ONLY:
             quals.append("keyword")
+        if p.kind == inspect.Parameter.POSITIONAL_ONLY:
+            quals.append("positional")
         if p.default is not empty:
             quals.append("default")
         params.append(
             Param[
-                typing.Literal[p.name if has_name else None],
+                typing.Literal[p.name],
                 _ann(ann),
                 typing.Literal[*quals] if quals else typing.Never,
             ]
@@ -594,7 +587,11 @@ def _fix_callable_args(base, args):
     if typing.get_origin(special) is tuple:
         args[idx] = tuple[
             *[
-                t if isinstance(t, Param) else Param[typing.Literal[None], t]
+                (
+                    t
+                    if typing.get_origin(t) is Param
+                    else Param[typing.Literal[None], t]
+                )
                 for t in typing.get_args(special)
             ]
         ]

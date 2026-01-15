@@ -92,7 +92,7 @@ class Member[
     definer: D
 
 
-ParamQuals = Literal["*", "**", "keyword", "default"]
+ParamQuals = Literal["*", "**", "keyword", "positional", "default"]
 
 
 class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
