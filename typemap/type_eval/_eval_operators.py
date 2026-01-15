@@ -431,6 +431,21 @@ def _callable_type_to_method(name, typ):
         params, ret = typing.get_args(typ)
         typ = typing.Callable[list(typing.get_args(params)), ret]
     else:
+        params, ret = typing.get_args(typ)
+        params = [
+            (
+                p
+                if typing.get_args(p)[0] != typing.Literal["self"]
+                else Param[
+                    typing.Literal["self"],
+                    typing.Self,
+                    typing.get_args(p)[2],
+                ]
+            )
+            for p in params
+        ]
+        ret = type(None) if name == "__init__" else ret
+        typ = typing.Callable[params, ret]
         head = lambda x: x
 
     func = _signature_to_function(name, _callable_type_to_signature(typ))
