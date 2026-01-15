@@ -612,6 +612,9 @@ def _get_raw_args(tp, base_head, ctx) -> typing.Any:
 
         return args
 
+    if tp_head is staticmethod:
+        return typing.get_args(evaled)
+
     # Scan the fully-annotated MRO to find the base
     box = _apply_generic.box(tp)
     for anc in box.mro:
