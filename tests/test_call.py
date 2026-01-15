@@ -1,14 +1,14 @@
 import textwrap
 
-from typing import Unpack
+from typing import Generic, Literal, Self, TypeVar, Unpack
 
 from typemap.type_eval import eval_call
 from typemap.typing import (
     Attrs,
     BaseTypedDict,
+    GetName,
     NewProtocol,
     Member,
-    GetName,
     Iter,
 )
 
@@ -72,3 +72,51 @@ def test_call_3():
             value: typing.Literal[1]
             def __init__(self: Self, value: Literal[1]) -> None: ...
         """)
+
+
+def test_call_bound_method_01():
+    # non-generic class, non-generic method
+    class C:
+        def invoke(self: Self, x: int) -> int:
+            return x
+
+    c = C()
+    ret = eval_call(c.invoke, 1)
+    assert ret is int
+
+
+def test_call_bound_method_02():
+    # non-generic class, generic method
+    class C:
+        def invoke[X](self: Self, x: X) -> X:
+            return x
+
+    c = C()
+    ret = eval_call(c.invoke, 1)
+    assert ret is Literal[1]
+
+
+def test_call_bound_method_03():
+    # generic class, non-generic method
+    X = TypeVar("X")
+
+    class C(Generic[X]):
+        def invoke(self: Self, x: X) -> X:
+            return x
+
+    c = C[int]()
+    ret = eval_call(c.invoke, 1)
+    assert ret is Literal[1]
+
+
+def test_call_bound_method_04():
+    # generic class, generic method
+    X = TypeVar("X")
+
+    class C(Generic[X]):
+        def invoke[Y](self: Self, x: Y) -> Y:
+            return x
+
+    c = C[int]()
+    ret = eval_call(c.invoke, "!!!")
+    assert ret is Literal["!!!"]
