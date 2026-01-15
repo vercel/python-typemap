@@ -65,6 +65,12 @@ def _get_bound_type_args(
         ):
             tp = typing.TypedDict(f"**{param.name}", bound.kwargs)  # type: ignore[misc, operator]
             vars[tv.__name__] = tp
+        elif (
+            isinstance(param.annotation, typing.TypeVar)
+            and param.name in bound.arguments
+        ):
+            param_value = bound.arguments[param.name]
+            vars[param.annotation.__name__] = param_value
         # TODO: simple bindings to other variables too
 
     return vars
