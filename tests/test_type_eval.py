@@ -17,7 +17,7 @@ from typing import (
 
 import pytest
 
-from typemap.type_eval import eval_typing
+from typemap.type_eval import eval_typing, eval_type_call
 from typemap.typing import (
     Attrs,
     FromUnion,

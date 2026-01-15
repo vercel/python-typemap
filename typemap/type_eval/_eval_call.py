@@ -39,6 +39,13 @@ def _get_bound_type_args(
     sig = inspect.signature(func)
     bound = sig.bind(*arg_types, **kwarg_types)
 
+    return _get_bound_type_args_from_bound_args(sig, bound)
+
+
+def _get_bound_type_args_from_bound_args(
+    sig: inspect.Signature,
+    bound: inspect.BoundArguments,
+) -> dict[str, RtType]:
     vars: dict[str, RtType] = {}
     # TODO: duplication, error cases
     for param in sig.parameters.values():
@@ -142,3 +149,37 @@ def _eval_call_with_type_vars(
         return _eval_typing.eval_typing(rr["return"])
     finally:
         ctx.current_generic_alias = old_obj
+
+
+def eval_type_call(
+    callable: typing.Any,
+    *arg_types: Any,
+    **kwarg_types: Any,
+) -> RtType:
+    arg_types = tuple(_eval_typing.eval_typing(t) for t in arg_types)
+    kwarg_types = {
+        k: _eval_typing.eval_typing(t) for k, t in kwarg_types.items()
+    }
+    if isinstance(callable, types.FunctionType):
+        sig = inspect.signature(callable)
+    else:
+        resolved_callable = _eval_typing.eval_typing(callable)
+        sig = _callable_type_to_signature(resolved_callable)
+    bound = sig.bind(*arg_types, **kwarg_types)
+    vars = _get_bound_type_args_from_bound_args(sig, bound)
+    res = _substitute_type_vars(sig.return_annotation, vars)
+
+    return res
+
+
+def _substitute_type_vars(
+    obj: typing.Any, vars: dict[str, RtType]
+) -> typing.Any:
+    """Recursively substitute type variables into a type expression."""
+    if isinstance(obj, typing.TypeVar):
+        return vars[obj.__name__]
+    elif _typing_inspect.is_generic_alias(obj):
+        args = tuple(_substitute_type_vars(v, vars) for v in obj.__args__)
+        return obj.__origin__[args]  # type: ignore[index]
+    else:
+        return obj
