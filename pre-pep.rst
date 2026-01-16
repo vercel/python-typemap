@@ -131,6 +131,108 @@ inferring the type of a function is much less likely to be feasible.
 Implementation
 ''''''''''''''
 
+We will walk through the implementation.
+
+This will take something of a tutorial approach, and explain some of
+the features being used. More details will appear in the specification
+section.
+
+First, to support the annotations we saw above, we have a collection
+of dummy classes with generic types::
+
+    class Pointer[T]:
+        pass
+
+
+    class Property[T](Pointer[T]):
+        pass
+
+
+    class Link[T](Pointer[T]):
+        pass
+
+
+    class SingleLink[T](Link[T]):
+        pass
+
+
+    class MultiLink[T](Link[T]):
+        pass
+
+The ``select`` method is where we start seeing new things.
+
+The ``**kwargs: Unpack[K]`` is part of this proposal, and allows
+*inferring* a TypedDict from keyword args.
+
+``Attrs[K]`` extracts ``Member`` types corresponding to every
+type-annotated attribute of ``K``, while calling ``NewProtocol`` with
+``Member`` arguments constructs a new structural type.
+
+``GetName`` is a getter operator that fetches the name of a ``Member``
+as a literal type--all of these mechanisms lean very heavily on literal types.
+``GetAttr`` gets the type of an attribute from a class.
+
+::
+
+    def select[ModelT, K: BaseTypedDict](
+        typ: type[ModelT],
+        /,
+        **kwargs: Unpack[K],
+    ) -> list[
+        NewProtocol[
+            *[
+                Member[
+                    GetName[c],
+                    ConvertField[GetAttr[ModelT, GetName[c]]],
+                ]
+                for c in Iter[Attrs[K]]
+            ]
+        ]
+    ]: ...
+
+``ConvertField`` is our first type helper, and it is a conditional type
+alias, which decides between two types based on a (limited)
+subtype-ish check.
+
+In ``ConvertField``, we wish to drop the ``Property`` or ``Link``
+annotation and produce the underlying type, as well as, for links,
+producing a new target type containing only properties and wrapping
+``MultiLink`` in a list::
+
+    type ConvertField[T] = (
+        AdjustLink[PropsOnly[PointerArg[T]], T] if Sub[T, Link] else PointerArg[T]
+    )
+
+``PointerArg`` gets the type argument to ``Pointer`` or a subclass.
+
+``GetArg[T, Base, I]`` is one of the core primitives; it fetches the
+index ``I`` type argument to ``Base`` from a type ``T``, if ``T``
+inherits from ``Base``.
+
+(The subtleties of this will be discussed later; in this case, it just
+grabs the argument to a ``Pointer``)::
+
+    type PointerArg[T: Pointer] = GetArg[T, Pointer, 0]
+
+``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
+we've discussed already::
+
+    type AdjustLink[Tgt, LinkTy] = list[Tgt] if Sub[LinkTy, MultiLink] else Tgt
+
+And the final helper, ``PropsOnly[T]``, generates a new type that
+contains all the ``Property`` attributes of ``T``::
+
+    type PropsOnly[T] = list[
+        NewProtocol[
+            *[
+                Member[GetName[p], PointerArg[GetType[p]]]
+                for p in Iter[Attrs[T]]
+                if Sub[GetType[p], Property]
+            ]
+        ]
+    ]
+
+The full test is `in our test suite <#qb-test_>`_.
 
 
 Automatically deriving FastAPI CRUD models
