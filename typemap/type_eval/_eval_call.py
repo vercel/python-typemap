@@ -8,6 +8,7 @@ import typing_extensions
 from typing import Any
 
 
+from . import _eval_operators
 from . import _eval_typing
 from . import _typing_inspect
 
@@ -93,13 +94,16 @@ def _get_bound_type_args_from_bound_args(
             param.annotation, typing.TypeVar
         ) or _typing_inspect.is_generic_alias(param.annotation):
             param_value = bound.arguments[param.name]
-            _update_bound_typevar(param.annotation, param_value, vars)
+            _update_bound_typevar(
+                param.name, param.annotation, param_value, vars
+            )
         # TODO: simple bindings to other variables too
 
     return vars
 
 
 def _update_bound_typevar(
+    param_name: str,
     tv: Any,
     param_value: Any,
     vars: dict[str, RtType],
@@ -113,13 +117,19 @@ def _update_bound_typevar(
                 f"is already bound to {vars[tv.__name__].__name__}, "
                 f"but got {param_value.__name__}"
             )
-    elif bool(
-        _typing_inspect.is_generic_alias(tv)
-        and _typing_inspect.is_generic_alias(param_value)
-        and tv.__origin__ == param_value.__origin__
-    ):
-        for p_arg, c_arg in zip(tv.__args__, param_value.__args__, strict=True):
-            _update_bound_typevar(p_arg, c_arg, vars)
+    elif _typing_inspect.is_generic_alias(tv):
+        tv_args = tv.__args__
+
+        with _eval_typing._ensure_context() as ctx:
+            param_args = _eval_operators._get_args(
+                param_value, tv.__origin__, ctx
+            )
+
+        if param_args is None:
+            raise ValueError(f"Argument type mismatch for {param_name}")
+
+        for p_arg, c_arg in zip(tv_args, param_args, strict=True):
+            _update_bound_typevar(param_name, p_arg, c_arg, vars)
 
 
 def eval_call_with_types(
