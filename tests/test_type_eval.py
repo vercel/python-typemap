@@ -140,6 +140,38 @@ type XYTree[X, Y] = XNode[X, Y] | YNode[X, Y]
 type NestedTree = str | list[NestedTree] | list[IntTree]
 
 
+def test_eval_types_4():
+    d = eval_typing(
+        Callable[
+            [
+                Param[Literal["a"], int, Literal["positional"]],
+                Param[Literal["b"], int],
+                Param[Literal["c"], int, Literal["default"]],
+                Param[None, int, Literal["*"]],
+                Param[Literal["d"], int, Literal["keyword"]],
+                Param[Literal["e"], int, Literal["default", "keyword"]],
+                Param[None, int, Literal["**"]],
+            ],
+            int,
+        ]
+    )
+    assert (
+        d
+        == Callable[
+            [
+                Param[Literal["a"], int, Literal["positional"]],
+                Param[Literal["b"], int],
+                Param[Literal["c"], int, Literal["default"]],
+                Param[None, int, Literal["*"]],
+                Param[Literal["d"], int, Literal["keyword"]],
+                Param[Literal["e"], int, Literal["default", "keyword"]],
+                Param[None, int, Literal["**"]],
+            ],
+            int,
+        ]
+    )
+
+
 class TA:
     x: int
     y: list[float]

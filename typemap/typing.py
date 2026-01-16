@@ -101,8 +101,10 @@ class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
     quals: Q
 
 
-type PosParam[T] = Param[Literal[None], T]
-type PosDefaultParam[T] = Param[Literal[None], T, Literal["default"]]
+type PosParam[N: str | None, T] = Param[N, T, Literal["positional"]]
+type PosDefaultParam[N: str | None, T] = Param[
+    N, T, Literal["positional", "default"]
+]
 type DefaultParam[N: str, T] = Param[N, T, Literal["default"]]
 type NamedParam[N: str, T] = Param[N, T, Literal["keyword"]]
 type NamedDefaultParam[N: str, T] = Param[N, T, Literal["keyword", "default"]]

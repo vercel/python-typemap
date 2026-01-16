@@ -29,8 +29,8 @@ We introduce a ``Param`` type the contains all the information about a function 
 
     ParamQuals = typing.Literal["*", "**", "default", "keyword"]
 
-    type PosParam[T] = Param[Literal[None], T]
-    type PosDefaultParam[T] = Param[Literal[None], T, Literal["default"]]
+    type PosParam[N: str | None, T] = Param[N, T, Literal["positional"]]
+    type PosDefaultParam[N: str | None, T] = Param[N, T, Literal["positional", "default"]]
     type DefaultParam[N: str, T] = Param[N, T, Literal["default"]]
     type NamedParam[N: str, T] = Param[N, T, Literal["keyword"]]
     type NamedDefaultParam[N: str, T] = Param[N, T, Literal["keyword", "default"]]
@@ -55,7 +55,7 @@ as (we are omiting the ``Literal`` in places)::
 
     Callable[
         [
-            Param[None, int],
+            Param["a", int, "positional"],
             Param["b", int],
             Param["c", int, "default"],
             Param[None, int, "*"],
@@ -71,7 +71,7 @@ or, using the type abbreviations we provide::
 
     Callable[
         [
-            PosParam[int],
+            PosParam["a", int],
             Param["b", int],
             DefaultParam["c", int,
             ArgsParam[int, "*"],
