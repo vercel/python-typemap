@@ -218,6 +218,9 @@ def _eval_Iter(tp, *, ctx):
         return iter(tp.__args__)
     else:
         # XXX: Or should we return []?
+        # We *definitely* should return [] for Never
+        # Maybe we should lift over unions and return the union of
+        # each tuples position...
         raise TypeError(
             f"Invalid type argument to Iter: {tp} is not a fixed-length tuple"
         )

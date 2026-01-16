@@ -57,8 +57,8 @@ type ConvertField[T] = (
 )
 
 
-def select[K: BaseTypedDict](
-    rcv: type[User],
+def select[ModelT, K: BaseTypedDict](
+    rcv: type[ModelT],
     /,
     **kwargs: Unpack[K],
 ) -> list[
@@ -66,7 +66,7 @@ def select[K: BaseTypedDict](
         *[
             Member[
                 GetName[c],
-                ConvertField[GetAttr[User, GetName[c]]],
+                ConvertField[GetAttr[ModelT, GetName[c]]],
             ]
             for c in Iter[Attrs[K]]
         ]
@@ -99,7 +99,7 @@ class User:
     posts: Link[Post]
 
 
-def test_qblike_1():
+def test_qblike2_1():
     ret = eval_call(
         select,
         User,
@@ -117,7 +117,7 @@ def test_qblike_1():
         """)
 
 
-def test_qblike_2():
+def test_qblike2_2():
     ret = eval_call(
         select,
         User,

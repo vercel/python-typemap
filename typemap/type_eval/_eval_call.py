@@ -9,6 +9,7 @@ from typing import Any
 
 
 from . import _eval_typing
+from . import _typing_inspect
 
 RtType = Any
 
@@ -18,6 +19,8 @@ from typing import _UnpackGenericAlias  # type: ignore [attr-defined]  # noqa: P
 def _type(t):
     if t is None or isinstance(t, (int, str, bool, bytes, enum.Enum)):
         return typing.Literal[t]
+    elif isinstance(t, type):
+        return type[t]
     else:
         return type(t)
 
@@ -39,6 +42,7 @@ def _get_bound_type_args(
     vars: dict[str, RtType] = {}
     # TODO: duplication, error cases
     for param in sig.parameters.values():
+        # Unpack[TypeVarType] for *args
         if (
             param.kind == inspect.Parameter.VAR_POSITIONAL
             # XXX: typing_extensions also
@@ -51,6 +55,7 @@ def _get_bound_type_args(
         ):
             tps = bound.arguments.get(param.name, ())
             vars[tv.__name__] = tuple[tps]  # type: ignore[valid-type]
+        # Unpack[T] for **kwargs
         elif (
             param.kind == inspect.Parameter.VAR_KEYWORD
             # XXX: typing_extensions also
@@ -65,6 +70,18 @@ def _get_bound_type_args(
         ):
             tp = typing.TypedDict(f"**{param.name}", bound.kwargs)  # type: ignore[misc, operator]
             vars[tv.__name__] = tp
+        # trivial type[T] bindings
+        elif (
+            _typing_inspect.is_generic_alias(param.annotation)
+            and param.annotation.__origin__ is type
+            and (tv := param.annotation.__args__[0])
+            and isinstance(tv, typing.TypeVar)
+            and (arg := bound.arguments.get(param.name))
+            and _typing_inspect.is_generic_alias(arg)
+            and arg.__origin__ is type
+        ):
+            vars[tv.__name__] = arg.__args__[0]
+        # trivial T bindings
         elif (
             isinstance(param.annotation, typing.TypeVar)
             and param.name in bound.arguments
