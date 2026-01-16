@@ -21,12 +21,9 @@ from . import format_helper
 
 # Begin PEP section: Prisma-style ORMs
 
-"""
-We will walk through the implementation.
-
-This will take something of a tutorial approach, and explain some of
-the features being used. More details were appear in the specification
-section.
+"""This will take something of a tutorial approach in discussing the
+implementation, and explain the features being used as we use
+them. More details were appear in the specification section.
 
 First, to support the annotations we saw above, we have a collection
 of dummy classes with generic types.
@@ -114,7 +111,7 @@ grabs the argument to a ``Pointer``).
 type PointerArg[T: Pointer] = GetArg[T, Pointer, 0]
 
 """
-```AdjustLink sticks a `list` around `MultiLink`, using features
+``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
 we've discussed already.
 
 """

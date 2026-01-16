@@ -113,6 +113,9 @@ type Update[T] = NewProtocol[
 
 ##
 
+# Begin PEP section: dataclass like __init__
+
+
 # Generate the Member field for __init__ for a class
 type InitFnType[T] = Member[
     Literal["__init__"],
@@ -143,6 +146,9 @@ type AddInit[T] = NewProtocol[
     InitFnType[T],
     *[x for x in Iter[Members[T]]],
 ]
+
+
+# End PEP section
 
 
 ####

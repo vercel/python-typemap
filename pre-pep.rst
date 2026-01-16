@@ -128,33 +128,31 @@ much need for runtime introspection of the types here, which is good:
 inferring the type of a function is much less likely to be feasible.
 
 
+.. _qb-impl:
+
 Implementation
 ''''''''''''''
 
-We will walk through the implementation.
-
-This will take something of a tutorial approach, and explain some of
-the features being used. More details will appear in the specification
-section.
+This will take something of a tutorial approach in discussing the
+implementation, and explain the features being used as we use
+them. More details were appear in the specification section.
 
 First, to support the annotations we saw above, we have a collection
-of dummy classes with generic types::
+of dummy classes with generic types.
+
+::
 
     class Pointer[T]:
         pass
 
-
     class Property[T](Pointer[T]):
         pass
-
 
     class Link[T](Pointer[T]):
         pass
 
-
     class SingleLink[T](Link[T]):
         pass
-
 
     class MultiLink[T](Link[T]):
         pass
@@ -190,14 +188,16 @@ as a literal type--all of these mechanisms lean very heavily on literal types.
         ]
     ]: ...
 
-``ConvertField`` is our first type helper, and it is a conditional type
+ConvertField is our first type helper, and it is a conditional type
 alias, which decides between two types based on a (limited)
 subtype-ish check.
 
 In ``ConvertField``, we wish to drop the ``Property`` or ``Link``
 annotation and produce the underlying type, as well as, for links,
 producing a new target type containing only properties and wrapping
-``MultiLink`` in a list::
+``MultiLink`` in a list.
+
+::
 
     type ConvertField[T] = (
         AdjustLink[PropsOnly[PointerArg[T]], T] if Sub[T, Link] else PointerArg[T]
@@ -210,17 +210,23 @@ index ``I`` type argument to ``Base`` from a type ``T``, if ``T``
 inherits from ``Base``.
 
 (The subtleties of this will be discussed later; in this case, it just
-grabs the argument to a ``Pointer``)::
+grabs the argument to a ``Pointer``).
+
+::
 
     type PointerArg[T: Pointer] = GetArg[T, Pointer, 0]
 
 ``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
-we've discussed already::
+we've discussed already.
+
+::
 
     type AdjustLink[Tgt, LinkTy] = list[Tgt] if Sub[LinkTy, MultiLink] else Tgt
 
 And the final helper, ``PropsOnly[T]``, generates a new type that
-contains all the ``Property`` attributes of ``T``::
+contains all the ``Property`` attributes of ``T``.
+
+::
 
     type PropsOnly[T] = list[
         NewProtocol[
@@ -377,6 +383,11 @@ This kind of pattern is widespread enough that :pep:`PEP 681 <681>`
 was created to represent a lowest-common denominator subset of what
 existing libraries do.
 
+.. _init-impl:
+
+Implementation
+''''''''''''''
+
 ::
 
     # Generate the Member field for __init__ for a class
@@ -409,12 +420,6 @@ existing libraries do.
         InitFnType[T],
         *[x for x in Iter[Members[T]]],
     ]
-
-
-TODO: We still need a full story on *how* best to apply this kind of
-type modifier to a type. With dataclasses, which is a decorator, we
-could put it in the decorator type... But what about things that use
-``__init_subclass__`` or even metaclasses?
 
 
 Rationale
