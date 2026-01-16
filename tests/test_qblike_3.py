@@ -32,6 +32,31 @@ from typemap.typing import (
 from . import format_helper
 
 
+"""
+An example of a SQL-Alchemy like ORM.
+
+The User and Post classes model a SQLite schema:
+```
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    email TEXT UNIQUE NOT NULL,
+    age INTEGER,
+    active BOOLEAN DEFAULT TRUE
+);
+
+CREATE TABLE posts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    author_id INTEGER NOT NULL,
+    FOREIGN KEY (author_id) REFERENCES users (id)
+);
+```
+
+Protocols are generated using AddInit[T], Create[T], and Update[T].
+"""
+
+
 type ReplaceNever[T, D] = T if not IsSub[T, Never] else D
 type GetFieldItem[T: InitField, K, Default] = ReplaceNever[
     GetAttr[GetArg[T, InitField, Literal[0]], K], Default
