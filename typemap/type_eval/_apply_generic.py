@@ -107,9 +107,12 @@ def box(cls: type[Any]) -> Boxed:
         return Boxed(cls, boxed_bases, args)
 
     if isinstance(cls, (typing._GenericAlias, types.GenericAlias)):  # type: ignore[attr-defined]
-        args = dict(
-            zip(cls.__origin__.__parameters__, cls.__args__, strict=True)
-        )
+        if params := getattr(cls.__origin__, "__parameters__", None):
+            args = dict(
+                zip(cls.__origin__.__parameters__, cls.__args__, strict=True)
+            )
+        else:
+            args = {}
         cls = cls.__origin__
     else:
         if params := getattr(cls, "__parameters__", None):

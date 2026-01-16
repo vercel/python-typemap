@@ -57,18 +57,19 @@ type ConvertField[T] = (
 )
 
 
-# XXX: putting list here doesn't work!
 def select[K: BaseTypedDict](
     rcv: type[User],
     /,
     **kwargs: Unpack[K],
-) -> NewProtocol[
-    *[
-        Member[
-            GetName[c],
-            ConvertField[GetAttr[User, GetName[c]]],
+) -> list[
+    NewProtocol[
+        *[
+            Member[
+                GetName[c],
+                ConvertField[GetAttr[User, GetName[c]]],
+            ]
+            for c in Iter[Attrs[K]]
         ]
-        for c in Iter[Attrs[K]]
     ]
 ]: ...
 
@@ -105,6 +106,8 @@ def test_qblike_1():
         id=True,
         name=True,
     )
+    assert ret.__origin__ is list
+    ret = ret.__args__[0]
     fmt = format_helper.format_class(ret)
 
     assert fmt == textwrap.dedent("""\
@@ -123,7 +126,8 @@ def test_qblike_2():
         posts=True,
     )
 
-    # ret = ret.__args__[0]
+    assert ret.__origin__ is list
+    ret = ret.__args__[0]
     fmt = format_helper.format_class(ret)
 
     assert fmt == textwrap.dedent("""\
