@@ -89,15 +89,37 @@ def _get_bound_type_args_from_bound_args(
         ):
             vars[tv.__name__] = arg.__args__[0]
         # trivial T bindings
-        elif (
-            isinstance(param.annotation, typing.TypeVar)
-            and param.name in bound.arguments
-        ):
+        elif isinstance(
+            param.annotation, typing.TypeVar
+        ) or _typing_inspect.is_generic_alias(param.annotation):
             param_value = bound.arguments[param.name]
-            vars[param.annotation.__name__] = param_value
+            _update_bound_typevar(param.annotation, param_value, vars)
         # TODO: simple bindings to other variables too
 
     return vars
+
+
+def _update_bound_typevar(
+    tv: Any,
+    param_value: Any,
+    vars: dict[str, RtType],
+) -> None:
+    if isinstance(tv, typing.TypeVar):
+        if tv.__name__ not in vars:
+            vars[tv.__name__] = param_value
+        elif vars[tv.__name__] != param_value:
+            raise ValueError(
+                f"Type variable {tv.__name__} "
+                f"is already bound to {vars[tv.__name__].__name__}, "
+                f"but got {param_value.__name__}"
+            )
+    elif bool(
+        _typing_inspect.is_generic_alias(tv)
+        and _typing_inspect.is_generic_alias(param_value)
+        and tv.__origin__ == param_value.__origin__
+    ):
+        for p_arg, c_arg in zip(tv.__args__, param_value.__args__, strict=True):
+            _update_bound_typevar(p_arg, c_arg, vars)
 
 
 def eval_call_with_types(
@@ -156,6 +178,8 @@ def eval_type_call(
     *arg_types: Any,
     **kwarg_types: Any,
 ) -> RtType:
+    from typemap.typing import GenericCallable
+
     arg_types = tuple(_eval_typing.eval_typing(t) for t in arg_types)
     kwarg_types = {
         k: _eval_typing.eval_typing(t) for k, t in kwarg_types.items()
@@ -164,7 +188,15 @@ def eval_type_call(
         sig = inspect.signature(callable)
     else:
         resolved_callable = _eval_typing.eval_typing(callable)
+
+        if (
+            _typing_inspect.is_generic_alias(resolved_callable)
+            and resolved_callable.__origin__ is GenericCallable
+        ):
+            _, resolved_callable = typing.get_args(resolved_callable)
+
         sig = _callable_type_to_signature(resolved_callable)
+
     bound = sig.bind(*arg_types, **kwarg_types)
     vars = _get_bound_type_args_from_bound_args(sig, bound)
     res = _substitute_type_vars(sig.return_annotation, vars)

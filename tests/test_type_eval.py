@@ -21,6 +21,7 @@ from typemap.type_eval import eval_typing, eval_type_call
 from typemap.typing import (
     Attrs,
     FromUnion,
+    GenericCallable,
     GetArg,
     GetArgs,
     GetAttr,
@@ -1277,7 +1278,8 @@ type GetCallableMember[T, N: str] = GetArg[
         *[
             GetType[m]
             for m in Iter[Members[T]]
-            if Sub[GetType[m], Callable] and Sub[GetName[m], N]
+            if (Sub[GetType[m], Callable] or Sub[GetType[m], GenericCallable])
+            and Sub[GetName[m], N]
         ]
     ],
     tuple,
