@@ -131,7 +131,6 @@ inferring the type of a function is much less likely to be feasible.
 Implementation
 ''''''''''''''
 
-We have a more `worked example <#qb-test_>`_ in our test suite.
 
 
 Automatically deriving FastAPI CRUD models
@@ -237,7 +236,7 @@ suite, but here is a possible implementation of just ``Public``::
     # If it is a Field, then we try pulling out the "default" field,
     # otherwise we return the type itself.
     type GetDefault[Init] = (
-        GetFieldItem[Init, Literal["default"]] if Sub[Init, Field] else Init
+        GetFieldItem[Init, Literal["default"]] if IsSub[Init, Field] else Init
     )
 
     # Create takes everything but the primary key and preserves defaults
@@ -245,7 +244,7 @@ suite, but here is a possible implementation of just ``Public``::
         *[
             Member[GetName[p], GetType[p], GetQuals[p], GetDefault[GetInit[p]]]
             for p in Iter[Attrs[T]]
-            if not Sub[
+            if not IsSub[
                 Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
             ]
         ]
@@ -354,6 +353,8 @@ Reference Implementation
 
 Rejected Ideas
 ==============
+
+* Don't attempt to support runtime evaluation, make
 
 [Why certain ideas that were brought while discussing this PEP were not ultimately pursued.]
 
