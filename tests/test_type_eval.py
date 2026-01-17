@@ -454,11 +454,11 @@ type GetMethodLike[T, Name] = GetArg[
             GetType[p]
             for p in Iter[Members[T]]
             if (
-                Sub[GetType[p], Callable]
-                or Sub[GetType[p], staticmethod]
-                or Sub[GetType[p], classmethod]
+                IsSub[GetType[p], Callable]
+                or IsSub[GetType[p], staticmethod]
+                or IsSub[GetType[p], classmethod]
             )
-            and Sub[Name, GetName[p]]
+            and IsSub[Name, GetName[p]]
         ],
     ],
     tuple,
