@@ -97,7 +97,7 @@ def test_call_bound_method_02():
 
 
 def test_call_bound_method_03():
-    # generic class, non-generic method
+    # generic class, non-generic method, with type var
     X = TypeVar("X")
 
     class C(Generic[X]):
@@ -110,10 +110,32 @@ def test_call_bound_method_03():
 
 
 def test_call_bound_method_04():
-    # generic class, generic method
+    # generic class, non-generic method, PEP695 syntax
+    class C[X]:
+        def invoke(self: Self, x: X) -> X:
+            return x
+
+    c = C[int]()
+    ret = eval_call(c.invoke, 1)
+    assert ret is Literal[1]
+
+
+def test_call_bound_method_05():
+    # generic class, generic method, with type var
     X = TypeVar("X")
 
     class C(Generic[X]):
+        def invoke[Y](self: Self, x: Y) -> Y:
+            return x
+
+    c = C[int]()
+    ret = eval_call(c.invoke, "!!!")
+    assert ret is Literal["!!!"]
+
+
+def test_call_bound_method_06():
+    # generic class, generic method, PEP695 syntax
+    class C[X]:
         def invoke[Y](self: Self, x: Y) -> Y:
             return x
 
