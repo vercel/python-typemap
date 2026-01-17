@@ -15,7 +15,7 @@ from typemap.typing import (
     NewProtocol,
     Iter,
     Attrs,
-    Sub,
+    IsSub,
     FromUnion,
     GetArg,
     GetAttr,
@@ -54,14 +54,14 @@ type GetFieldItem[T: InitField, K] = GetAttr[GetArg[T, InitField, 0], K]
 # Strip `| None` from a type by iterating over its union components
 # and filtering
 type NotOptional[T] = Union[
-    *[x for x in Iter[FromUnion[T]] if not Sub[x, None]]
+    *[x for x in Iter[FromUnion[T]] if not IsSub[x, None]]
 ]
 
 # Adjust an attribute type for use in Public below by dropping | None for
 # primary keys and stripping all annotations.
 type FixPublicType[T, Init] = (
     NotOptional[T]
-    if Sub[Literal[True], GetFieldItem[Init, Literal["primary_key"]]]
+    if IsSub[Literal[True], GetFieldItem[Init, Literal["primary_key"]]]
     else T
 )
 
@@ -72,7 +72,7 @@ type Public[T] = NewProtocol[
     *[
         Member[GetName[p], FixPublicType[GetType[p], GetInit[p]], GetQuals[p]]
         for p in Iter[Attrs[T]]
-        if not Sub[Literal[True], GetFieldItem[GetInit[p], Literal["hidden"]]]
+        if not IsSub[Literal[True], GetFieldItem[GetInit[p], Literal["hidden"]]]
     ]
 ]
 
@@ -80,7 +80,7 @@ type Public[T] = NewProtocol[
 # If it is a Field, then we try pulling out the "default" field,
 # otherwise we return the type itself.
 type GetDefault[Init] = (
-    GetFieldItem[Init, Literal["default"]] if Sub[Init, Field] else Init
+    GetFieldItem[Init, Literal["default"]] if IsSub[Init, Field] else Init
 )
 
 # Create takes everything but the primary key and preserves defaults
@@ -88,7 +88,7 @@ type Create[T] = NewProtocol[
     *[
         Member[GetName[p], GetType[p], GetQuals[p], GetDefault[GetInit[p]]]
         for p in Iter[Attrs[T]]
-        if not Sub[
+        if not IsSub[
             Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
         ]
     ]
@@ -105,7 +105,7 @@ type Update[T] = NewProtocol[
             Literal[None],
         ]
         for p in Iter[Attrs[T]]
-        if not Sub[
+        if not IsSub[
             Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
         ]
     ]
@@ -129,7 +129,7 @@ type InitFnType[T] = Member[
                     # All arguments are keyword-only
                     # It takes a default if a default is specified in the class
                     Literal["keyword"]
-                    if Sub[
+                    if IsSub[
                         GetDefault[GetInit[p]],
                         Never,
                     ]

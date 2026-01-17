@@ -8,7 +8,7 @@ from typemap.typing import (
     NewProtocol,
     Iter,
     Attrs,
-    Sub,
+    IsSub,
     GetType,
     Member,
     GetName,
@@ -95,7 +95,7 @@ producing a new target type containing only properties and wrapping
 """
 
 type ConvertField[T] = (
-    AdjustLink[PropsOnly[PointerArg[T]], T] if Sub[T, Link] else PointerArg[T]
+    AdjustLink[PropsOnly[PointerArg[T]], T] if IsSub[T, Link] else PointerArg[T]
 )
 
 """``PointerArg`` gets the type argument to ``Pointer`` or a subclass.
@@ -115,7 +115,7 @@ type PointerArg[T: Pointer] = GetArg[T, Pointer, 0]
 we've discussed already.
 
 """
-type AdjustLink[Tgt, LinkTy] = list[Tgt] if Sub[LinkTy, MultiLink] else Tgt
+type AdjustLink[Tgt, LinkTy] = list[Tgt] if IsSub[LinkTy, MultiLink] else Tgt
 
 """And the final helper, ``PropsOnly[T]``, generates a new type that
 contains all the ``Property`` attributes of ``T``.
@@ -126,7 +126,7 @@ type PropsOnly[T] = list[
         *[
             Member[GetName[p], PointerArg[GetType[p]]]
             for p in Iter[Attrs[T]]
-            if Sub[GetType[p], Property]
+            if IsSub[GetType[p], Property]
         ]
     ]
 ]

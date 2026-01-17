@@ -26,7 +26,7 @@ from typemap.typing import (
     GetName,
     GetType,
     GetAnnotations,
-    Sub,
+    IsSub,
     Iter,
     Length,
     Member,
@@ -63,7 +63,7 @@ type MapRecursive[A] = NewProtocol[
     *[
         (
             Member[GetName[p], OrGotcha[GetType[p]]]
-            if not Sub[GetType[p], A]
+            if not IsSub[GetType[p], A]
             else Member[GetName[p], OrGotcha[MapRecursive[A]]]
         )
         # XXX: This next line *ought* to work, but we haven't
@@ -709,7 +709,7 @@ def test_uppercase_never():
 
 
 def test_never_is():
-    d = eval_typing(Sub[Never, Never])
+    d = eval_typing(IsSub[Never, Never])
     assert d is True
 
 
@@ -769,7 +769,7 @@ def test_eval_literal_idempotent_01():
 
 
 def test_is_literal_true_vs_one():
-    assert eval_typing(Sub[Literal[True], Literal[1]]) is False
+    assert eval_typing(IsSub[Literal[True], Literal[1]]) is False
 
 
 def test_callable_to_signature():
@@ -832,7 +832,7 @@ def test_type_eval_annotated_01():
 
 
 def test_type_eval_annotated_02():
-    res = eval_typing(Sub[GetAttr[AnnoTest, Literal["a"]], int])
+    res = eval_typing(IsSub[GetAttr[AnnoTest, Literal["a"]], int])
     assert res is True
 
 

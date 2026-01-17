@@ -9,7 +9,7 @@ from typemap.typing import (
     NewProtocol,
     Iter,
     Attrs,
-    Sub,
+    IsSub,
     GetAnnotations,
     DropAnnotations,
     FromUnion,
@@ -54,7 +54,7 @@ type InitFnType[T] = Member[
                     GetName[p],
                     DropAnnotations[GetType[p]],
                     Literal["keyword", "default"]
-                    if Sub[
+                    if IsSub[
                         Literal[PropQuals.HAS_DEFAULT],
                         GetAnnotations[GetType[p]],
                     ]
@@ -104,13 +104,15 @@ type AddInit[T] = NewProtocol[
 # Strip `| None` from a type by iterating over its union components
 # and filtering
 type NotOptional[T] = Union[
-    *[x for x in Iter[FromUnion[T]] if not Sub[x, None]]
+    *[x for x in Iter[FromUnion[T]] if not IsSub[x, None]]
 ]
 
 # Adjust an attribute type for use in Public below by dropping | None for
 # primary keys and stripping all annotations.
 type FixPublicType[T] = DropAnnotations[
-    NotOptional[T] if Sub[Literal[PropQuals.PRIMARY], GetAnnotations[T]] else T
+    NotOptional[T]
+    if IsSub[Literal[PropQuals.PRIMARY], GetAnnotations[T]]
+    else T
 ]
 
 # Strip out everything that is Hidden and also make the primary key required
@@ -120,7 +122,7 @@ type Public[T] = NewProtocol[
     *[
         Member[GetName[p], FixPublicType[GetType[p]], GetQuals[p]]
         for p in Iter[Attrs[T]]
-        if not Sub[Literal[PropQuals.HIDDEN], GetAnnotations[GetType[p]]]
+        if not IsSub[Literal[PropQuals.HIDDEN], GetAnnotations[GetType[p]]]
     ]
 ]
 
@@ -129,7 +131,7 @@ type Create[T] = NewProtocol[
     *[
         Member[GetName[p], GetType[p], GetQuals[p]]
         for p in Iter[Attrs[T]]
-        if not Sub[Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]]
+        if not IsSub[Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]]
     ]
 ]
 
@@ -144,7 +146,7 @@ type Update[T] = NewProtocol[
             GetQuals[p],
         ]
         for p in Iter[Attrs[T]]
-        if not Sub[Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]]
+        if not IsSub[Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]]
     ]
 ]
 
