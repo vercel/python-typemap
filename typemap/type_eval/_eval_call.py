@@ -11,6 +11,8 @@ from typing import Any
 from . import _eval_operators
 from . import _eval_typing
 from . import _typing_inspect
+from ._eval_operators import _callable_type_to_signature
+from ._apply_generic import substitute
 
 RtType = Any
 
@@ -40,14 +42,17 @@ def _get_bound_type_args(
     sig = inspect.signature(func)
     bound = sig.bind(*arg_types, **kwarg_types)
 
-    return _get_bound_type_args_from_bound_args(sig, bound)
+    return {
+        tv.__name__: tp
+        for tv, tp in _get_bound_type_args_from_bound_args(sig, bound).items()
+    }
 
 
 def _get_bound_type_args_from_bound_args(
     sig: inspect.Signature,
     bound: inspect.BoundArguments,
-) -> dict[str, RtType]:
-    vars: dict[str, RtType] = {}
+) -> dict[typing.TypeVar | typing.TypeVarTuple, RtType]:
+    vars: dict[typing.TypeVar | typing.TypeVarTuple, RtType] = {}
     # TODO: duplication, error cases
     for param in sig.parameters.values():
         # Unpack[TypeVarType] for *args
@@ -62,7 +67,7 @@ def _get_bound_type_args_from_bound_args(
             and isinstance(tv, typing.TypeVarTuple)
         ):
             tps = bound.arguments.get(param.name, ())
-            vars[tv.__name__] = tuple[tps]  # type: ignore[valid-type]
+            vars[tv] = tuple[tps]  # type: ignore[valid-type]
         # Unpack[T] for **kwargs
         elif (
             param.kind == inspect.Parameter.VAR_KEYWORD
@@ -77,7 +82,7 @@ def _get_bound_type_args_from_bound_args(
             and typing_extensions.is_typeddict(tv.__bound__)
         ):
             tp = typing.TypedDict(f"**{param.name}", bound.kwargs)  # type: ignore[misc, operator]
-            vars[tv.__name__] = tp
+            vars[tv] = tp
         # trivial type[T] bindings
         elif (
             _typing_inspect.is_generic_alias(param.annotation)
@@ -88,7 +93,7 @@ def _get_bound_type_args_from_bound_args(
             and _typing_inspect.is_generic_alias(arg)
             and arg.__origin__ is type
         ):
-            vars[tv.__name__] = arg.__args__[0]
+            vars[tv] = arg.__args__[0]
         # trivial T bindings
         elif isinstance(
             param.annotation, typing.TypeVar
@@ -106,15 +111,15 @@ def _update_bound_typevar(
     param_name: str,
     tv: Any,
     param_value: Any,
-    vars: dict[str, RtType],
+    vars: dict[typing.TypeVar | typing.TypeVarTuple, RtType],
 ) -> None:
     if isinstance(tv, typing.TypeVar):
-        if tv.__name__ not in vars:
-            vars[tv.__name__] = param_value
-        elif vars[tv.__name__] != param_value:
+        if tv not in vars:
+            vars[tv] = param_value
+        elif vars[tv] != param_value:
             raise ValueError(
                 f"Type variable {tv.__name__} "
-                f"is already bound to {vars[tv.__name__].__name__}, "
+                f"is already bound to {vars[tv].__name__}, "
                 f"but got {param_value.__name__}"
             )
     elif _typing_inspect.is_generic_alias(tv):
@@ -209,19 +214,6 @@ def eval_type_call(
 
     bound = sig.bind(*arg_types, **kwarg_types)
     vars = _get_bound_type_args_from_bound_args(sig, bound)
-    res = _substitute_type_vars(sig.return_annotation, vars)
+    res = substitute(sig.return_annotation, vars)
 
     return res
-
-
-def _substitute_type_vars(
-    obj: typing.Any, vars: dict[str, RtType]
-) -> typing.Any:
-    """Recursively substitute type variables into a type expression."""
-    if isinstance(obj, typing.TypeVar):
-        return vars[obj.__name__]
-    elif _typing_inspect.is_generic_alias(obj):
-        args = tuple(_substitute_type_vars(v, vars) for v in obj.__args__)
-        return obj.__origin__[args]  # type: ignore[index]
-    else:
-        return obj

@@ -1278,8 +1278,11 @@ type GetCallableMember[T, N: str] = GetArg[
         *[
             GetType[m]
             for m in Iter[Members[T]]
-            if (Sub[GetType[m], Callable] or Sub[GetType[m], GenericCallable])
-            and Sub[GetName[m], N]
+            if (
+                IsSub[GetType[m], Callable]
+                or IsSub[GetType[m], GenericCallable]
+            )
+            and IsSub[GetName[m], N]
         ]
     ],
     tuple,
