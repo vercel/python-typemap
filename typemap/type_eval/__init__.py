@@ -7,7 +7,7 @@ from ._eval_typing import (
 from ._apply_generic import flatten_class
 
 # XXX: this needs to go second due to nasty circularity -- try to fix that!!
-from ._eval_call import eval_call, eval_type_call
+from ._eval_call import eval_call, eval_call_with_types
 from ._subtype import issubtype
 from ._subsim import issubsimilar
 
@@ -19,7 +19,7 @@ __all__ = (
     "eval_typing",
     "register_evaluator",
     "eval_call",
-    "eval_type_call",
+    "eval_call_with_types",
     "flatten_class",
     "issubtype",
     "issubsimilar",

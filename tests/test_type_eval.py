@@ -17,7 +17,7 @@ from typing import (
 
 import pytest
 
-from typemap.type_eval import eval_typing, eval_type_call
+from typemap.type_eval import eval_call_with_types, eval_typing
 from typemap.typing import (
     Attrs,
     FromUnion,
@@ -1029,17 +1029,17 @@ def test_type_eval_annotated_04():
 
 
 def test_type_call_callable_01():
-    res = eval_type_call(Callable[[], int])
+    res = eval_call_with_types(Callable[[], int])
     assert res is int
 
 
 def test_type_call_callable_02():
-    res = eval_type_call(Callable[[Param[Literal["x"], int]], int], int)
+    res = eval_call_with_types(Callable[[Param[Literal["x"], int]], int], int)
     assert res is int
 
 
 def test_type_call_callable_03():
-    res = eval_type_call(
+    res = eval_call_with_types(
         Callable[[Param[Literal["x"], int, Literal["keyword"]]], int], x=int
     )
     assert res is int
@@ -1048,21 +1048,21 @@ def test_type_call_callable_03():
 def test_type_call_callable_04():
     class C: ...
 
-    res = eval_type_call(Callable[[Param[Literal["self"], Self]], int], C)
+    res = eval_call_with_types(Callable[[Param[Literal["self"], Self]], int], C)
     assert res is int
 
 
 def test_type_call_callable_05():
     class C: ...
 
-    res = eval_type_call(Callable[[Param[Literal["self"], Self]], C], C)
+    res = eval_call_with_types(Callable[[Param[Literal["self"], Self]], C], C)
     assert res is C
 
 
 def test_type_call_callable_06():
     class C: ...
 
-    res = eval_type_call(
+    res = eval_call_with_types(
         Callable[[Param[Literal["self"], Self], Param[Literal["x"], int]], int],
         C,
         int,
@@ -1073,7 +1073,7 @@ def test_type_call_callable_06():
 def test_type_call_callable_07():
     class C: ...
 
-    res = eval_type_call(
+    res = eval_call_with_types(
         Callable[
             [
                 Param[Literal["self"], Self],
@@ -1089,13 +1089,13 @@ def test_type_call_callable_07():
 
 def test_type_call_callable_08():
     T = TypeVar("T")
-    res = eval_type_call(Callable[[Param[Literal["x"], T]], str], int)
+    res = eval_call_with_types(Callable[[Param[Literal["x"], T]], str], int)
     assert res is str
 
 
 def test_type_call_callable_09():
     T = TypeVar("T")
-    res = eval_type_call(Callable[[Param[Literal["x"], T]], T], int)
+    res = eval_call_with_types(Callable[[Param[Literal["x"], T]], T], int)
     assert res is int
 
 
@@ -1104,7 +1104,7 @@ def test_type_call_callable_10():
 
     class C(Generic[T]): ...
 
-    res = eval_type_call(Callable[[Param[Literal["x"], C[T]]], T], C[int])
+    res = eval_call_with_types(Callable[[Param[Literal["x"], C[T]]], T], C[int])
     assert res is int
 
 
@@ -1117,30 +1117,30 @@ def test_type_call_callable_11():
 
     class E(D): ...
 
-    res = eval_type_call(Callable[[Param[Literal["x"], C[T]]], T], D)
+    res = eval_call_with_types(Callable[[Param[Literal["x"], C[T]]], T], D)
     assert res is int
-    res = eval_type_call(Callable[[Param[Literal["x"], C[T]]], T], E)
+    res = eval_call_with_types(Callable[[Param[Literal["x"], C[T]]], T], E)
     assert res is int
 
 
 def test_type_call_local_function_01():
     def func(x: int) -> int: ...
 
-    res = eval_type_call(func, int)
+    res = eval_call_with_types(func, int)
     assert res is int
 
 
 def test_type_call_local_function_02():
     def func(*, x: int) -> int: ...
 
-    res = eval_type_call(func, x=int)
+    res = eval_call_with_types(func, x=int)
     assert res is int
 
 
 def test_type_call_local_function_03():
     def func[T](x: T) -> T: ...
 
-    res = eval_type_call(func, int)
+    res = eval_call_with_types(func, int)
     assert res is int
 
 
@@ -1149,7 +1149,7 @@ def test_type_call_local_function_04():
 
     def func(x: C) -> C: ...
 
-    res = eval_type_call(func, C)
+    res = eval_call_with_types(func, C)
     assert res is C
 
 
@@ -1158,7 +1158,7 @@ def test_type_call_local_function_05():
 
     def func[T](x: T) -> T: ...
 
-    res = eval_type_call(func, C)
+    res = eval_call_with_types(func, C)
     assert res is C
 
 
@@ -1169,7 +1169,7 @@ def test_type_call_local_function_06():
 
     def func[U](x: C[U]) -> C[U]: ...
 
-    res = eval_type_call(func, C[int])
+    res = eval_call_with_types(func, C[int])
     assert res == C[int]
 
 
@@ -1184,9 +1184,9 @@ def test_type_call_local_function_07():
 
     def func[U](x: C[U]) -> U: ...
 
-    res = eval_type_call(func, D)
+    res = eval_call_with_types(func, D)
     assert res is int
-    res = eval_type_call(func, E)
+    res = eval_call_with_types(func, E)
     assert res is int
 
 
@@ -1201,7 +1201,7 @@ def test_type_call_local_function_08():
 
     def func[U](x: C[U]) -> U: ...
 
-    res = eval_type_call(func, F)
+    res = eval_call_with_types(func, F)
     assert res is int
 
 
@@ -1210,7 +1210,7 @@ def test_type_call_local_function_09():
 
     def func[V](x: C[int, V]) -> V: ...
 
-    res = eval_type_call(func, C[int, str])
+    res = eval_call_with_types(func, C[int, str])
     assert res is str
 
 
@@ -1220,7 +1220,7 @@ def test_type_call_bind_error_01():
     with pytest.raises(
         ValueError, match="Type variable T is already bound to int, but got str"
     ):
-        eval_type_call(
+        eval_call_with_types(
             Callable[[Param[Literal["x"], T], Param[Literal["y"], T]], T],
             int,
             str,
@@ -1233,7 +1233,7 @@ def test_type_call_bind_error_02():
     with pytest.raises(
         ValueError, match="Type variable T is already bound to int, but got str"
     ):
-        eval_type_call(func, int, str)
+        eval_call_with_types(func, int, str)
 
 
 def test_type_call_bind_error_03():
@@ -1244,7 +1244,7 @@ def test_type_call_bind_error_03():
     with pytest.raises(
         ValueError, match="Type variable T is already bound to int, but got str"
     ):
-        eval_type_call(
+        eval_call_with_types(
             Callable[[Param[Literal["x"], C[T]], Param[Literal["y"], C[T]]], T],
             C[int],
             C[str],
@@ -1259,7 +1259,7 @@ def test_type_call_bind_error_04():
     with pytest.raises(
         ValueError, match="Type variable T is already bound to int, but got str"
     ):
-        eval_type_call(func, C[int], C[str])
+        eval_call_with_types(func, C[int], C[str])
 
 
 def test_type_call_bind_error_05():
@@ -1270,7 +1270,7 @@ def test_type_call_bind_error_05():
     def func[T](x: C[T]) -> T: ...
 
     with pytest.raises(ValueError, match="Argument type mismatch for x"):
-        eval_type_call(func, D[int])
+        eval_call_with_types(func, D[int])
 
 
 type GetCallableMember[T, N: str] = GetArg[
@@ -1294,7 +1294,7 @@ def test_type_call_member_01():
     class C:
         def invoke(self, x: int) -> int: ...
 
-    res = eval_type_call(GetCallableMember[C, Literal["invoke"]], C, int)
+    res = eval_call_with_types(GetCallableMember[C, Literal["invoke"]], C, int)
     assert res is int
 
 
@@ -1302,7 +1302,7 @@ def test_type_call_member_02():
     class C:
         def invoke[T](self, x: T) -> T: ...
 
-    res = eval_type_call(GetCallableMember[C, Literal["invoke"]], C, int)
+    res = eval_call_with_types(GetCallableMember[C, Literal["invoke"]], C, int)
     assert res is int
 
 
@@ -1310,7 +1310,7 @@ def test_type_call_member_03():
     class C[T]:
         def invoke(self, x: str) -> str: ...
 
-    res = eval_type_call(
+    res = eval_call_with_types(
         GetCallableMember[C[int], Literal["invoke"]], C[int], str
     )
     assert res is str
@@ -1320,7 +1320,7 @@ def test_type_call_member_04():
     class C[T]:
         def invoke(self, x: T) -> T: ...
 
-    res = eval_type_call(
+    res = eval_call_with_types(
         GetCallableMember[C[int], Literal["invoke"]], C[int], int
     )
     assert res is int
@@ -1330,7 +1330,9 @@ def test_type_call_member_05():
     class C[T]:
         def invoke(self) -> C[T]: ...
 
-    res = eval_type_call(GetCallableMember[C[int], Literal["invoke"]], C[int])
+    res = eval_call_with_types(
+        GetCallableMember[C[int], Literal["invoke"]], C[int]
+    )
     assert res == C[int]
 
 
@@ -1338,7 +1340,7 @@ def test_type_call_member_06():
     class C[T]:
         def invoke[U](self, x: U) -> C[U]: ...
 
-    res = eval_type_call(
+    res = eval_call_with_types(
         GetCallableMember[C[int], Literal["invoke"]], C[int], str
     )
     assert res == C[str]

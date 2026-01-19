@@ -2,7 +2,11 @@ import textwrap
 
 from typing import Literal, Unpack
 
-from typemap.type_eval import eval_call, eval_typing
+from typemap.type_eval import (
+    eval_call,
+    eval_call_with_types,
+    eval_typing,
+)
 from typemap.typing import (
     BaseTypedDict,
     NewProtocol,
@@ -124,3 +128,21 @@ def test_qblike_3():
         class PropsOnly[tests.test_qblike.Tgt]:
             name: tests.test_qblike.Property[str]
     """)
+
+
+def test_qblike_4():
+    t = eval_call_with_types(
+        select,
+        A,
+        x=bool,
+        w=bool,
+        z=bool,
+    )
+    fmt = format_helper.format_class(t)
+
+    assert fmt == textwrap.dedent("""\
+        class select[...]:
+            x: tests.test_qblike.Property[int]
+            w: tests.test_qblike.Property[list[str]]
+            z: tests.test_qblike.Link[tests.test_qblike.PropsOnly[tests.test_qblike.Tgt]]
+        """)

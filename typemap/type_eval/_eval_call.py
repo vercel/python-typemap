@@ -12,7 +12,7 @@ from . import _eval_operators
 from . import _eval_typing
 from . import _typing_inspect
 from ._eval_operators import _callable_type_to_signature
-from ._apply_generic import substitute
+from ._apply_generic import substitute, _get_closure_types
 
 RtType = Any
 
@@ -31,7 +31,7 @@ def _type(t):
 def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> RtType:
     arg_types = tuple(_type(t) for t in args)
     kwarg_types = {k: _type(t) for k, t in kwargs.items()}
-    return eval_call_with_types(func, arg_types, kwarg_types)
+    return eval_call_with_types(func, *arg_types, **kwarg_types)
 
 
 def _get_bound_type_args(
@@ -138,21 +138,40 @@ def _update_bound_typevar(
 
 
 def eval_call_with_types(
-    func: types.FunctionType,
-    arg_types: tuple[RtType, ...],
-    kwarg_types: dict[str, RtType],
+    func: types.FunctionType | typing.Callable,
+    *arg_types: tuple[RtType, ...],
+    **kwarg_types: dict[str, RtType],
 ) -> RtType:
-    vars: dict[str, Any] = {}
-    params = func.__type_params__
-    vars = _get_bound_type_args(func, arg_types, kwarg_types)
-    for p in params:
-        if p.__name__ not in vars:
-            vars[p.__name__] = p
+    if isinstance(func, types.FunctionType):
+        vars: dict[str, Any] = _get_bound_type_args(
+            func, arg_types, kwarg_types
+        )
+        for p in func.__type_params__:
+            if p.__name__ not in vars:
+                vars[p.__name__] = p
 
-    return eval_call_with_type_vars(func, vars)
+        return eval_func_with_type_vars(func, vars)
+
+    else:
+        from typemap.typing import GenericCallable
+
+        resolved_callable = _eval_typing.eval_typing(func)
+
+        if (
+            _typing_inspect.is_generic_alias(resolved_callable)
+            and resolved_callable.__origin__ is GenericCallable
+        ):
+            _, resolved_callable = typing.get_args(resolved_callable)
+
+        sig = _callable_type_to_signature(resolved_callable)
+        bound = sig.bind(*arg_types, **kwarg_types)
+        bound_args = _get_bound_type_args_from_bound_args(sig, bound)
+        res = substitute(sig.return_annotation, bound_args)
+
+        return res
 
 
-def eval_call_with_type_vars(
+def eval_func_with_type_vars(
     func: types.FunctionType, vars: dict[str, RtType]
 ) -> RtType:
     with _eval_typing._ensure_context() as ctx:
@@ -165,11 +184,16 @@ def _eval_call_with_type_vars(
     ctx: _eval_typing.EvalContext,
 ) -> RtType:
     try:
-        af = func.__annotate__
+        af = typing.cast(types.FunctionType, func.__annotate__)
     except AttributeError:
         raise ValueError("func has no __annotate__ attribute")
     if not af:
         raise ValueError("func has no __annotate__ attribute")
+
+    closure_types = _get_closure_types(af)
+    for name, value in closure_types.items():
+        if name not in vars:
+            vars[name] = value
 
     af_args = tuple(
         types.CellType(vars[name]) for name in af.__code__.co_freevars
@@ -186,34 +210,3 @@ def _eval_call_with_type_vars(
         return _eval_typing.eval_typing(rr["return"])
     finally:
         ctx.current_generic_alias = old_obj
-
-
-def eval_type_call(
-    callable: typing.Any,
-    *arg_types: Any,
-    **kwarg_types: Any,
-) -> RtType:
-    from typemap.typing import GenericCallable
-
-    arg_types = tuple(_eval_typing.eval_typing(t) for t in arg_types)
-    kwarg_types = {
-        k: _eval_typing.eval_typing(t) for k, t in kwarg_types.items()
-    }
-    if isinstance(callable, types.FunctionType):
-        sig = inspect.signature(callable)
-    else:
-        resolved_callable = _eval_typing.eval_typing(callable)
-
-        if (
-            _typing_inspect.is_generic_alias(resolved_callable)
-            and resolved_callable.__origin__ is GenericCallable
-        ):
-            _, resolved_callable = typing.get_args(resolved_callable)
-
-        sig = _callable_type_to_signature(resolved_callable)
-
-    bound = sig.bind(*arg_types, **kwarg_types)
-    vars = _get_bound_type_args_from_bound_args(sig, bound)
-    res = substitute(sig.return_annotation, vars)
-
-    return res
