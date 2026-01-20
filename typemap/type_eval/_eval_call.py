@@ -8,8 +8,11 @@ import typing_extensions
 from typing import Any
 
 
+from . import _eval_operators
 from . import _eval_typing
 from . import _typing_inspect
+from ._eval_operators import _callable_type_to_signature
+from ._apply_generic import substitute, _get_closure_types
 
 RtType = Any
 
@@ -28,7 +31,7 @@ def _type(t):
 def eval_call(func: types.FunctionType, /, *args: Any, **kwargs: Any) -> RtType:
     arg_types = tuple(_type(t) for t in args)
     kwarg_types = {k: _type(t) for k, t in kwargs.items()}
-    return eval_call_with_types(func, arg_types, kwarg_types)
+    return eval_call_with_types(func, *arg_types, **kwarg_types)
 
 
 def _get_bound_type_args(
@@ -39,7 +42,17 @@ def _get_bound_type_args(
     sig = inspect.signature(func)
     bound = sig.bind(*arg_types, **kwarg_types)
 
-    vars: dict[str, RtType] = {}
+    return {
+        tv.__name__: tp
+        for tv, tp in _get_bound_type_args_from_bound_args(sig, bound).items()
+    }
+
+
+def _get_bound_type_args_from_bound_args(
+    sig: inspect.Signature,
+    bound: inspect.BoundArguments,
+) -> dict[typing.TypeVar | typing.TypeVarTuple, RtType]:
+    vars: dict[typing.TypeVar | typing.TypeVarTuple, RtType] = {}
     # TODO: duplication, error cases
     for param in sig.parameters.values():
         # Unpack[TypeVarType] for *args
@@ -54,7 +67,7 @@ def _get_bound_type_args(
             and isinstance(tv, typing.TypeVarTuple)
         ):
             tps = bound.arguments.get(param.name, ())
-            vars[tv.__name__] = tuple[tps]  # type: ignore[valid-type]
+            vars[tv] = tuple[tps]  # type: ignore[valid-type]
         # Unpack[T] for **kwargs
         elif (
             param.kind == inspect.Parameter.VAR_KEYWORD
@@ -69,7 +82,7 @@ def _get_bound_type_args(
             and typing_extensions.is_typeddict(tv.__bound__)
         ):
             tp = typing.TypedDict(f"**{param.name}", bound.kwargs)  # type: ignore[misc, operator]
-            vars[tv.__name__] = tp
+            vars[tv] = tp
         # trivial type[T] bindings
         elif (
             _typing_inspect.is_generic_alias(param.annotation)
@@ -80,35 +93,85 @@ def _get_bound_type_args(
             and _typing_inspect.is_generic_alias(arg)
             and arg.__origin__ is type
         ):
-            vars[tv.__name__] = arg.__args__[0]
+            vars[tv] = arg.__args__[0]
         # trivial T bindings
-        elif (
-            isinstance(param.annotation, typing.TypeVar)
-            and param.name in bound.arguments
-        ):
+        elif isinstance(
+            param.annotation, typing.TypeVar
+        ) or _typing_inspect.is_generic_alias(param.annotation):
             param_value = bound.arguments[param.name]
-            vars[param.annotation.__name__] = param_value
+            _update_bound_typevar(
+                param.name, param.annotation, param_value, vars
+            )
         # TODO: simple bindings to other variables too
 
     return vars
 
 
+def _update_bound_typevar(
+    param_name: str,
+    tv: Any,
+    param_value: Any,
+    vars: dict[typing.TypeVar | typing.TypeVarTuple, RtType],
+) -> None:
+    if isinstance(tv, typing.TypeVar):
+        if tv not in vars:
+            vars[tv] = param_value
+        elif vars[tv] != param_value:
+            raise ValueError(
+                f"Type variable {tv.__name__} "
+                f"is already bound to {vars[tv].__name__}, "
+                f"but got {param_value.__name__}"
+            )
+    elif _typing_inspect.is_generic_alias(tv):
+        tv_args = tv.__args__
+
+        with _eval_typing._ensure_context() as ctx:
+            param_args = _eval_operators._get_args(
+                param_value, tv.__origin__, ctx
+            )
+
+        if param_args is None:
+            raise ValueError(f"Argument type mismatch for {param_name}")
+
+        for p_arg, c_arg in zip(tv_args, param_args, strict=True):
+            _update_bound_typevar(param_name, p_arg, c_arg, vars)
+
+
 def eval_call_with_types(
-    func: types.FunctionType,
-    arg_types: tuple[RtType, ...],
-    kwarg_types: dict[str, RtType],
+    func: types.FunctionType | typing.Callable,
+    *arg_types: tuple[RtType, ...],
+    **kwarg_types: dict[str, RtType],
 ) -> RtType:
-    vars: dict[str, Any] = {}
-    params = func.__type_params__
-    vars = _get_bound_type_args(func, arg_types, kwarg_types)
-    for p in params:
-        if p.__name__ not in vars:
-            vars[p.__name__] = p
+    if isinstance(func, types.FunctionType):
+        vars: dict[str, Any] = _get_bound_type_args(
+            func, arg_types, kwarg_types
+        )
+        for p in func.__type_params__:
+            if p.__name__ not in vars:
+                vars[p.__name__] = p
 
-    return eval_call_with_type_vars(func, vars)
+        return eval_func_with_type_vars(func, vars)
+
+    else:
+        from typemap.typing import GenericCallable
+
+        resolved_callable = _eval_typing.eval_typing(func)
+
+        if (
+            _typing_inspect.is_generic_alias(resolved_callable)
+            and resolved_callable.__origin__ is GenericCallable
+        ):
+            _, resolved_callable = typing.get_args(resolved_callable)
+
+        sig = _callable_type_to_signature(resolved_callable)
+        bound = sig.bind(*arg_types, **kwarg_types)
+        bound_args = _get_bound_type_args_from_bound_args(sig, bound)
+        res = substitute(sig.return_annotation, bound_args)
+
+        return res
 
 
-def eval_call_with_type_vars(
+def eval_func_with_type_vars(
     func: types.FunctionType, vars: dict[str, RtType]
 ) -> RtType:
     with _eval_typing._ensure_context() as ctx:
@@ -121,11 +184,16 @@ def _eval_call_with_type_vars(
     ctx: _eval_typing.EvalContext,
 ) -> RtType:
     try:
-        af = func.__annotate__
+        af = typing.cast(types.FunctionType, func.__annotate__)
     except AttributeError:
         raise ValueError("func has no __annotate__ attribute")
     if not af:
         raise ValueError("func has no __annotate__ attribute")
+
+    closure_types = _get_closure_types(af)
+    for name, value in closure_types.items():
+        if name not in vars:
+            vars[name] = value
 
     af_args = tuple(
         types.CellType(vars[name]) for name in af.__code__.co_freevars
