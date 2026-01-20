@@ -280,10 +280,46 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
           or Never if no qualifiers
     """
     args = typing.get_args(callable_type)
-    if len(args) != 2:
-        raise TypeError(f"Expected Callable[[...], ret], got {callable_type}")
+    if (
+        isinstance(callable_type, types.GenericAlias)
+        and callable_type.__origin__ is classmethod
+    ):
+        if len(args) != 3:
+            raise TypeError(
+                f"Expected classmethod[cls, [...], ret], got {callable_type}"
+            )
 
-    param_types, return_type = args
+        receiver, param_types, return_type = typing.get_args(callable_type)
+        param_types = [
+            Param[
+                typing.Literal["cls"],
+                receiver,  # type: ignore[valid-type]
+                typing.Literal["positional"],
+            ],
+            *param_types.__args__,
+        ]
+
+    elif (
+        isinstance(callable_type, types.GenericAlias)
+        and callable_type.__origin__ is staticmethod
+    ):
+        if len(args) != 2:
+            raise TypeError(
+                f"Expected staticmethod[...], ret], got {callable_type}"
+            )
+
+        param_types, return_type = typing.get_args(callable_type)
+        param_types = [
+            *param_types.__args__,
+        ]
+
+    else:
+        if len(args) != 2:
+            raise TypeError(
+                f"Expected Callable[[...], ret], got {callable_type}"
+            )
+
+        param_types, return_type = args
 
     # Handle the case where param_types is a list of Param types
     if not isinstance(param_types, (list, tuple)):
