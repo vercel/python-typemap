@@ -117,7 +117,7 @@ It's important that there be a clearly specified type language for the type-leve
    # Type conditional checks are just boolean compositions of
    # subtype checking.
    <type-bool> =
-         Sub[<type>, <type>]
+         IsSub[<type>, <type>]
        | not <type-bool>
        | <type-bool> and <type-bool>
        | <type-bool> or <type-bool>

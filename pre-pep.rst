@@ -200,7 +200,7 @@ producing a new target type containing only properties and wrapping
 ::
 
     type ConvertField[T] = (
-        AdjustLink[PropsOnly[PointerArg[T]], T] if Sub[T, Link] else PointerArg[T]
+        AdjustLink[PropsOnly[PointerArg[T]], T] if IsSub[T, Link] else PointerArg[T]
     )
 
 ``PointerArg`` gets the type argument to ``Pointer`` or a subclass.
@@ -221,7 +221,7 @@ we've discussed already.
 
 ::
 
-    type AdjustLink[Tgt, LinkTy] = list[Tgt] if Sub[LinkTy, MultiLink] else Tgt
+    type AdjustLink[Tgt, LinkTy] = list[Tgt] if IsSub[LinkTy, MultiLink] else Tgt
 
 And the final helper, ``PropsOnly[T]``, generates a new type that
 contains all the ``Property`` attributes of ``T``.
@@ -233,7 +233,7 @@ contains all the ``Property`` attributes of ``T``.
             *[
                 Member[GetName[p], PointerArg[GetType[p]]]
                 for p in Iter[Attrs[T]]
-                if Sub[GetType[p], Property]
+                if IsSub[GetType[p], Property]
             ]
         ]
     ]
@@ -403,7 +403,7 @@ Implementation
                         # All arguments are keyword-only
                         # It takes a default if a default is specified in the class
                         Literal["keyword"]
-                        if Sub[
+                        if IsSub[
                             GetDefault[GetInit[p]],
                             Never,
                         ]
