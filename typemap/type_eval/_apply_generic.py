@@ -5,18 +5,16 @@ import types
 import typing
 
 from typing import _GenericAlias as typing_GenericAlias  # type: ignore [attr-defined]  # noqa: PLC2701
+from typing import Any
 
 
 from . import _eval_typing
 from . import _typing_inspect
 
-if typing.TYPE_CHECKING:
-    from typing import Any
-
 
 @dataclasses.dataclass(frozen=True)
 class Boxed:
-    cls: type[Any]
+    cls: type[Any] | typing.TypeVar
     bases: list[Boxed]
     args: dict[Any, Any]
 
@@ -74,7 +72,14 @@ def substitute(ty, args):
         return ty
 
 
-def box(cls: type[Any]) -> Boxed:
+def box(cls: type[Any] | typing.TypeVar) -> Boxed:
+    if isinstance(cls, typing.TypeVar):
+        return Boxed(cls, [], {})
+
+    if _typing_inspect.is_generic_type_alias(cls):
+        evaled = _eval_typing.eval_typing(cls)
+        return box(evaled)
+
     # TODO: We want a cache for this!!
     def _box(cls: type[Any], args: dict[Any, Any]) -> Boxed:
         boxed_bases: list[Boxed] = []
@@ -107,13 +112,15 @@ def box(cls: type[Any]) -> Boxed:
         return Boxed(cls, boxed_bases, args)
 
     if isinstance(cls, (typing._GenericAlias, types.GenericAlias)):  # type: ignore[attr-defined]
-        if params := getattr(cls.__origin__, "__parameters__", None):
-            args = dict(
-                zip(cls.__origin__.__parameters__, cls.__args__, strict=True)
-            )
+        origin = typing.cast(type[Any], cls.__origin__)
+
+        if params := getattr(origin, "__parameters__", None) or getattr(
+            origin, "__type_params__", None
+        ):
+            args = dict(zip(params, cls.__args__, strict=True))
         else:
             args = {}
-        cls = cls.__origin__
+        cls = origin
     else:
         if params := getattr(cls, "__parameters__", None):
             args = {p: _typing_inspect.param_default(p) for p in params}
@@ -204,6 +211,9 @@ EXCLUDED_ATTRIBUTES = typing.EXCLUDED_ATTRIBUTES - {'__init__'}  # type: ignore[
 def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
+
+    if isinstance(boxed.cls, typing.TypeVar):
+        return annos, dct
 
     if af := typing.cast(
         types.FunctionType, getattr(boxed.cls, "__annotate__", None)
@@ -305,8 +315,16 @@ def flatten_class_new_proto(cls: type) -> type:
     args_str = ", ".join(_type_repr(a) for a in args)
     args_str = f'[{args_str}]' if args_str else ''
 
-    nt.__name__ = f'{cls.__name__}{args_str}'
-    nt.__qualname__ = f'{cls.__qualname__}{args_str}'
+    origin = typing.get_origin(cls)
+    if isinstance(origin, typing.TypeAliasType):
+        cls_name = origin.__name__
+        cls_qualname = origin.__name__
+    else:
+        cls_name = cls.__name__
+        cls_qualname = cls.__qualname__
+
+    nt.__name__ = f'{cls_name}{args_str}'
+    nt.__qualname__ = f'{cls_qualname}{args_str}'
     del nt.__subclasshook__
 
     return nt

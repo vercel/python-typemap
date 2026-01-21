@@ -125,16 +125,30 @@ def _update_bound_typevar(
     elif _typing_inspect.is_generic_alias(tv):
         tv_args = tv.__args__
 
-        with _eval_typing._ensure_context() as ctx:
-            param_args = _eval_operators._get_args(
-                param_value, tv.__origin__, ctx
-            )
+        param_args: Any | None = None
+        if (
+            isinstance(tv.__origin__, typing.TypeAliasType)
+            and _typing_inspect.is_generic_type_alias(param_value)
+            and param_value.__origin__ is tv.__origin__
+        ):
+            # Type aliases should match their arguments 1 to 1
+            # For example, binding C[A] to C[B] should bind A to B
+            param_args = param_value.__args__
+
+        else:
+            with _eval_typing._ensure_context() as ctx:
+                param_args = _eval_operators._get_args(
+                    param_value, tv.__origin__, ctx
+                )
 
         if param_args is None:
             raise ValueError(f"Argument type mismatch for {param_name}")
 
         for p_arg, c_arg in zip(tv_args, param_args, strict=True):
             _update_bound_typevar(param_name, p_arg, c_arg, vars)
+
+    elif tv != param_value:
+        raise ValueError(f"Argument type mismatch for {param_name}")
 
 
 def eval_call_with_types(
