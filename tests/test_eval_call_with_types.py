@@ -1,9 +1,7 @@
 import pytest
 import textwrap
 
-from types import GenericAlias
 from typing import Callable, Generic, Literal, Self, TypeVar, Unpack
-from typing_extensions import TypeAliasType
 
 from typemap.type_eval import eval_call_with_types
 from typemap.typing import (
@@ -11,7 +9,9 @@ from typemap.typing import (
     BaseTypedDict,
     NewProtocol,
     Member,
+    GenericCallable,
     GetAttr,
+    IsSub,
     Iter,
     Param,
 )
@@ -564,31 +564,21 @@ def test_eval_call_with_types_protocol_01():
     cls = eval_call_with_types(with_copy, Foo)
     assert type(cls) is _ProtocolMeta
 
-    fmt = format_helper.format_class(cls)
-    assert fmt == textwrap.dedent("""\
+    fmt_cls = format_helper.format_class(cls)
+    assert fmt_cls == textwrap.dedent("""\
         class WithCopy[tests.test_eval_call_with_types.Foo]:
             a: int
             def copy(self: Self) -> WithCopy[tests.test_eval_call_with_types.Foo]: ...
         """)
 
-    ret = eval_call_with_types(GetAttr[cls, Literal["copy"]], WithCopy[Foo])
-    assert ret == WithCopy[Foo]
-
-    # Note: ret here is a generic TypeAliasType
-    assert isinstance(ret, GenericAlias)
-    assert isinstance(ret.__origin__, TypeAliasType)
-
-    # Still renders the same as the original protocol
-    fmt = format_helper.format_class(ret)
-    assert fmt == textwrap.dedent("""\
-        class WithCopy[tests.test_eval_call_with_types.Foo]:
-            a: int
-            def copy(self: Self) -> WithCopy[tests.test_eval_call_with_types.Foo]: ...
-        """)
+    ret1 = eval_call_with_types(GetAttr[cls, Literal["copy"]], WithCopy[Foo])
+    fmt1 = format_helper.format_class(ret1)
+    assert fmt1 == fmt_cls
 
     # Make sure we can keep calling the member function
-    ret2 = eval_call_with_types(GetAttr[ret, Literal["copy"]], WithCopy[Foo])
-    assert ret2 == ret
+    ret2 = eval_call_with_types(GetAttr[ret1, Literal["copy"]], WithCopy[Foo])
+    fmt2 = format_helper.format_class(ret2)
+    assert fmt2 == fmt_cls
 
 
 def test_eval_call_with_types_protocol_02():
@@ -662,23 +652,17 @@ def test_eval_call_with_types_protocol_04():
     # Returns a protocol based on the param type
 
     cls = eval_call_with_types(with_add, Foo)
-    fmt = format_helper.format_class(cls)
-    assert fmt == textwrap.dedent("""\
+    fmt_cls = format_helper.format_class(cls)
+    assert fmt_cls == textwrap.dedent("""\
         class WithAdd[tests.test_eval_call_with_types.Foo]:
             a: int
             def __add__(self: Self, other: ~U) -> WithAdd[~U]: ...
         """)
-    ret = eval_call_with_types(
+    ret1 = eval_call_with_types(
         GetAttr[cls, Literal["__add__"]], WithAdd[Foo], Bar
     )
-    assert ret == WithAdd[Bar]
-
-    # Note: ret here is a generic TypeAliasType
-    assert isinstance(ret, GenericAlias)
-    assert isinstance(ret.__origin__, TypeAliasType)
-
-    fmt = format_helper.format_class(ret)
-    assert fmt == textwrap.dedent("""\
+    fmt1 = format_helper.format_class(ret1)
+    assert fmt1 == textwrap.dedent("""\
         class WithAdd[tests.test_eval_call_with_types.Bar]:
             a: str
             def __add__(self: Self, other: ~U) -> WithAdd[~U]: ...
@@ -686,9 +670,10 @@ def test_eval_call_with_types_protocol_04():
 
     # Make sure we can keep calling the member function
     ret2 = eval_call_with_types(
-        GetAttr[ret, Literal["__add__"]], WithAdd[Bar], Foo
+        GetAttr[ret1, Literal["__add__"]], WithAdd[Bar], Foo
     )
-    assert ret2 == WithAdd[Foo]
+    fmt2 = format_helper.format_class(ret2)
+    assert fmt2 == fmt_cls
 
 
 def test_eval_call_with_types_protocol_05():
@@ -1044,3 +1029,92 @@ def test_eval_call_with_types_higher_order_callable_03():
     ]
     ret = eval_call_with_types(func, Callable[[Param[Literal["y"], int]], int])
     assert ret == Callable[[Param[Literal["z"], int]], int]
+
+
+type OnlyIntToSet[T] = set[T] if IsSub[T, int] else T
+
+
+def to_generic_alias[T](x: T) -> OnlyIntToSet[T]: ...
+
+
+class WithToGenericAlias:
+    def to_generic_alias[T](self: Self, x: T) -> OnlyIntToSet[T]: ...
+    @classmethod
+    def to_generic_alias_class[T](cls, x: T) -> OnlyIntToSet[T]: ...
+    @staticmethod
+    def to_generic_alias_static[T](x: T) -> OnlyIntToSet[T]: ...
+
+
+def test_eval_call_with_types_alias_result_01():
+    ret = eval_call_with_types(to_generic_alias, int)
+    assert ret == set[int]
+    ret = eval_call_with_types(to_generic_alias, str)
+    assert ret is str
+
+
+def test_eval_call_with_types_alias_result_02():
+    T = TypeVar("T")
+    ret = eval_call_with_types(
+        GenericCallable[
+            tuple[T], Callable[[Param[Literal["x"], T]], OnlyIntToSet[T]]
+        ],
+        int,
+    )
+    assert ret == set[int]
+
+
+from typemap.type_eval import eval_typing
+
+
+def test_eval_call_with_types_alias_result_03():
+    func = eval_typing(GetAttr[WithToGenericAlias, Literal["to_generic_alias"]])
+
+    ret = eval_call_with_types(func, WithToGenericAlias, int)
+    assert ret == set[int]
+    ret = eval_call_with_types(func, WithToGenericAlias, str)
+    assert ret is str
+
+
+def test_eval_call_with_types_alias_result_04():
+    func = eval_typing(
+        GetAttr[WithToGenericAlias, Literal["to_generic_alias_class"]]
+    )
+
+    ret = eval_call_with_types(func, WithToGenericAlias, int)
+    assert ret == set[int]
+    ret = eval_call_with_types(func, WithToGenericAlias, str)
+    assert ret is str
+
+
+def test_eval_call_with_types_alias_result_05():
+    func = eval_typing(
+        GetAttr[WithToGenericAlias, Literal["to_generic_alias_static"]]
+    )
+
+    ret = eval_call_with_types(func, int)
+    assert ret == set[int]
+    ret = eval_call_with_types(func, str)
+    assert ret is str
+
+
+def test_eval_call_with_types_alias_result_06():
+    A = TypeVar("A")
+    func = GenericCallable[
+        tuple[A],
+        Callable[
+            [
+                Param[Literal["a"], A],
+            ],
+            OnlyIntToSet[A],
+        ],
+    ]
+    t = eval_call_with_types(
+        func,
+        int,
+    )
+    assert t == set[int]
+    t = eval_call_with_types(
+        func,
+        str,
+    )
+    assert t is str

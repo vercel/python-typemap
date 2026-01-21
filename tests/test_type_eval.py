@@ -21,6 +21,7 @@ from typemap.type_eval import eval_typing
 from typemap.typing import (
     Attrs,
     FromUnion,
+    GenericCallable,
     GetArg,
     GetArgs,
     GetAttr,
@@ -947,6 +948,231 @@ def test_eval_literal_idempotent_01():
         nt = eval_typing(t)
         assert t == nt
         t = nt
+
+
+type OnlyIntToSet[T] = set[T] if IsSub[T, int] else T
+
+
+class Wrapper[T]:
+    value: T
+
+
+def test_eval_generic_callable_01():
+    # Defer evaluating type aliases in return type that contain in scope type vars.
+    A = TypeVar("A")
+    B = TypeVar("B")
+    t = eval_typing(
+        GenericCallable[
+            tuple[A, B],
+            Callable[
+                [
+                    Param[Literal["a"], A],
+                    Param[Literal["b"], Wrapper[B]],
+                ],
+                tuple[OnlyIntToSet[A], OnlyIntToSet[B]],
+            ],
+        ],
+    )
+    assert (
+        t
+        == GenericCallable[
+            tuple[A, B],
+            Callable[
+                [
+                    Param[Literal["a"], A],
+                    Param[Literal["b"], Wrapper[B]],
+                ],
+                tuple[OnlyIntToSet[A], OnlyIntToSet[B]],
+            ],
+        ]
+    )
+
+
+def test_eval_generic_callable_02():
+    # Immediately evaluate type aliases as long as they don't contain in scope type vars.
+    A = TypeVar("A")
+    t = eval_typing(
+        GenericCallable[
+            tuple[A],
+            Callable[
+                [
+                    Param[Literal["a"], A],
+                    Param[Literal["b"], OnlyIntToSet[int]],
+                    Param[Literal["c"], OnlyIntToSet[str]],
+                ],
+                tuple[OnlyIntToSet[int], OnlyIntToSet[str]],
+            ],
+        ],
+    )
+    assert (
+        t
+        == GenericCallable[
+            tuple[A],
+            Callable[
+                [
+                    Param[Literal["a"], A],
+                    Param[Literal["b"], set[int]],
+                    Param[Literal["c"], str],
+                ],
+                tuple[set[int], str],
+            ],
+        ]
+    )
+
+
+type ParamOfType[T] = Param[Literal["a"], T]
+
+
+def test_eval_generic_callable_03():
+    # Immediate evaluate type aliases in params that contain in scope type vars.
+    A = TypeVar("A")
+    t = eval_typing(
+        GenericCallable[
+            tuple[A],
+            Callable[
+                [
+                    ParamOfType[A],
+                ],
+                tuple[OnlyIntToSet[A]],
+            ],
+        ],
+    )
+    assert (
+        t
+        == GenericCallable[
+            tuple[A],
+            Callable[
+                [
+                    Param[Literal["a"], A],
+                ],
+                tuple[OnlyIntToSet[A]],
+            ],
+        ]
+    )
+
+
+class Pair[T, U]:
+    first: T
+    second: U
+
+
+type AsPair[T, U] = Pair[T, U]
+
+
+def test_eval_generic_callable_04():
+    A = TypeVar("A")
+    t = eval_typing(
+        GenericCallable[
+            tuple[A],
+            Callable[
+                [
+                    AsPair[OnlyIntToSet[A], OnlyIntToSet[int]],
+                ],
+                AsPair[OnlyIntToSet[A], OnlyIntToSet[int]],
+            ],
+        ]
+    )
+    assert (
+        t
+        == GenericCallable[
+            tuple[A],
+            Callable[
+                [
+                    Pair[A, set[int]],
+                ],
+                AsPair[OnlyIntToSet[A], set[int]],
+            ],
+        ]
+    )
+
+
+_ExternA = TypeVar("_ExternA")
+type GenericAliasOfGenericCallable[B, C] = GenericCallable[
+    tuple[_ExternA],
+    Callable[
+        [
+            Param[Literal["a"], _ExternA],
+            Param[Literal["b"], OnlyIntToSet[B]],
+            Param[Literal["c"], OnlyIntToSet[C]],
+        ],
+        tuple[OnlyIntToSet[_ExternA], OnlyIntToSet[B], OnlyIntToSet[C]],
+    ],
+]
+
+
+def test_eval_generic_callable_05():
+    # Immediately evaluate type aliases as long as they don't contain in scope type vars,
+    # external type vars are ok.
+    t = eval_typing(GenericAliasOfGenericCallable[int, str])
+    assert (
+        t
+        == GenericCallable[
+            tuple[_ExternA],
+            Callable[
+                [
+                    Param[Literal["a"], _ExternA],
+                    Param[Literal["b"], set[int]],
+                    Param[Literal["c"], str],
+                ],
+                tuple[OnlyIntToSet[_ExternA], set[int], str],
+            ],
+        ]
+    )
+
+
+class WithToGenericAlias:
+    def to_generic_alias[T](self: Self, x: T) -> OnlyIntToSet[T]: ...
+    @classmethod
+    def to_generic_alias_class[T](cls, x: T) -> OnlyIntToSet[T]: ...
+    @staticmethod
+    def to_generic_alias_static[T](x: T) -> OnlyIntToSet[T]: ...
+
+
+def test_eval_get_attr_generic_callable_01():
+    func = eval_typing(GetAttr[WithToGenericAlias, Literal["to_generic_alias"]])
+    T = eval_typing(GetArg[GetArg[func, GenericCallable, 0], tuple, 0])
+    assert (
+        func
+        == GenericCallable[
+            tuple[T],
+            Callable[
+                [Param[Literal["self"], Self], Param[Literal["x"], T]],
+                OnlyIntToSet[T],
+            ],
+        ]
+    )
+
+
+def test_eval_get_attr_generic_callable_02():
+    func = eval_typing(
+        GetAttr[WithToGenericAlias, Literal["to_generic_alias_class"]]
+    )
+    T = eval_typing(GetArg[GetArg[func, GenericCallable, 0], tuple, 0])
+    assert (
+        func
+        == GenericCallable[
+            tuple[T],
+            classmethod[
+                WithToGenericAlias,
+                tuple[Param[Literal["x"], T]],
+                OnlyIntToSet[T],
+            ],
+        ]
+    )
+
+
+def test_eval_get_attr_generic_callable_03():
+    func = eval_typing(
+        GetAttr[WithToGenericAlias, Literal["to_generic_alias_static"]]
+    )
+    T = eval_typing(GetArg[GetArg[func, GenericCallable, 0], tuple, 0])
+    assert (
+        func
+        == GenericCallable[
+            tuple[T],
+            staticmethod[tuple[Param[Literal["x"], T]], OnlyIntToSet[T]],
+        ]
+    )
 
 
 def test_is_literal_true_vs_one():
