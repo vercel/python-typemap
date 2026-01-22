@@ -678,6 +678,13 @@ def _eval_GetAttr(tp, prop, *, ctx):
 
 
 def _fix_callable_args(base, args):
+    if base is GenericCallable:
+        # Do the fix on the callable within GenericCallable
+        return (
+            args[0],
+            _fix_callable_args(args[1].__origin__, args[1].__args__),
+        )
+
     idx = FUNC_LIKES[base]
     if idx >= len(args):
         return args
