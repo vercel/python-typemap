@@ -15,6 +15,7 @@ from . import _typing_inspect
 from ._eval_operators import (
     _callable_type_to_signature,
     _canonicalize_callable_type,
+    _function_type,
     _is_method_like,
 )
 from ._apply_generic import substitute, _get_closure_types
@@ -29,6 +30,8 @@ def _type(t):
         return typing.Literal[t]
     elif isinstance(t, type):
         return type[t]
+    elif isinstance(t, types.FunctionType):
+        return _function_type(t, receiver_type=None)
     else:
         return type(t)
 
