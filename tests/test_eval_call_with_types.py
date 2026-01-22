@@ -3,7 +3,7 @@ import textwrap
 
 from typing import Callable, Generic, Literal, Self, TypeVar, Unpack
 
-from typemap.type_eval import eval_call_with_types
+from typemap.type_eval import eval_call_with_types, eval_typing
 from typemap.typing import (
     Attrs,
     BaseTypedDict,
@@ -1031,6 +1031,419 @@ def test_eval_call_with_types_higher_order_callable_03():
     assert ret == Callable[[Param[Literal["z"], int]], int]
 
 
+def module_generic_return_callable[T](
+    x: T,
+) -> Callable[[Param[Literal["y"], int]], T]: ...
+def module_generic_param_callable[T](
+    x: Callable[[Param[Literal["y"], int]], T],
+) -> T: ...
+
+
+def module_generic_return_generic_callable[T](
+    x: T,
+) -> GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]]: ...
+def module_generic_param_generic_callable[T](
+    x: GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]],
+) -> T: ...
+
+
+class WithGenericHigherOrderCallable:
+    def member_return_callable[T](
+        self, x: T
+    ) -> Callable[[Param[Literal["y"], int]], T]: ...
+    @classmethod
+    def class_return_callable[T](
+        cls, x: T
+    ) -> Callable[[Param[Literal["y"], int]], T]: ...
+    @staticmethod
+    def static_return_callable[T](
+        x: T,
+    ) -> Callable[[Param[Literal["y"], int]], T]: ...
+
+    def member_param_callable[T](
+        self, x: Callable[[Param[Literal["y"], int]], T]
+    ) -> T: ...
+    @classmethod
+    def class_param_callable[T](
+        cls, x: Callable[[Param[Literal["y"], int]], T]
+    ) -> T: ...
+    @staticmethod
+    def static_param_callable[T](
+        x: Callable[[Param[Literal["y"], int]], T],
+    ) -> T: ...
+
+    def member_return_generic_callable[T](
+        self, x: T
+    ) -> GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]]: ...
+    @classmethod
+    def class_return_generic_callable[T](
+        cls, x: T
+    ) -> GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]]: ...
+    @staticmethod
+    def static_return_generic_callable[T](
+        x: T,
+    ) -> GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]]: ...
+
+    def member_param_generic_callable[T](
+        self,
+        x: GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]],
+    ) -> T: ...
+    @classmethod
+    def class_param_generic_callable[T](
+        cls, x: GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]]
+    ) -> T: ...
+    @staticmethod
+    def static_param_generic_callable[T](
+        x: GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]],
+    ) -> T: ...
+
+
+def test_eval_call_with_types_generic_higher_order_callable_01():
+    # Return a callable
+
+    # Module function
+    ret = eval_call_with_types(module_generic_return_callable, str)
+    assert ret == Callable[[Param[Literal["y"], int]], str]
+
+    # Local function
+    def local_return_callable[T](
+        x: T,
+    ) -> Callable[[Param[Literal["y"], int]], T]: ...
+
+    ret = eval_call_with_types(local_return_callable, str)
+    assert ret == Callable[[Param[Literal["y"], int]], str]
+
+    # Member function
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable, Literal["member_return_callable"]
+        ],
+        WithGenericHigherOrderCallable,
+        str,
+    )
+    assert ret == Callable[[Param[Literal["y"], int]], str]
+
+    # Class method
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable, Literal["class_return_callable"]
+        ],
+        type(WithGenericHigherOrderCallable),
+        str,
+    )
+    assert ret == Callable[[Param[Literal["y"], int]], str]
+
+    # Static method
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable, Literal["static_return_callable"]
+        ],
+        str,
+    )
+    assert ret == Callable[[Param[Literal["y"], int]], str]
+
+    # typing.GenericCallable
+    T = TypeVar("T")
+    func = GenericCallable[
+        tuple[T],
+        Callable[
+            [Param[Literal["x"], T]],
+            Callable[[Param[Literal["y"], int]], T],
+        ],
+    ]
+    ret = eval_call_with_types(
+        func,
+        str,
+    )
+    assert ret == Callable[[Param[Literal["y"], int]], str]
+
+
+def test_eval_call_with_types_generic_higher_order_callable_02():
+    # Param is a callable
+
+    # Module function
+    ret = eval_call_with_types(
+        module_generic_param_callable, Callable[[Param[Literal["y"], int]], str]
+    )
+    assert ret is str
+
+    # Local function
+    def local_param_callable[T](
+        x: Callable[[Param[Literal["y"], int]], T],
+    ) -> T: ...
+
+    ret = eval_call_with_types(
+        local_param_callable, Callable[[Param[Literal["y"], int]], str]
+    )
+    assert ret is str
+
+    # Member function
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable, Literal["member_param_callable"]
+        ],
+        WithGenericHigherOrderCallable,
+        Callable[[Param[Literal["y"], int]], str],
+    )
+    assert ret is str
+
+    # Class method
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable, Literal["class_param_callable"]
+        ],
+        type(WithGenericHigherOrderCallable),
+        Callable[[Param[Literal["y"], int]], str],
+    )
+    assert ret is str
+
+    # Static method
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable, Literal["static_param_callable"]
+        ],
+        Callable[[Param[Literal["y"], int]], str],
+    )
+    assert ret is str
+
+    # typing.GenericCallable
+    T = TypeVar("T")
+    func = GenericCallable[
+        tuple[T],
+        Callable[
+            [Param[Literal["x"], Callable[[Param[Literal["y"], int]], T]]],
+            T,
+        ],
+    ]
+    ret = eval_call_with_types(func, Callable[[Param[Literal["y"], int]], str])
+    assert ret is str
+
+
+def test_eval_call_with_types_generic_higher_order_callable_03():
+    # Both param and return are callables
+
+    # typing.GenericCallable
+    T = TypeVar("T")
+    func = GenericCallable[
+        tuple[T],
+        Callable[
+            [Param[Literal["x"], Callable[[Param[Literal["y"], int]], T]]],
+            Callable[[Param[Literal["z"], float]], T],
+        ],
+    ]
+    ret = eval_call_with_types(func, Callable[[Param[Literal["y"], int]], str])
+    assert ret == Callable[[Param[Literal["z"], float]], str]
+
+
+def test_eval_call_with_types_generic_higher_order_callable_04():
+    # Return a generic callable
+
+    # Module function
+    ret = eval_call_with_types(module_generic_return_generic_callable, str)
+    assert (
+        ret
+        == GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]]
+    )
+
+    # Local function
+    def local_return_generic_callable[T](
+        x: T,
+    ) -> GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]]: ...
+
+    ret = eval_call_with_types(local_return_generic_callable, str)
+    assert (
+        ret
+        == GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]]
+    )
+
+    # Member function
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable,
+            Literal["member_return_generic_callable"],
+        ],
+        WithGenericHigherOrderCallable,
+        str,
+    )
+    assert (
+        ret
+        == GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]]
+    )
+
+    # Class method
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable,
+            Literal["class_return_generic_callable"],
+        ],
+        type(WithGenericHigherOrderCallable),
+        str,
+    )
+    assert (
+        ret
+        == GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]]
+    )
+
+    # Static method
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable,
+            Literal["static_return_generic_callable"],
+        ],
+        str,
+    )
+    assert (
+        ret
+        == GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]]
+    )
+
+    # typing.GenericCallable
+    T = TypeVar("T")
+    func = GenericCallable[
+        tuple[T],
+        Callable[
+            [Param[Literal["x"], T]],
+            GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]],
+        ],
+    ]
+    ret = eval_call_with_types(func, str)
+    assert (
+        ret
+        == GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]]
+    )
+
+
+@pytest.mark.xfail(reason="binding to GenericCallable is not implemented")
+def test_eval_call_with_types_generic_higher_order_callable_05():
+    # Param is a generic callable
+
+    # Module function
+    ret = eval_call_with_types(
+        module_generic_param_generic_callable,
+        GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]],
+    )
+    assert ret is str
+
+    # Local function
+    def local_param_generic_callable[T](
+        x: GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], T]],
+    ) -> T: ...
+
+    ret = eval_call_with_types(
+        local_param_generic_callable,
+        GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]],
+    )
+    assert ret is str
+
+    # Member function
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable,
+            Literal["member_param_generic_callable"],
+        ],
+        WithGenericHigherOrderCallable,
+        GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]],
+    )
+    assert ret is str
+
+    # Class method
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable,
+            Literal["class_param_generic_callable"],
+        ],
+        type(WithGenericHigherOrderCallable),
+        GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]],
+    )
+    assert ret is str
+
+    # Static method
+    ret = eval_call_with_types(
+        GetAttr[
+            WithGenericHigherOrderCallable,
+            Literal["static_param_generic_callable"],
+        ],
+        GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]],
+    )
+    assert ret is str
+
+    # typing.GenericCallable
+    T = TypeVar("T")
+    func = GenericCallable[
+        tuple[T],
+        Callable[
+            [
+                Param[
+                    Literal["x"],
+                    GenericCallable[
+                        tuple[U], Callable[[Param[Literal["y"], U]], T]
+                    ],
+                ]
+            ],
+            T,
+        ],
+    ]
+    ret = eval_call_with_types(
+        func, GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]]
+    )
+    assert ret is str
+
+
+@pytest.mark.xfail(reason="binding to GenericCallable is not implemented")
+def test_eval_call_with_types_generic_higher_order_callable_06():
+    # Both param and return are generic callables
+
+    # typing.GenericCallable
+    T = TypeVar("T")
+    U = TypeVar("U")
+    func = GenericCallable[
+        tuple[T],
+        Callable[
+            [
+                Param[
+                    Literal["x"],
+                    GenericCallable[
+                        tuple[U], Callable[[Param[Literal["y"], U]], T]
+                    ],
+                ]
+            ],
+            GenericCallable[
+                tuple[U], Callable[[Param[Literal["y"], U]], set[T]]
+            ],
+        ],
+    ]
+
+    ret = eval_call_with_types(
+        func, GenericCallable[tuple[U], Callable[[Param[Literal["y"], U]], str]]
+    )
+    assert (
+        ret
+        == GenericCallable[
+            tuple[U], Callable[[Param[Literal["y"], U]], set[str]]
+        ]
+    )
+
+
+def test_eval_call_with_types_generic_higher_order_callable_07():
+    T = TypeVar("T")
+    result_type = GenericCallable[
+        tuple[T],
+        Callable[
+            [Param[Literal["y"], T]],
+            T,
+        ],
+    ]
+    func = GenericCallable[
+        tuple[T],
+        Callable[
+            [Param[Literal["x"], T]],
+            result_type,
+        ],
+    ]
+    ret = eval_call_with_types(func, int)
+    assert ret == result_type
+
+
 type OnlyIntToSet[T] = set[T] if IsSub[T, int] else T
 
 
@@ -1061,9 +1474,6 @@ def test_eval_call_with_types_alias_result_02():
         int,
     )
     assert ret == set[int]
-
-
-from typemap.type_eval import eval_typing
 
 
 def test_eval_call_with_types_alias_result_03():
@@ -1118,3 +1528,43 @@ def test_eval_call_with_types_alias_result_06():
         str,
     )
     assert t is str
+
+
+type AsTuple[A, B] = tuple[A, B]
+
+
+def test_eval_call_with_types_generic_callable_result_01():
+    A = TypeVar("A")
+    B = TypeVar("B")
+    func1 = GenericCallable[
+        tuple[A],
+        Callable[
+            [
+                Param[Literal["a"], A],
+            ],
+            GenericCallable[
+                tuple[B],
+                Callable[
+                    [
+                        Param[Literal["b"], B],
+                    ],
+                    AsTuple[A, B],
+                ],
+            ],
+        ],
+    ]
+    func2 = eval_call_with_types(func1, int)
+    assert (
+        func2
+        == GenericCallable[
+            tuple[B],
+            Callable[
+                [
+                    Param[Literal["b"], B],
+                ],
+                AsTuple[int, B],
+            ],
+        ]
+    )
+    ret = eval_call_with_types(func2, str)
+    assert ret == tuple[int, str]

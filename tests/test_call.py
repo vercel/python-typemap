@@ -1,3 +1,4 @@
+import pytest
 import textwrap
 
 from typing import Callable, Literal, Unpack
@@ -121,4 +122,85 @@ def test_eval_call_higher_order_callable_02():
     ret = eval_call(local_param_callable, f)
     assert ret is int
     ret = eval_call(local_param_callable, C.g)
+    assert ret is int
+
+
+def module_generic_return_callable[T](
+    x: T,
+) -> Callable[[Param[Literal["y"], int]], T]: ...
+def module_generic_param_callable[T](
+    x: Callable[[Param[Literal["y"], int]], T],
+) -> T: ...
+
+
+class WithGenericHigherOrderCallable:
+    @staticmethod
+    def static_return_callable[T](
+        x: T,
+    ) -> Callable[[Param[Literal["y"], int]], T]: ...
+
+    @staticmethod
+    def static_param_callable[T](
+        x: Callable[[Param[Literal["y"], int]], T],
+    ) -> T: ...
+
+
+@pytest.mark.xfail(reason="T is bound to Literal[1], which is not helpful")
+def test_eval_call_generic_higher_order_callable_01():
+    # Return a callable
+
+    # Module function
+    ret = eval_call(module_generic_return_callable, 1)
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+    # Local function
+    def local_return_generic_callable[T](
+        x: T,
+    ) -> Callable[[Param[Literal["y"], int]], T]: ...
+
+    ret = eval_call(local_return_generic_callable, 1)
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+    # Static method
+    ret = eval_call(
+        WithGenericHigherOrderCallable.static_return_callable,
+        1,
+    )
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+
+def test_eval_call_generic_higher_order_callable_02():
+    # Param is a callable
+    def f(y: int) -> int: ...
+
+    class C:
+        @staticmethod
+        def g(y: int) -> int: ...
+
+    # Module function
+    ret = eval_call(module_generic_param_callable, f)
+    assert ret is int
+    ret = eval_call(module_generic_param_callable, C.g)
+    assert ret is int
+
+    # Local function
+    def local_param_generic_callable[T](
+        x: Callable[[Param[Literal["y"], int]], T],
+    ) -> T: ...
+
+    ret = eval_call(local_param_generic_callable, f)
+    assert ret is int
+    ret = eval_call(local_param_generic_callable, C.g)
+    assert ret is int
+
+    # static method
+    ret = eval_call(
+        WithGenericHigherOrderCallable.static_param_callable,
+        f,
+    )
+    assert ret is int
+    ret = eval_call(
+        WithGenericHigherOrderCallable.static_param_callable,
+        C.g,
+    )
     assert ret is int
