@@ -13,6 +13,7 @@ from typemap import type_eval
 from typemap.type_eval import _apply_generic, _typing_inspect
 from typemap.type_eval._eval_typing import (
     _child_context,
+    _contains_type_vars,
     _eval_types,
 )
 from typemap.typing import (
@@ -599,15 +600,19 @@ def _eval_GenericCallable(type_vars_tuple, callable, *, ctx):
         params, return_type = typing.get_args(callable)
         evaled_args = ([_eval_types(param, ctx) for param in params],)
 
-    with _child_context() as child_ctx:
-        # Defer any type variables in the return type.
-        child_ctx.deferred_type_vars |= set(type_vars)
-        # It is possible for the same type alias to appear in the params and
-        # return type, but to have a different result due to deferral.
-        # Clear the cache to ensure we get the correct result.
-        child_ctx.resolved = {}
-        child_ctx.seen = {}
-        evaled_return_type = _eval_types(return_type, child_ctx)
+    if _contains_type_vars(return_type, type_vars):
+        with _child_context() as child_ctx:
+            # Defer any type variables in the return type.
+            child_ctx.deferred_type_vars |= set(type_vars)
+            # It is possible for the same type alias to appear in the params and
+            # return type, but to have a different result due to deferral.
+            # Clear the cache to ensure we get the correct result.
+            child_ctx.resolved = {}
+            child_ctx.seen = {}
+            evaled_return_type = _eval_types(return_type, child_ctx)
+
+    else:
+        evaled_return_type = _eval_types(return_type, ctx)
 
     return GenericCallable[
         type_vars_tuple, origin[*evaled_args, evaled_return_type]
