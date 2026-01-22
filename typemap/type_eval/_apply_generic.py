@@ -1,4 +1,5 @@
 import annotationlib
+import collections.abc
 import dataclasses
 import inspect
 import types
@@ -66,8 +67,16 @@ class Boxed:
 def substitute(ty, args):
     if ty in args:
         return args[ty]
+    elif isinstance(ty, list):
+        return [substitute(t, args) for t in ty]
     elif isinstance(ty, (typing_GenericAlias, types.GenericAlias)):
-        return ty.__origin__[*[substitute(t, args) for t in ty.__args__]]
+        if ty.__origin__ is collections.abc.Callable:
+            # The origin of Callable is collections.abc.Callable...
+            origin = typing.Callable
+        else:
+            origin = ty.__origin__
+
+        return origin[*[substitute(t, args) for t in ty.__args__]]
     else:
         return ty
 
