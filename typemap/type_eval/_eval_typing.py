@@ -107,6 +107,12 @@ class EvalContext:
     # confused and wants to treat it as a MethodType.
     current_generic_alias: types.GenericAlias | typing.Any | None = None
 
+    # Type aliases that reference these variables should not be evaluated.
+    # Used to defer the evaluation of the return type of GenericCallable.
+    deferred_type_vars: set[typing.TypeVar] = dataclasses.field(
+        default_factory=set
+    )
+
 
 # `eval_types()` calls can be nested, context must be preserved
 _current_context: contextvars.ContextVar[EvalContext | None] = (
@@ -170,6 +176,7 @@ def _child_context() -> typing.Iterator[EvalContext]:
             recursive_type_alias=ctx.recursive_type_alias,
             known_recursive_types=ctx.known_recursive_types.copy(),
             current_generic_alias=ctx.current_generic_alias,
+            deferred_type_vars=ctx.deferred_type_vars.copy(),
         )
         _current_context.set(child_ctx)
         yield child_ctx
@@ -200,6 +207,15 @@ def _apply_type(base, args):
         return base[args[0]]
     else:
         return base[*args]
+
+
+def _contains_type_vars(tp: typing.Any, type_vars: set[typing.TypeVar]) -> bool:
+    if not type_vars:
+        return False
+
+    return tp in type_vars or any(
+        _contains_type_vars(arg, type_vars) for arg in typing.get_args(tp)
+    )
 
 
 def _eval_types(obj: typing.Any, ctx: EvalContext):
@@ -325,6 +341,9 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
         # Let's reconstruct it by evaluating all arguments
         return new_obj
 
+    if _contains_type_vars(new_obj, ctx.deferred_type_vars):
+        return new_obj
+
     func = obj.evaluate_value
 
     # obj.__args__ matches the declared parameter order, but args are expected
@@ -366,7 +385,15 @@ def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
     """Eval a typing._GenericAlias -- an applied user-defined class"""
     # generic *classes* are typing._GenericAlias while generic type
     # aliases are types.GenericAlias? Why in the world.
-    new_args = tuple(_eval_types(arg, ctx) for arg in typing.get_args(obj))
+
+    import typemap.typing as nt
+
+    if obj.__origin__ is nt.GenericCallable:
+        # Pass raw arguments to _eval_GenericCallable, it will decide which how
+        # to evaluate them.
+        new_args = typing.get_args(obj)
+    else:
+        new_args = tuple(_eval_types(arg, ctx) for arg in typing.get_args(obj))
 
     if func := _eval_funcs.get(obj.__origin__):
         ret = func(*new_args, ctx=ctx)

@@ -11,7 +11,10 @@ from typing_extensions import _AnnotatedAlias as typing_AnnotatedAlias
 
 from typemap import type_eval
 from typemap.type_eval import _apply_generic, _typing_inspect
-from typemap.type_eval._eval_typing import _eval_types
+from typemap.type_eval._eval_typing import (
+    _child_context,
+    _eval_types,
+)
 from typemap.typing import (
     Attrs,
     Capitalize,
@@ -562,6 +565,53 @@ def _function_type(func, *, receiver_type):
     if root.__type_params__:
         f = GenericCallable[tuple[*root.__type_params__], f]
     return f
+
+
+@type_eval.register_evaluator(GenericCallable)
+def _eval_GenericCallable(type_vars_tuple, callable, *, ctx):
+    """Evaluate a GenericCallable.
+
+    Type aliases in the return type that reference in-scope type variables
+    should be deferred until the type variables are applied.
+
+    Receives raw arguments from _eval_applied_class.
+    """
+    type_vars = typing.get_args(type_vars_tuple)
+
+    if callable.__origin__ is classmethod:
+        origin = classmethod
+        receiver, params, return_type = typing.get_args(callable)
+
+        evaled_args = (
+            _eval_types(receiver, ctx),
+            tuple[*[_eval_types(param, ctx) for param in params.__args__]],
+        )
+
+    elif callable.__origin__ is staticmethod:
+        origin = staticmethod
+        params, return_type = typing.get_args(callable)
+        evaled_args = (
+            tuple[*[_eval_types(param, ctx) for param in params.__args__]],
+        )
+
+    else:
+        origin = typing.Callable
+        params, return_type = typing.get_args(callable)
+        evaled_args = ([_eval_types(param, ctx) for param in params],)
+
+    with _child_context() as child_ctx:
+        # Defer any type variables in the return type.
+        child_ctx.deferred_type_vars |= set(type_vars)
+        # It is possible for the same type alias to appear in the params and
+        # return type, but to have a different result due to deferral.
+        # Clear the cache to ensure we get the correct result.
+        child_ctx.resolved = {}
+        child_ctx.seen = {}
+        evaled_return_type = _eval_types(return_type, child_ctx)
+
+    return GenericCallable[
+        type_vars_tuple, origin[*evaled_args, evaled_return_type]
+    ]
 
 
 def _hints_to_members(hints, ctx):

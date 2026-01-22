@@ -213,7 +213,7 @@ def eval_call_with_types(
         bound_args = _get_bound_type_args_from_bound_args(sig, bound)
         res = substitute(sig.return_annotation, bound_args)
 
-        return res
+        return _eval_typing.eval_typing(res)
 
 
 def eval_func_with_type_vars(
