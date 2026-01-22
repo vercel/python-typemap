@@ -1,15 +1,16 @@
 import textwrap
 
-from typing import Unpack
+from typing import Callable, Literal, Unpack
 
 from typemap.type_eval import eval_call
 from typemap.typing import (
     Attrs,
     BaseTypedDict,
-    NewProtocol,
-    Member,
     GetName,
     Iter,
+    Member,
+    NewProtocol,
+    Param,
 )
 
 from . import format_helper
@@ -72,3 +73,52 @@ def test_eval_call_03():
             value: typing.Literal[1]
             def __init__(self: Self, value: Literal[1]) -> None: ...
         """)
+
+
+def module_return_callable(
+    x: int,
+) -> Callable[[Param[Literal["y"], int]], int]: ...
+def module_param_callable(
+    x: Callable[[Param[Literal["y"], int]], int],
+) -> int: ...
+
+
+def type_eval_call_higher_order_callable_01():
+    # Return a callable
+
+    # Module function
+    ret = eval_call(module_return_callable, 1)
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+    # Local function
+    def local_return_callable(
+        x: int,
+    ) -> Callable[[Param[Literal["y"], int]], int]: ...
+
+    ret = eval_call(local_return_callable, 1)
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+
+def test_eval_call_higher_order_callable_02():
+    # Param is a callable
+    def f(y: int) -> int: ...
+
+    class C:
+        @staticmethod
+        def g(y: int) -> int: ...
+
+    # Module function
+    ret = eval_call(module_param_callable, f)
+    assert ret is int
+    ret = eval_call(module_param_callable, C.g)
+    assert ret is int
+
+    # Local function
+    def local_param_callable(
+        x: Callable[[Param[Literal["y"], int]], int],
+    ) -> int: ...
+
+    ret = eval_call(local_param_callable, f)
+    assert ret is int
+    ret = eval_call(local_param_callable, C.g)
+    assert ret is int

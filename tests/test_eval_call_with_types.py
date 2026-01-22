@@ -897,3 +897,150 @@ def test_eval_call_with_types_bind_error_06():
         eval_call_with_types(
             Callable[[Param[Literal["x"], C[int, T]]], T], C[float, str]
         )
+
+
+def module_return_callable(
+    x: int,
+) -> Callable[[Param[Literal["y"], int]], int]: ...
+def module_param_callable(
+    x: Callable[[Param[Literal["y"], int]], int],
+) -> int: ...
+
+
+class WithHigherOrderCallable:
+    def member_return_callable(
+        self, x: int
+    ) -> Callable[[Param[Literal["y"], int]], int]: ...
+    @classmethod
+    def class_return_callable(
+        cls, x: int
+    ) -> Callable[[Param[Literal["y"], int]], int]: ...
+    @staticmethod
+    def static_return_callable(
+        x: int,
+    ) -> Callable[[Param[Literal["y"], int]], int]: ...
+
+    def member_param_callable(
+        self, x: Callable[[Param[Literal["y"], int]], int]
+    ) -> int: ...
+    @classmethod
+    def class_param_callable(
+        cls, x: Callable[[Param[Literal["y"], int]], int]
+    ) -> int: ...
+    @staticmethod
+    def static_param_callable(
+        x: Callable[[Param[Literal["y"], int]], int],
+    ) -> int: ...
+
+
+def test_eval_call_with_types_higher_order_callable_01():
+    # Return a callable
+
+    # Module function
+    ret = eval_call_with_types(module_return_callable, int)
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+    # Local function
+    def local_return_callable(
+        x: int,
+    ) -> Callable[[Param[Literal["y"], int]], int]: ...
+
+    ret = eval_call_with_types(local_return_callable, int)
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+    # Member function
+    ret = eval_call_with_types(
+        GetAttr[WithHigherOrderCallable, Literal["member_return_callable"]],
+        WithHigherOrderCallable,
+        int,
+    )
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+    # Class method
+    ret = eval_call_with_types(
+        GetAttr[WithHigherOrderCallable, Literal["class_return_callable"]],
+        type(WithHigherOrderCallable),
+        int,
+    )
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+    # Static method
+    ret = eval_call_with_types(
+        GetAttr[WithHigherOrderCallable, Literal["static_return_callable"]],
+        int,
+    )
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+    # typing.Callable
+    func = Callable[
+        [Param[Literal["x"], int]], Callable[[Param[Literal["y"], int]], int]
+    ]
+    ret = eval_call_with_types(
+        func,
+        int,
+    )
+    assert ret == Callable[[Param[Literal["y"], int]], int]
+
+
+def test_eval_call_with_types_higher_order_callable_02():
+    # Param is a callable
+
+    # Module function
+    ret = eval_call_with_types(
+        module_param_callable, Callable[[Param[Literal["y"], int]], int]
+    )
+    assert ret is int
+
+    # Local function
+    def local_param_callable(
+        x: Callable[[Param[Literal["y"], int]], int],
+    ) -> int: ...
+
+    ret = eval_call_with_types(
+        local_param_callable, Callable[[Param[Literal["y"], int]], int]
+    )
+    assert ret is int
+
+    # Member function
+    ret = eval_call_with_types(
+        GetAttr[WithHigherOrderCallable, Literal["member_param_callable"]],
+        WithHigherOrderCallable,
+        Callable[[Param[Literal["y"], int]], int],
+    )
+    assert ret is int
+
+    # Class method
+    ret = eval_call_with_types(
+        GetAttr[WithHigherOrderCallable, Literal["class_param_callable"]],
+        type(WithHigherOrderCallable),
+        Callable[[Param[Literal["y"], int]], int],
+    )
+    assert ret is int
+
+    # Static method
+    ret = eval_call_with_types(
+        GetAttr[WithHigherOrderCallable, Literal["static_param_callable"]],
+        Callable[[Param[Literal["y"], int]], int],
+    )
+    assert ret is int
+
+    # typing.Callable
+    func = Callable[
+        [Param[Literal["x"], Callable[[Param[Literal["y"], int]], int]]], int
+    ]
+    ret = eval_call_with_types(func, Callable[[Param[Literal["y"], int]], int])
+    assert ret is int
+    with pytest.raises(ValueError, match="Argument type mismatch for x"):
+        eval_call_with_types(func, Callable[[Param[Literal["z"], str]], int])
+
+
+def test_eval_call_with_types_higher_order_callable_03():
+    # Both param and return are callables
+
+    # typing.Callable
+    func = Callable[
+        [Param[Literal["x"], Callable[[Param[Literal["y"], int]], int]]],
+        Callable[[Param[Literal["z"], int]], int],
+    ]
+    ret = eval_call_with_types(func, Callable[[Param[Literal["y"], int]], int])
+    assert ret == Callable[[Param[Literal["z"], int]], int]
