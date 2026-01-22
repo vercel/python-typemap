@@ -1,4 +1,5 @@
 import annotationlib
+import collections.abc
 import enum
 import inspect
 import types
@@ -11,7 +12,11 @@ from typing import Any
 from . import _eval_operators
 from . import _eval_typing
 from . import _typing_inspect
-from ._eval_operators import _callable_type_to_signature
+from ._eval_operators import (
+    _callable_type_to_signature,
+    _canonicalize_callable_type,
+    _is_method_like,
+)
 from ._apply_generic import substitute, _get_closure_types
 
 RtType = Any
@@ -122,6 +127,11 @@ def _update_bound_typevar(
                 f"is already bound to {vars[tv].__name__}, "
                 f"but got {param_value.__name__}"
             )
+    elif _typing_inspect.is_literal(tv):
+        if not _typing_inspect.is_literal(param_value):
+            raise ValueError(f"Argument type mismatch for {param_name}")
+        if not all(p in tv.__args__ for p in param_value.__args__):
+            raise ValueError(f"Argument type mismatch for {param_name}")
     elif _typing_inspect.is_generic_alias(tv):
         tv_args = tv.__args__
 
@@ -134,6 +144,24 @@ def _update_bound_typevar(
             # Type aliases should match their arguments 1 to 1
             # For example, binding C[A] to C[B] should bind A to B
             param_args = param_value.__args__
+
+        elif tv.__origin__ in (typing.Callable, collections.abc.Callable):
+            if not (
+                _typing_inspect.is_generic_alias(param_value)
+                and _is_method_like(param_value)
+            ):
+                raise ValueError(f"Argument type mismatch for {param_name}")
+
+            # Callables use a list for their params.
+            # Convert the params list into a tuple to simplify processing.
+            tv_params, tv_ret = typing.get_args(tv)
+            tv_args = (tuple[*tv_params], tv_ret)  # type: ignore[valid-type]
+
+            # Canonicalize the param value, it might be a classmethod or
+            # staticmethod, both of which can match Callable[[...], _].
+            param_value = _canonicalize_callable_type(None, param_value)
+            param_params, param_ret = typing.get_args(param_value)
+            param_args = (tuple[*param_params], param_ret)  # type: ignore[valid-type]
 
         else:
             with _eval_typing._ensure_context() as ctx:
