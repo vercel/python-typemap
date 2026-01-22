@@ -437,19 +437,10 @@ def _is_pos_only(param):
     )
 
 
-def _callable_type_to_method(name, typ):
-    """Turn a callable type into a method.
-
-    I'm not totally sure if this is worth doing! The main accomplishment
-    is in how it pretty prints...
-    """
-
-    type_params = ()
-
+def _canonicalize_callable_type(name, typ):
     head = typing.get_origin(typ)
     if head is GenericCallable:
-        ttparams, typ = typing.get_args(typ)
-        type_params = typing.get_args(ttparams)
+        typ = typing.get_args(typ)[1]
         head = typing.get_origin(typ)
 
     if head is classmethod:
@@ -487,7 +478,29 @@ def _callable_type_to_method(name, typ):
         ]
         ret = type(None) if name == "__init__" else ret
         typ = typing.Callable[params, ret]
+
+    return typ
+
+
+def _callable_type_to_method(name, typ):
+    """Turn a callable type into a method.
+
+    I'm not totally sure if this is worth doing! The main accomplishment
+    is in how it pretty prints...
+    """
+
+    type_params = ()
+
+    head = typing.get_origin(typ)
+    if head is GenericCallable:
+        ttparams, ttcallable = typing.get_args(typ)
+        type_params = typing.get_args(ttparams)
+        head = typing.get_origin(ttcallable)
+
+    if head not in (classmethod, staticmethod):
         head = lambda x: x
+
+    typ = _canonicalize_callable_type(name, typ)
 
     func = _signature_to_function(name, _callable_type_to_signature(typ))
     func.__type_params__ = type_params
