@@ -1,6 +1,7 @@
 import annotationlib
 import dataclasses
 import inspect
+import sys
 import types
 import typing
 
@@ -68,7 +69,9 @@ class Boxed:
 def substitute(ty, args):
     if ty in args:
         return args[ty]
-    elif isinstance(ty, (typing_GenericAlias, types.GenericAlias)):
+    elif isinstance(
+        ty, (typing_GenericAlias, types.GenericAlias, types.UnionType)
+    ):
         return ty.__origin__[*[substitute(t, args) for t in ty.__args__]]
     else:
         return ty
@@ -240,8 +243,27 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
                 else:
                     annos[k] = v
     elif af := getattr(boxed.cls, "__annotations__", None):
-        # TODO: substitute vars in this case
-        annos.update(af)
+        _globals = {}
+        if mod := sys.modules.get(boxed.cls.__module__):
+            _globals.update(vars(mod))
+        _globals.update(boxed.str_args)
+
+        _locals = dict(boxed.cls.__dict__)
+        _locals.update(boxed.str_args)
+
+        for k, v in af.items():
+            if isinstance(v, str):
+                result = eval(v, _globals, _locals)
+                # Handle cases where annotation is explicitly a string
+                # e.g.
+                #   class Foo[T]:
+                #       x: "Bar[T]"
+                if isinstance(result, str):
+                    result = eval(result, _globals, _locals)
+                annos[k] = result
+
+            else:
+                annos[k] = v
 
     for name, orig in boxed.cls.__dict__.items():
         if name in EXCLUDED_ATTRIBUTES:

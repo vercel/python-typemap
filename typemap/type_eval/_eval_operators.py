@@ -458,7 +458,7 @@ def _callable_type_to_method(name, typ):
 
 def _function_type(func, *, receiver_type):
     root = inspect.unwrap(func)
-    sig = inspect.signature(root)
+    sig = _resolved_function_signature(root)
     # XXX: __type_params__!!!
 
     empty = inspect.Parameter.empty
@@ -511,6 +511,44 @@ def _function_type(func, *, receiver_type):
     if root.__type_params__:
         f = GenericCallable[tuple[*root.__type_params__], f]
     return f
+
+
+def _resolved_function_signature(func):
+    """Get the signature of a function with type hints resolved.
+
+    This is used to deal with string annotations in the signature which are
+    generated when using __future__ import annotations.
+    """
+
+    sig = inspect.signature(func)
+
+    _globals, _locals = _get_function_hint_namespaces(func)
+    if hints := typing.get_type_hints(
+        func, globalns=_globals, localns=_locals, include_extras=True
+    ):
+        params = []
+        for name, param in sig.parameters.items():
+            annotation = hints.get(name, param.annotation)
+            params.append(param.replace(annotation=annotation))
+
+        return_annotation = hints.get("return", sig.return_annotation)
+        sig = sig.replace(
+            parameters=params, return_annotation=return_annotation
+        )
+
+    return sig
+
+
+def _get_function_hint_namespaces(func):
+    globalns = {}
+    localns = {}
+
+    # module globals
+    module = inspect.getmodule(func)
+    if module:
+        globalns |= vars(module)
+
+    return globalns, localns
 
 
 def _hints_to_members(hints, ctx):
