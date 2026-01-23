@@ -1,13 +1,13 @@
-PEP: <REQUIRED: pep number>
-Title: Type-level Computation
-Author: Michael J. Sullivan <sully@msully.net>, Daniel Park <dnwpark@protonmail.com>, Yury Selivanov <yury@vercel.com>
+PEP: 9999
+Title: Type Manipulation!
+Author: Michael J. Sullivan <sully@msully.net>, Daniel W. Park <dnwpark@protonmail.com>, Yury Selivanov <yury@edgedb.com>
 Sponsor: <name of sponsor>
 PEP-Delegate: <PEP delegate's name>
 Discussions-To: Pending
-Status: DRAFT
+Status: Draft
 Type: Standards Track
 Topic: Typing
-Requires: <pep numbers>
+Requires: 0000
 Created: <date created on, in dd-mmm-yyyy format>
 Python-Version: 3.15 or 3.16
 Post-History: Pending
@@ -19,15 +19,17 @@ Abstract
 
 We propose to add powerful type-level type introspection and type
 construction facilities to the type system, inspired in large part by
-TypeScript's conditional and mapping types, but adapted to the quite
+TypeScript's conditional and mapped types, but adapted to the quite
 different conditions of Python typing.
 
 Motivation
 ==========
 
 Python has a gradual type system, but at the heart of it is a fairly
-conventional and tame static type system.  In Python as a language, on
-the other hand, it is not unusual to perform complex metaprogramming,
+conventional and tame static type system (apart from untagged union
+types and type narrowing, which are common in gradual type systems but
+not in traditional static ones).  In Python as a language, on the
+other hand, it is not unusual to perform complex metaprogramming,
 especially at the library layer.
 
 Typically, type safety is lost when doing these sorts of things. Some
@@ -422,16 +424,203 @@ Implementation
     ]
 
 
-Rationale
-=========
+Specification of Needed Preliminaries
+=====================================
 
-[Describe why particular design decisions were made.]
+(Some content is still in `spec-draft.rst <spec-draft.rst>`_).
+
+We have two subproposals that are necessary to get mileage out of the
+main part of this proposal.
+
+
+Unpack of typevars for ``**kwargs``
+-----------------------------------
+
+A minor proposal that could be split out maybe:
+
+Supporting ``Unpack`` of typevars for ``**kwargs``::
+
+    def f[K: BaseTypedDict](**kwargs: Unpack[K]) -> K:
+        return kwargs
+
+Here ``BaseTypedDict`` is defined as::
+
+    class BaseTypedDict(typing.TypedDict):
+        pass
+
+But any typeddict would be allowed there. (Or, maybe we should allow ``dict``?)
+
+This is basically a combination of
+"PEP 692 – Using TypedDict for more precise ``**kwargs`` typing"
+and the behavior of ``Unpack`` for ``*args``
+from "PEP 646 – Variadic Generics".
+
+This is potentially moderately useful on its own but is being done to
+support processing ``**kwargs`` with type level computation.
+
+---
+
+Extended Callables, take 2
+--------------------------
+
+We introduce a ``Param`` type the contains all the information about a function param::
+
+    class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
+        pass
+
+    ParamQuals = typing.Literal["*", "**", "default", "keyword"]
+
+    type PosParam[N: str | None, T] = Param[N, T, Literal["positional"]]
+    type PosDefaultParam[N: str | None, T] = Param[N, T, Literal["positional", "default"]]
+    type DefaultParam[N: str, T] = Param[N, T, Literal["default"]]
+    type NamedParam[N: str, T] = Param[N, T, Literal["keyword"]]
+    type NamedDefaultParam[N: str, T] = Param[N, T, Literal["keyword", "default"]]
+    type ArgsParam[T] = Param[Literal[None], T, Literal["*"]]
+    type KwargsParam[T] = Param[Literal[None], T, Literal["**"]]
+
+And then, we can represent the type of a function like::
+
+    def func(
+        a: int,
+        /,
+        b: int,
+        c: int = 0,
+        *args: int,
+        d: int,
+        e: int = 0,
+        **kwargs: int
+    ) -> int:
+        ...
+
+as (we are omiting the ``Literal`` in places)::
+
+    Callable[
+        [
+            Param["a", int, "positional"],
+            Param["b", int],
+            Param["c", int, "default"],
+            Param[None, int, "*"],
+            Param["d", int, "keyword"],
+            Param["e", int, Literal["default", "keyword"]],
+            Param[None, int, "**"],
+        ],
+        int,
+    ]
+
+
+or, using the type abbreviations we provide::
+
+    Callable[
+        [
+            PosParam["a", int],
+            Param["b", int],
+            DefaultParam["c", int,
+            ArgsParam[int, "*"],
+            NamedParam["d", int],
+            NamedDefaultParam["e", int],
+            KwargsParam[int],
+        ],
+        int,
+    ]
+
+(Rationale discussed :ref:`below <callable-rationale>`.)
 
 
 Specification
 =============
 
-See `spec-draft.rst <spec-draft.rst>`_ for the current draft specification.
+As was visible in the examples above, we introduce a few new syntactic
+forms of valid types, but much of the power comes from type level
+**operators** that will be defined in the ``typing`` module.
+
+
+Grammar specification of the extensions to the type language
+------------------------------------------------------------
+
+Note first that no changes to the **Python** grammar are being
+proposed, only to the grammar of what Python expressions are
+considered as valid types.
+
+(It's also slightly imprecise to call this a grammar: where operator
+names are mentioned directly, like ``IsSub``, they require that name
+to be imported, and it could also be used qualified as
+``typing.IsSub`` or imported as a different name.)
+
+::
+
+   <type> = ...
+        # Type booleans are all valid types too
+        | <type-bool>
+
+        # Conditional types
+        | <type> if <type-bool> else <type>
+
+        # Types with variadic arguments can have
+        # *[... for t in ...] arguments
+        | <ident>[<variadic-type-arg> +]
+
+        | <string-or-int-literal>  # Only accepted in arguments to new functions?
+
+   # Type conditional checks are boolean compositions of
+   # "subtype checking" and boolean Literal type checking.
+   <type-bool> =
+         IsSub[<type>, <type>]
+       | Bool[<type>]
+       | not <type-bool>
+       | <type-bool> and <type-bool>
+       | <type-bool> or <type-bool>
+
+       # Do we want these next two? Maybe not.
+       | Any[<variadic-type-arg> +]
+       | All[<variadic-type-arg> +]
+
+   <variadic-type-arg> =
+         <type> ,
+       | * <type-for-iter> ,
+
+
+   <type-for> = [ <type> <type-for-iter>+ <type-for-if>* ]
+   <type-for-iter> =
+         # Iterate over a tuple type
+         for <var> in Iter[<type>]
+   <type-for-if> =
+         if <type-bool>
+
+
+.. _rt-support:
+
+
+Runtime evaluation support
+--------------------------
+
+Rationale
+=========
+
+.. _callable-rationale:
+
+Extended Callables
+------------------
+
+We need extended callable support, in order to inspect and produce
+callables via type-level computation. mypy supports `extended
+callables
+<https://mypy.readthedocs.io/en/stable/additional_features.html#extended-callable-types>`__
+but they are deprecated in favor of callback protocols.
+
+Unfortunately callback protocols don't work well for type level
+computation. (They probably could be made to work, but it would
+require a separate facility for creating and introspecting *methods*,
+which wouldn't be any simpler.)
+
+I am proposing a fully new extended callable syntax because:
+ 1. The ``mypy_extensions`` functions are full no-ops, and we need
+    real runtime objects
+ 2. They use parentheses and not brackets, which really goes against
+    the philosophy here.
+ 3. We can make an API that more nicely matches what we are going to
+    do for inspecting members (We could introduce extended callables that
+    closely mimic the ``mypy_extensions`` version though, if something new
+    is a non starter)
 
 
 Backwards Compatibility
@@ -449,7 +638,12 @@ None are expected.
 How to Teach This
 =================
 
-Honestly this seems very hard!
+I think some inspiration can be taken from how TypeScript teaches
+their equivalent features.
+
+(Though not complete inspiration---some important subtleties of things
+like mapped types are unmentioned in current documentation
+("homomorphic mappings").)
 
 
 Reference Implementation
@@ -461,9 +655,60 @@ Reference Implementation
 Rejected Ideas
 ==============
 
-* Don't attempt to support runtime evaluation, make
+Renounce all cares of runtime evaluation
+----------------------------------------
 
-[Why certain ideas that were brought while discussing this PEP were not ultimately pursued.]
+This would have a lot of simplifying features.
+
+We wouldn't need to worry about making ``IsSub`` be checkable at
+runtime,
+
+XXX
+
+
+Support TypeScript style pattern matching in subtype checking
+-------------------------------------------------------------
+
+This would almost certainly only be possible if we also decide not to
+care about runtime evaluation, as above.
+
+.. _less_syntax:
+
+
+Use type operators for conditional and iteration
+------------------------------------------------
+
+Instead of writing:
+ * ``tt if tb else tf``
+ * ``*[tres for T in Iter[ttuple]]``
+
+we could use type operator forms like:
+ * ``Cond[tb, tt, tf]``
+ * ``UnpackMap[ttuple, lambda T: tres]``
+ * or ``UnpackMap[ttuple, T, tres]`` where ``T`` must be a declared
+   ``TypeVar``
+
+Boolean operations would likewise become operators (``Not``, ``And``,
+etc).
+
+The advantage of this is that constructing a type annotation never
+needs to do non-trivial computation, and thus we don't need
+:ref:`runtime hooks <rt-support>` to support evaluating them.
+
+It would also mean that it would be much easier to extract the raw
+type annotation.  (The lambda form would still be somewhat fiddly.
+The non-lambda form would be trivial to extract, but requiring the
+declaration of a ``TypeVar`` goes against the grain of recent
+changes.)
+
+Another advantage is not needing any notion of a special
+``<type-bool>`` class of types.
+
+The disadvantage is that is that the syntax seems a *lot*
+worse. Supporting filtering while mapping would make it even more bad
+(maybe an extra argument for a filter?).
+
+We can explore other options too if needed.
 
 
 Open Issues
