@@ -266,9 +266,9 @@ def test_type_from_union_02():
     d = eval_typing(FromUnion[UnlabeledTree])
     assert _is_generic_permutation(d, tuple[list[UnlabeledTree]])
 
-    d = eval_typing(GetArg[d, tuple, 0])
+    d = eval_typing(GetArg[d, tuple, Literal[0]])
     assert d == list[UnlabeledTree]
-    d = eval_typing(GetArg[d, list, 0])
+    d = eval_typing(GetArg[d, list, Literal[0]])
     assert d == list[UnlabeledTree]
     d = eval_typing(FromUnion[d])
     assert _is_generic_permutation(d, tuple[list[UnlabeledTree]])
@@ -278,9 +278,9 @@ def test_type_from_union_03():
     d = eval_typing(FromUnion[IntTree])
     assert _is_generic_permutation(d, tuple[int, list[IntTree]])
 
-    d = eval_typing(GetArg[d, tuple, 1])
+    d = eval_typing(GetArg[d, tuple, Literal[1]])
     assert d == list[IntTree]
-    d = eval_typing(GetArg[d, list, 0])
+    d = eval_typing(GetArg[d, list, Literal[0]])
     assert d == int | list[IntTree]
     d = eval_typing(FromUnion[d])
     assert _is_generic_permutation(d, tuple[int, list[IntTree]])
@@ -290,9 +290,9 @@ def test_type_from_union_04():
     d = eval_typing(FromUnion[GenericTree[str]])
     assert _is_generic_permutation(d, tuple[str, list[GenericTree[str]]])
 
-    d = eval_typing(GetArg[d, tuple, 1])
+    d = eval_typing(GetArg[d, tuple, Literal[1]])
     assert d == list[GenericTree[str]]
-    d = eval_typing(GetArg[d, list, 0])
+    d = eval_typing(GetArg[d, list, Literal[0]])
     assert d == str | list[GenericTree[str]]
     d = eval_typing(FromUnion[d])
     assert _is_generic_permutation(d, tuple[str, list[GenericTree[str]]])
@@ -305,40 +305,40 @@ def test_type_from_union_05():
         tuple[XNode[int, str], YNode[int, str]],
     )
 
-    x = eval_typing(GetArg[d, tuple, 0])
+    x = eval_typing(GetArg[d, tuple, Literal[0]])
     assert x == int | list[str | list[XNode[int, str]]]
 
     x = eval_typing(FromUnion[x])
     assert _is_generic_permutation(
         x, tuple[int, list[str | list[XNode[int, str]]]]
     )
-    x = eval_typing(GetArg[x, tuple, 1])
+    x = eval_typing(GetArg[x, tuple, Literal[1]])
     assert x == list[str | list[XNode[int, str]]]
-    x = eval_typing(GetArg[x, list, 0])
+    x = eval_typing(GetArg[x, list, Literal[0]])
     assert x == str | list[XNode[int, str]]
     x = eval_typing(FromUnion[x])
     assert _is_generic_permutation(x, tuple[str, list[XNode[int, str]]])
-    x = eval_typing(GetArg[x, tuple, 1])
+    x = eval_typing(GetArg[x, tuple, Literal[1]])
     assert x == list[XNode[int, str]]
-    x = eval_typing(GetArg[x, list, 0])
+    x = eval_typing(GetArg[x, list, Literal[0]])
     assert x == int | list[str | list[XNode[int, str]]]
 
-    y = eval_typing(GetArg[d, tuple, 1])
+    y = eval_typing(GetArg[d, tuple, Literal[1]])
     assert y == str | list[int | list[YNode[int, str]]]
 
     y = eval_typing(FromUnion[y])
     assert _is_generic_permutation(
         y, tuple[str, list[int | list[YNode[int, str]]]]
     )
-    y = eval_typing(GetArg[y, tuple, 1])
+    y = eval_typing(GetArg[y, tuple, Literal[1]])
     assert y == list[int | list[YNode[int, str]]]
-    y = eval_typing(GetArg[y, list, 0])
+    y = eval_typing(GetArg[y, list, Literal[0]])
     assert y == int | list[YNode[int, str]]
     y = eval_typing(FromUnion[y])
     assert _is_generic_permutation(y, tuple[int, list[YNode[int, str]]])
-    y = eval_typing(GetArg[y, tuple, 1])
+    y = eval_typing(GetArg[y, tuple, Literal[1]])
     assert y == list[YNode[int, str]]
-    y = eval_typing(GetArg[y, list, 0])
+    y = eval_typing(GetArg[y, list, Literal[0]])
     assert y == str | list[int | list[YNode[int, str]]]
 
 
@@ -349,31 +349,35 @@ def test_type_from_union_06():
         tuple[str, list[NestedTree], list[IntTree]],
     )
 
-    n = eval_typing(GetArg[d, tuple, 1])
+    n = eval_typing(GetArg[d, tuple, Literal[1]])
     assert n == list[NestedTree]
-    n = eval_typing(GetArg[n, list, 0])
+    n = eval_typing(GetArg[n, list, Literal[0]])
     assert n == str | list[NestedTree] | list[IntTree]
     n = eval_typing(FromUnion[n])
     assert _is_generic_permutation(
         n, tuple[str, list[NestedTree], list[IntTree]]
     )
 
-    n = eval_typing(FromUnion[GetArg[GetArg[n, tuple, 1], list, 0]])
+    n = eval_typing(
+        FromUnion[GetArg[GetArg[n, tuple, Literal[1]], list, Literal[0]]]
+    )
     assert _is_generic_permutation(
         n, tuple[str, list[NestedTree], list[IntTree]]
     )
 
-    i = eval_typing(GetArg[d, tuple, 2])
+    i = eval_typing(GetArg[d, tuple, Literal[2]])
     assert i == list[IntTree]
-    i = eval_typing(GetArg[i, list, 0])
+    i = eval_typing(GetArg[i, list, Literal[0]])
     assert i == int | list[IntTree]
 
-    n = eval_typing(FromUnion[GetArg[GetArg[d, tuple, 2], list, 0]])
+    n = eval_typing(
+        FromUnion[GetArg[GetArg[d, tuple, Literal[2]], list, Literal[0]]]
+    )
     assert _is_generic_permutation(n, tuple[int, list[IntTree]])
 
 
 def test_getarg_never():
-    d = eval_typing(GetArg[Never, object, 0])
+    d = eval_typing(GetArg[Never, object, Literal[0]])
     assert d is Never
 
 
@@ -418,7 +422,7 @@ def test_eval_getarg_callable_old():
 
 def test_eval_getarg_callable_01():
     t = Callable[[int, str], str]
-    args = eval_typing(GetArg[t, Callable, 0])
+    args = eval_typing(GetArg[t, Callable, Literal[0]])
     assert (
         args
         == tuple[
@@ -427,24 +431,24 @@ def test_eval_getarg_callable_01():
     )
 
     t = Callable[int, str]
-    args = eval_typing(GetArg[t, Callable, 0])
+    args = eval_typing(GetArg[t, Callable, Literal[0]])
     assert args == tuple[Param[Literal[None], int, Never]]
 
     t = Callable[[], str]
-    args = eval_typing(GetArg[t, Callable, 0])
+    args = eval_typing(GetArg[t, Callable, Literal[0]])
     assert args == tuple[()]
 
     # XXX: Is this what we want? Or should it be *args, **kwargs
     t = Callable[..., str]
-    args = eval_typing(GetArg[t, Callable, 0])
+    args = eval_typing(GetArg[t, Callable, Literal[0]])
     assert args == SpecialFormEllipsis
 
     t = Callable
-    args = eval_typing(GetArg[t, Callable, 0])
+    args = eval_typing(GetArg[t, Callable, Literal[0]])
     assert args == SpecialFormEllipsis
 
     t = Callable
-    args = eval_typing(GetArg[t, Callable, 1])
+    args = eval_typing(GetArg[t, Callable, Literal[1]])
     assert args == Any
 
 
@@ -463,7 +467,7 @@ type GetMethodLike[T, Name] = GetArg[
         ],
     ],
     tuple,
-    0,
+    Literal[0],
 ]
 
 
@@ -472,7 +476,7 @@ def test_eval_getarg_callable_02a():
         def f(self, x: int, /, y: int, *, z: int) -> int: ...
 
     f = eval_typing(GetMethodLike[C, Literal["f"]])
-    t = eval_typing(GetArg[f, Callable, 0])
+    t = eval_typing(GetArg[f, Callable, Literal[0]])
     assert (
         t
         == tuple[
@@ -482,7 +486,7 @@ def test_eval_getarg_callable_02a():
             Param[Literal["z"], int, Literal["keyword"]],
         ]
     )
-    t = eval_typing(GetArg[f, Callable, 1])
+    t = eval_typing(GetArg[f, Callable, Literal[1]])
     assert t is int
 
 
@@ -491,7 +495,7 @@ def test_eval_getarg_callable_02b():
         def f(self, x: int, /, y: int, *, z: int) -> int: ...
 
     f = eval_typing(GetMethodLike[IndirectProtocol[C], Literal["f"]])
-    t = eval_typing(GetArg[f, Callable, 0])
+    t = eval_typing(GetArg[f, Callable, Literal[0]])
     assert (
         t
         == tuple[
@@ -501,7 +505,7 @@ def test_eval_getarg_callable_02b():
             Param[Literal["z"], int, Literal["keyword"]],
         ]
     )
-    t = eval_typing(GetArg[f, Callable, 1])
+    t = eval_typing(GetArg[f, Callable, Literal[1]])
     assert t is int
 
 
@@ -511,9 +515,9 @@ def test_eval_getarg_callable_03a():
         def f(cls, x: int, /, y: int, *, z: int) -> int: ...
 
     f = eval_typing(GetMethodLike[C, Literal["f"]])
-    t = eval_typing(GetArg[f, classmethod, 0])
+    t = eval_typing(GetArg[f, classmethod, Literal[0]])
     assert t == C
-    t = eval_typing(GetArg[f, classmethod, 1])
+    t = eval_typing(GetArg[f, classmethod, Literal[1]])
     assert (
         t
         == tuple[
@@ -522,7 +526,7 @@ def test_eval_getarg_callable_03a():
             Param[Literal["z"], int, Literal["keyword"]],
         ]
     )
-    t = eval_typing(GetArg[f, classmethod, 2])
+    t = eval_typing(GetArg[f, classmethod, Literal[2]])
     assert t is int
 
 
@@ -532,7 +536,7 @@ def test_eval_getarg_callable_03b():
         def f(cls, x: int, /, y: int, *, z: int) -> int: ...
 
     f = eval_typing(GetMethodLike[IndirectProtocol[C], Literal["f"]])
-    t = eval_typing(GetArg[f, Callable, 0])
+    t = eval_typing(GetArg[f, Callable, Literal[0]])
     assert (
         t
         == tuple[
@@ -542,7 +546,7 @@ def test_eval_getarg_callable_03b():
             Param[Literal["z"], int, Literal["keyword"]],
         ]
     )
-    t = eval_typing(GetArg[f, Callable, 1])
+    t = eval_typing(GetArg[f, Callable, Literal[1]])
     assert t is int
 
 
@@ -552,7 +556,7 @@ def test_eval_getarg_callable_04a():
         def f(x: int, /, y: int, *, z: int) -> int: ...
 
     f = eval_typing(GetMethodLike[C, Literal["f"]])
-    t = eval_typing(GetArg[f, staticmethod, 0])
+    t = eval_typing(GetArg[f, staticmethod, Literal[0]])
     assert (
         t
         == tuple[
@@ -561,7 +565,7 @@ def test_eval_getarg_callable_04a():
             Param[Literal["z"], int, Literal["keyword"]],
         ]
     )
-    t = eval_typing(GetArg[f, staticmethod, 1])
+    t = eval_typing(GetArg[f, staticmethod, Literal[1]])
     assert t is int
 
 
@@ -571,7 +575,7 @@ def test_eval_getarg_callable_04b():
         def f(x: int, /, y: int, *, z: int) -> int: ...
 
     f = eval_typing(GetMethodLike[IndirectProtocol[C], Literal["f"]])
-    t = eval_typing(GetArg[f, Callable, 0])
+    t = eval_typing(GetArg[f, Callable, Literal[0]])
     assert (
         t
         == tuple[
@@ -580,7 +584,7 @@ def test_eval_getarg_callable_04b():
             Param[Literal["z"], int, Literal["keyword"]],
         ]
     )
-    t = eval_typing(GetArg[f, Callable, 1])
+    t = eval_typing(GetArg[f, Callable, Literal[1]])
     assert t is int
 
 
@@ -589,134 +593,134 @@ def test_eval_getarg_callable_05():
         f: Callable[[int], int]
 
     f = eval_typing(GetMethodLike[IndirectProtocol[C], Literal["f"]])
-    t = eval_typing(GetArg[f, Callable, 0])
+    t = eval_typing(GetArg[f, Callable, Literal[0]])
     assert t == tuple[Param[Literal[None], int, Never],]
-    t = eval_typing(GetArg[f, Callable, 1])
+    t = eval_typing(GetArg[f, Callable, Literal[1]])
     assert t is int
 
 
 def test_eval_getarg_tuple():
     t = tuple[int, ...]
-    args = eval_typing(GetArg[t, tuple, 1])
+    args = eval_typing(GetArg[t, tuple, Literal[1]])
     assert args == SpecialFormEllipsis
 
     t = tuple
-    args = eval_typing(GetArg[t, tuple, 0])
+    args = eval_typing(GetArg[t, tuple, Literal[0]])
     assert args == Any
 
-    args = eval_typing(GetArg[t, tuple, 1])
+    args = eval_typing(GetArg[t, tuple, Literal[1]])
     assert args == SpecialFormEllipsis
 
 
 def test_eval_getarg_list():
     t = list[int]
-    arg = eval_typing(GetArg[t, list, 0])
+    arg = eval_typing(GetArg[t, list, Literal[0]])
     assert arg is int
 
     t = List[int]
-    arg = eval_typing(GetArg[t, list, 0])
+    arg = eval_typing(GetArg[t, list, Literal[0]])
     assert arg is int
 
     t = list
-    arg = eval_typing(GetArg[t, list, 0])
+    arg = eval_typing(GetArg[t, list, Literal[0]])
     assert arg == Any
 
     t = List
-    arg = eval_typing(GetArg[t, list, 0])
+    arg = eval_typing(GetArg[t, list, Literal[0]])
     assert arg == Any
 
     t = list[int]
-    arg = eval_typing(GetArg[t, List, 0])
+    arg = eval_typing(GetArg[t, List, Literal[0]])
     assert arg is int
 
     t = List[int]
-    arg = eval_typing(GetArg[t, List, 0])
+    arg = eval_typing(GetArg[t, List, Literal[0]])
     assert arg is int
 
     t = list
-    arg = eval_typing(GetArg[t, List, 0])
+    arg = eval_typing(GetArg[t, List, Literal[0]])
     assert arg == Any
 
     t = List
-    arg = eval_typing(GetArg[t, List, 0])
+    arg = eval_typing(GetArg[t, List, Literal[0]])
     assert arg == Any
 
     # indexing with -1 equivalent to 0
     t = list[int]
-    arg = eval_typing(GetArg[t, list, -1])
+    arg = eval_typing(GetArg[t, list, Literal[-1]])
     assert arg is int
 
     t = List[int]
-    arg = eval_typing(GetArg[t, list, -1])
+    arg = eval_typing(GetArg[t, list, Literal[-1]])
     assert arg is int
 
     t = list
-    arg = eval_typing(GetArg[t, list, -1])
+    arg = eval_typing(GetArg[t, list, Literal[-1]])
     assert arg == Any
 
     t = List
-    arg = eval_typing(GetArg[t, list, -1])
+    arg = eval_typing(GetArg[t, list, Literal[-1]])
     assert arg == Any
 
     t = list[int]
-    arg = eval_typing(GetArg[t, List, -1])
+    arg = eval_typing(GetArg[t, List, Literal[-1]])
     assert arg is int
 
     t = List[int]
-    arg = eval_typing(GetArg[t, List, -1])
+    arg = eval_typing(GetArg[t, List, Literal[-1]])
     assert arg is int
 
     t = list
-    arg = eval_typing(GetArg[t, List, -1])
+    arg = eval_typing(GetArg[t, List, Literal[-1]])
     assert arg == Any
 
     t = List
-    arg = eval_typing(GetArg[t, List, -1])
+    arg = eval_typing(GetArg[t, List, Literal[-1]])
     assert arg == Any
 
     # indexing with 1 always fails
     t = list[int]
-    arg = eval_typing(GetArg[t, list, 1])
+    arg = eval_typing(GetArg[t, list, Literal[1]])
     assert arg == Never
 
     t = List[int]
-    arg = eval_typing(GetArg[t, list, 1])
+    arg = eval_typing(GetArg[t, list, Literal[1]])
     assert arg == Never
 
     t = list
-    arg = eval_typing(GetArg[t, list, 1])
+    arg = eval_typing(GetArg[t, list, Literal[1]])
     assert arg == Never
 
     t = List
-    arg = eval_typing(GetArg[t, list, 1])
+    arg = eval_typing(GetArg[t, list, Literal[1]])
     assert arg == Never
 
     t = list[int]
-    arg = eval_typing(GetArg[t, List, 1])
+    arg = eval_typing(GetArg[t, List, Literal[1]])
     assert arg == Never
 
     t = List[int]
-    arg = eval_typing(GetArg[t, List, 1])
+    arg = eval_typing(GetArg[t, List, Literal[1]])
     assert arg == Never
 
     t = list
-    arg = eval_typing(GetArg[t, List, 1])
+    arg = eval_typing(GetArg[t, List, Literal[1]])
     assert arg == Never
 
     t = List
-    arg = eval_typing(GetArg[t, List, 1])
+    arg = eval_typing(GetArg[t, List, Literal[1]])
     assert arg == Never
 
 
 @pytest.mark.xfail(reason="Should this work?")
 def test_eval_getarg_union_01():
-    arg = eval_typing(GetArg[int | str, Union, 0])
+    arg = eval_typing(GetArg[int | str, Union, Literal[0]])
     assert arg is int
 
 
 @pytest.mark.xfail(reason="Should this work?")
 def test_eval_getarg_union_02():
-    arg = eval_typing(GetArg[GenericTree[int], GenericTree, 0])
+    arg = eval_typing(GetArg[GenericTree[int], GenericTree, Literal[0]])
     assert arg is int
 
 
@@ -725,14 +729,14 @@ def test_eval_getarg_custom_01():
         pass
 
     t = A[int]
-    assert eval_typing(GetArg[t, A, 0]) is int
-    assert eval_typing(GetArg[t, A, -1]) is int
-    assert eval_typing(GetArg[t, A, 1]) == Never
+    assert eval_typing(GetArg[t, A, Literal[0]]) is int
+    assert eval_typing(GetArg[t, A, Literal[-1]]) is int
+    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
 
     t = A
-    assert eval_typing(GetArg[t, A, 0]) == Any
-    assert eval_typing(GetArg[t, A, -1]) == Any
-    assert eval_typing(GetArg[t, A, 1]) == Never
+    assert eval_typing(GetArg[t, A, Literal[0]]) == Any
+    assert eval_typing(GetArg[t, A, Literal[-1]]) == Any
+    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
 
 
 def test_eval_getarg_custom_02():
@@ -742,14 +746,14 @@ def test_eval_getarg_custom_02():
         pass
 
     t = A[int]
-    assert eval_typing(GetArg[t, A, 0]) is int
-    assert eval_typing(GetArg[t, A, -1]) is int
-    assert eval_typing(GetArg[t, A, 1]) == Never
+    assert eval_typing(GetArg[t, A, Literal[0]]) is int
+    assert eval_typing(GetArg[t, A, Literal[-1]]) is int
+    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
 
     t = A
-    assert eval_typing(GetArg[t, A, 0]) == Any
-    assert eval_typing(GetArg[t, A, -1]) == Any
-    assert eval_typing(GetArg[t, A, 1]) == Never
+    assert eval_typing(GetArg[t, A, Literal[0]]) == Any
+    assert eval_typing(GetArg[t, A, Literal[-1]]) == Any
+    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
 
 
 def test_eval_getarg_custom_03():
@@ -757,14 +761,14 @@ def test_eval_getarg_custom_03():
         pass
 
     t = A[int]
-    assert eval_typing(GetArg[t, A, 0]) is int
-    assert eval_typing(GetArg[t, A, -1]) is int
-    assert eval_typing(GetArg[t, A, 1]) == Never
+    assert eval_typing(GetArg[t, A, Literal[0]]) is int
+    assert eval_typing(GetArg[t, A, Literal[-1]]) is int
+    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
 
     t = A
-    assert eval_typing(GetArg[t, A, 0]) is str
-    assert eval_typing(GetArg[t, A, -1]) is str
-    assert eval_typing(GetArg[t, A, 1]) == Never
+    assert eval_typing(GetArg[t, A, Literal[0]]) is str
+    assert eval_typing(GetArg[t, A, Literal[-1]]) is str
+    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
 
 
 def test_eval_getarg_custom_04():
@@ -774,14 +778,14 @@ def test_eval_getarg_custom_04():
         pass
 
     t = A[int]
-    assert eval_typing(GetArg[t, A, 0]) is int
-    assert eval_typing(GetArg[t, A, -1]) is int
-    assert eval_typing(GetArg[t, A, 1]) == Never
+    assert eval_typing(GetArg[t, A, Literal[0]]) is int
+    assert eval_typing(GetArg[t, A, Literal[-1]]) is int
+    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
 
     t = A
-    assert eval_typing(GetArg[t, A, 0]) is str
-    assert eval_typing(GetArg[t, A, -1]) is str
-    assert eval_typing(GetArg[t, A, 1]) == Never
+    assert eval_typing(GetArg[t, A, Literal[0]]) is str
+    assert eval_typing(GetArg[t, A, Literal[-1]]) is str
+    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
 
 
 TestTypeVar = TypeVar("TestTypeVar")
@@ -793,14 +797,14 @@ def test_eval_getarg_custom_05():
         val: list[ATree[TestTypeVar]]
 
     t = ATree[int]
-    assert eval_typing(GetArg[t, ATree, 0]) is int
-    assert eval_typing(GetArg[t, ATree, -1]) is int
-    assert eval_typing(GetArg[t, ATree, 1]) == Never
+    assert eval_typing(GetArg[t, ATree, Literal[0]]) is int
+    assert eval_typing(GetArg[t, ATree, Literal[-1]]) is int
+    assert eval_typing(GetArg[t, ATree, Literal[1]]) == Never
 
     t = ATree
-    assert eval_typing(GetArg[t, ATree, 0]) is Any
-    assert eval_typing(GetArg[t, ATree, -1]) is Any
-    assert eval_typing(GetArg[t, ATree, 1]) == Never
+    assert eval_typing(GetArg[t, ATree, Literal[0]]) is Any
+    assert eval_typing(GetArg[t, ATree, Literal[-1]]) is Any
+    assert eval_typing(GetArg[t, ATree, Literal[1]]) == Never
 
 
 def test_eval_getarg_custom_06():
@@ -811,14 +815,14 @@ def test_eval_getarg_custom_06():
         val: A | list[ATree[A]]
 
     t = ATree[int]
-    assert eval_typing(GetArg[t, ATree, 0]) is int
-    assert eval_typing(GetArg[t, ATree, -1]) is int
-    assert eval_typing(GetArg[t, ATree, 1]) == Never
+    assert eval_typing(GetArg[t, ATree, Literal[0]]) is int
+    assert eval_typing(GetArg[t, ATree, Literal[-1]]) is int
+    assert eval_typing(GetArg[t, ATree, Literal[1]]) == Never
 
     t = ATree
-    assert eval_typing(GetArg[t, ATree, 0]) is Any
-    assert eval_typing(GetArg[t, ATree, -1]) is Any
-    assert eval_typing(GetArg[t, ATree, 1]) == Never
+    assert eval_typing(GetArg[t, ATree, Literal[0]]) is Any
+    assert eval_typing(GetArg[t, ATree, Literal[-1]]) is Any
+    assert eval_typing(GetArg[t, ATree, Literal[1]]) == Never
 
 
 def test_eval_getarg_custom_07():
@@ -836,14 +840,14 @@ def test_eval_getarg_custom_07():
         root: ANode[A, B] | BNode[A, B]
 
     t = ABTree[int, str]
-    assert eval_typing(GetArg[t, ABTree, 0]) is int
-    assert eval_typing(GetArg[t, ABTree, 1]) is str
-    assert eval_typing(GetArg[t, ABTree, 2]) == Never
+    assert eval_typing(GetArg[t, ABTree, Literal[0]]) is int
+    assert eval_typing(GetArg[t, ABTree, Literal[1]]) is str
+    assert eval_typing(GetArg[t, ABTree, Literal[2]]) == Never
 
     t = ABTree
-    assert eval_typing(GetArg[t, ABTree, 0]) is Any
-    assert eval_typing(GetArg[t, ABTree, 1]) is Any
-    assert eval_typing(GetArg[t, ABTree, 2]) == Never
+    assert eval_typing(GetArg[t, ABTree, Literal[0]]) is Any
+    assert eval_typing(GetArg[t, ABTree, Literal[1]]) is Any
+    assert eval_typing(GetArg[t, ABTree, Literal[2]]) == Never
 
 
 def test_eval_getarg_custom_08():
@@ -860,14 +864,14 @@ def test_eval_getarg_custom_08():
     class Container2[T]: ...
 
     t = Container[int]
-    assert eval_typing(GetArg[t, Container, 0]) is int
-    assert eval_typing(GetArg[t, Container, -1]) is int
-    assert eval_typing(GetArg[t, Container, 1]) == Never
+    assert eval_typing(GetArg[t, Container, Literal[0]]) is int
+    assert eval_typing(GetArg[t, Container, Literal[-1]]) is int
+    assert eval_typing(GetArg[t, Container, Literal[1]]) == Never
 
     t = Container
-    assert eval_typing(GetArg[t, Container, 0]) is Any
-    assert eval_typing(GetArg[t, Container, -1]) is Any
-    assert eval_typing(GetArg[t, Container, 1]) == Never
+    assert eval_typing(GetArg[t, Container, Literal[0]]) is Any
+    assert eval_typing(GetArg[t, Container, Literal[-1]]) is Any
+    assert eval_typing(GetArg[t, Container, Literal[1]]) == Never
 
 
 type _Works[Ts, I] = Literal[True]
@@ -1286,7 +1290,7 @@ type GetCallableMember[T, N: str] = GetArg[
         ]
     ],
     tuple,
-    0,
+    Literal[0],
 ]
 
 

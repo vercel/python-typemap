@@ -46,7 +46,9 @@ class Field[T: FieldArgs](InitField[T]):
 ####
 
 # TODO: Should this go into the stdlib?
-type GetFieldItem[T: InitField, K] = GetAttr[GetArg[T, InitField, 0], K]
+type GetFieldItem[T: InitField, K] = GetAttr[
+    GetArg[T, InitField, Literal[0]], K
+]
 
 
 ##

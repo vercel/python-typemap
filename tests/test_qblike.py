@@ -37,7 +37,7 @@ type PropsOnly[T] = NewProtocol[
 
 # Conditional type alias!
 type FilterLinks[T] = (
-    Link[PropsOnly[GetArg[T, Link, 0]]] if IsSub[T, Link] else T
+    Link[PropsOnly[GetArg[T, Link, Literal[0]]]] if IsSub[T, Link] else T
 )
 
 

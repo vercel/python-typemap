@@ -216,7 +216,7 @@ grabs the argument to a ``Pointer``).
 
 ::
 
-    type PointerArg[T: Pointer] = GetArg[T, Pointer, 0]
+    type PointerArg[T: Pointer] = GetArg[T, Pointer, Literal[0]]
 
 ``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
 we've discussed already.
@@ -558,8 +558,6 @@ to be imported, and it could also be used qualified as
         # Types with variadic arguments can have
         # *[... for t in ...] arguments
         | <ident>[<variadic-type-arg> +]
-
-        | <string-or-int-literal>  # Only accepted in arguments to new functions?
 
    # Type conditional checks are boolean compositions of
    # "subtype checking" and boolean Literal type checking.

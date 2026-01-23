@@ -108,7 +108,7 @@ inherits from ``Base``.
 grabs the argument to a ``Pointer``).
 
 """
-type PointerArg[T: Pointer] = GetArg[T, Pointer, 0]
+type PointerArg[T: Pointer] = GetArg[T, Pointer, Literal[0]]
 
 """
 ``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features

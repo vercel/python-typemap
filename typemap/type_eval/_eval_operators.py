@@ -48,9 +48,7 @@ def _from_literal(val):
         return val.__args__[0]
     elif val is type(None):
         return None
-    else:
-        # TODO: check it is some literal
-        return val
+    raise AssertionError(f'expected a literal type, got {val!r}')
 
 
 def _eval_literal(val, ctx):

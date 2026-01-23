@@ -80,7 +80,7 @@ class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
     pass
 
 
-type BaseArg[T] = GetArg[T, Base, 0] if IsSub[T, Base] else Never
+type BaseArg[T] = GetArg[T, Base, Literal[0]] if IsSub[T, Base] else Never
 
 
 type AllOptional[T] = NewProtocol[
