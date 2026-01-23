@@ -65,6 +65,8 @@ class Boxed:
 
 
 def substitute(ty, args):
+    from typemap.typing import GenericCallable
+
     if ty in args:
         return args[ty]
     elif isinstance(ty, list):
@@ -75,6 +77,13 @@ def substitute(ty, args):
             origin = typing.Callable
         else:
             origin = ty.__origin__
+
+        if origin == GenericCallable:
+            # When substituting into a GenericCallable, filter out the type
+            # variables. They may have been re-used while declaring multiple
+            # aliases.
+            inner_tvars = ty.__args__[0].__args__
+            args = {k: v for k, v in args.items() if k not in inner_tvars}
 
         return origin[*[substitute(t, args) for t in ty.__args__]]
     else:
