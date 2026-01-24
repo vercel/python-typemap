@@ -1,0 +1,4 @@
+{
+  "buildCommand": "./scripts/build-peps.sh",
+  "outputDirectory": "build/html"
+}
