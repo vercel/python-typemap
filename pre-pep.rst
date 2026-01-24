@@ -784,8 +784,6 @@ values too?
 Generic Callable
 ''''''''''''''''
 
-Two possibilities for creating parameterized functions/types. They are kind of more syntax than functions exactly.  I like the lambda one more.
-
 * ``GenericCallable[Vs, Ty]``: A generic callable. ``Vs`` are a tuple
   type of unbound type variables and ``Ty`` should be a ``Callable``,
   ``staticmethod``, or ``classmethod`` that has access to the

@@ -17,5 +17,9 @@ cd ..
 # vercel builds and I can't be bothered to look into it more, so just
 # don't worry about failures too much here.
 make html || true
+
+# Copy the pep we care about over the index
+cp build/pep-9999.html build/index.html
+
 rm -rf ../html
 cp -r build ../html
