@@ -1,5 +1,5 @@
 PEP: 9999
-Title: Type Manipulation!
+Title: Type Manipulation
 Author: Michael J. Sullivan <sully@msully.net>, Daniel W. Park <dnwpark@protonmail.com>, Yury Selivanov <yury@edgedb.com>
 Sponsor: <name of sponsor>
 PEP-Delegate: <PEP delegate's name>
@@ -7,7 +7,6 @@ Discussions-To: Pending
 Status: Draft
 Type: Standards Track
 Topic: Typing
-Requires: 0000
 Created: <date created on, in dd-mmm-yyyy format>
 Python-Version: 3.15 or 3.16
 Post-History: Pending
@@ -585,6 +584,286 @@ to be imported, and it could also be used qualified as
          if <type-bool>
 
 
+TODO: explain conditional types and iteration
+
+
+Type operators
+--------------
+
+In some sections below we write things like ``Literal[int]]`` to mean
+"a literal that is of type ``int``". I don't think I'm really
+proposing to add that as a notion, but we could.
+
+Boolean types
+'''''''''''''
+
+* ``IsSub[T, S]``: What we would **want** is that it returns a boolean
+  literal type indicating whether ``T`` is a subtype of ``S``.
+  To support runtime checking, we probably need something weaker.
+
+
+Basic operators
+'''''''''''''''
+
+* ``GetArg[T, Base, Idx: Literal[int]]``: returns the type argument
+  number ``Idx`` to ``T`` when interpreted as ``Base``, or ``Never``
+  if it cannot be. (That is, if we have  ``class A(B[C]): ...``, then
+  ``GetArg[A, B, 0] == C`` while ``GetArg[A, A, 0] == Never``).
+
+  N.B: *Unfortunately* ``Base`` must be a proper class, *not* a
+  protocol. So, for example, ``GetArg[Ty, Iterable, 0]]`` to get the
+  type of something iterable *won't* work. This is because we can't do
+  protocol checks at runtime in general.  Special forms unfortunately
+  require some special handling: the arguments list of a ``Callable``
+  will be packed in a tuple, and a ``...`` will become
+  ``SpecialFormEllipsis``.
+
+
+* ``GetArgs[T, Base]``: returns a tuple containing all of the type
+  arguments of ``T`` when interpreted as ``Base``, or ``Never`` if it
+  cannot be.
+
+
+* ``GetAttr[T, S: Literal[str]]``: Extract the type of the member
+  named ``S`` from the class ``T``.
+
+* ``Length[T: tuple]`` - get the length of a tuple as an int literal
+  (or ``Literal[None]`` if it is unbounded)
+
+
+All of the operators in this section are "lifted" over union types.
+
+Union processing
+''''''''''''''''
+
+* ``FromUnion[T]``: returns a tuple containing all of the union
+  elements, or a 1-ary tuple containing T if it is not a union.
+
+
+
+Object inspection
+'''''''''''''''''
+
+* ``Members[T]``: produces a ``tuple`` of ``Member`` types describing
+  the members (attributes and methods) of class ``T``.
+
+  In order to allow typechecking time and runtime evaluation coincide
+  more closely, **only members with explicit type annotations are included**.
+
+* ``Attrs[T]``: like ``Members[T]`` but only returns attributes (not
+  methods).
+
+* ``Member[N: Literal[str], T, Q: MemberQuals, Init, D]``: ``Member``,
+  is a simple type, not an operator, that is used to describe members
+  of classes.  Its type parameters encode the information about each
+  member.
+
+  * ``N`` is the name, as a literal string type
+  * ``T`` is the type
+  * ``Q`` is a union of qualifiers (see ``MemberQuals`` below)
+  * ``Init`` is the literal type of the attribute initializer in the
+    class (see :ref:`InitField <init-field>`)
+  * ``D`` is the defining class of the member. (That is, which class
+    the member is inherited from.)
+
+* ``MemberQuals = Literal['ClassVar', 'Final']`` - ``MemberQuals`` is
+  the type of "qualifiers" that can apply to a member; currently
+  ``ClassVar`` and ``Final``
+
+
+Methods are returned as callables using the new ``Param`` based
+extended callables, and carrying the ``ClassVar``
+qualifier. ``staticmethod`` and ``classmethod`` will return
+``staticmethod`` and ``classmethod`` types, which are subscriptable as
+of 3.14.
+
+TODO: What do we do about decorators in general, *at runtime*... This
+seems pretty cursed. We can probably sometimes evaluate them, if there
+are annotations at runtime, but in general that would require full
+subtype checking, which we can't do.
+
+We also have helpers for extracting the fields of ``Members``; they
+are all definable in terms of ``GetArg``. (Some of them are shared
+with ``Param``, discussed below.)
+
+* ``GetName[T: Member | Param]``
+* ``GetType[T: Member | Param]``
+* ``GetQuals[T: Member | Param]``
+* ``GetInit[T: Member]``
+* ``GetDefiner[T: Member]``
+
+
+
+Object creation
+'''''''''''''''
+
+* ``NewProtocol[*Ps: Member]``
+
+* ``NewProtocolWithBases[Bases, Ps: tuple[Member]]`` - A variant that
+  allows specifying bases too. (UNIMPLEMENTED) - OR MAYBE SHOULD NOT EXIST
+
+* ``NewTypedDict[*Ps: Member]`` -- TODO: Needs fleshing out; will work
+  similarly to ``NewProtocol`` but has different flags
+
+
+
+.. _init-field:
+
+InitField
+'''''''''
+
+We want to be able to support transforming types based on
+dataclasses/attrs/pydantic style field descriptors.  In order to do
+that, we need to be able to consume things like calls to ``Field``.
+
+Our strategy for this is to introduce a new type
+``InitField[KwargDict]`` that collects arguments defined by a
+``KwargDict: TypedDict``::
+
+  class InitField[KwargDict: BaseTypedDict]:
+      def __init__(self, **kwargs: typing.Unpack[KwargDict]) -> None:
+          ...
+
+      def _get_kwargs(self) -> KwargDict:
+          ...
+
+When ``InitField`` or (more likely) a subtype of it is instantiated
+inside a class body, we infer a *more specific* type for it, based on
+``Literal`` types for all the arguments passed.
+
+So if we write::
+
+  class A:
+      foo: int = InitField(default=0)
+
+then we would infer the type ``InitField[TypedDict('...', {'default':
+Literal[0]})]`` for the initializer, and that would be made available
+as the ``Init`` field of the ``Member``.
+
+
+Annotated
+'''''''''
+
+This could maybe be dropped?
+
+Libraries like FastAPI use annotations heavily, and we would like to
+be able to use annotations to drive type-level computation decision
+making.
+
+We understand that this may be controversial, as currently ``Annotated``
+may be fully ignored by typecheckers. The operations proposed are:
+
+* ``GetAnnotations[T]`` - Fetch the annotations of a potentially
+  Annotated type, as Literals. Examples::
+
+    GetAnnotations[Annotated[int, 'xxx']] = Literal['xxx']
+    GetAnnotations[Annotated[int, 'xxx', 5]] = Literal['xxx', 5]
+    GetAnnotations[int] = Never
+
+
+* ``DropAnnotations[T]`` - Drop the annotations of a potentially
+  Annotated type. Examples::
+
+    DropAnnotations[Annotated[int, 'xxx']] = int
+    DropAnnotations[Annotated[int, 'xxx', 5]] = int
+    DropAnnotations[int] = int
+
+
+Callable inspection and creation
+''''''''''''''''''''''''''''''''
+
+``Callable`` types always have their arguments exposed in the extended
+Callable format discussed above.
+
+The names, type, and qualifiers share getter operations with
+``Member``.
+
+TODO: Should we make ``GetInit`` be literal types of default parameter
+values too?
+
+Generic Callable
+''''''''''''''''
+
+Two possibilities for creating parameterized functions/types. They are kind of more syntax than functions exactly.  I like the lambda one more.
+
+* ``GenericCallable[Vs, Ty]``: A generic callable. ``Vs`` are a tuple
+  type of unbound type variables and ``Ty`` should be a ``Callable``,
+  ``staticmethod``, or ``classmethod`` that has access to the
+  variables in ``Vs``
+
+This is kind of unsatisfying but we at least need some way to return
+existing generic methods and put them back into a new protocol.
+
+
+String manipulation
+'''''''''''''''''''
+
+String manipulation operations for string ``Literal`` types.
+We can put more in, but this is what typescript has.
+``Slice`` and ``Concat`` are a poor man's literal template.
+We can actually implement the case functions in terms of them and a
+bunch of conditionals, but shouldn't (especially if we want it to work
+for all unicode!).
+
+
+* ``Slice[S: Literal[str] | tuple, Start: Literal[int | None], End: Literal[int | None]]``:
+  Slices a ``str`` or a tuple type.
+
+* ``Concat[S1: Literal[str], S2: Literal[str]]``: concatenate two strings
+
+* ``Uppercase[S: Literal[str]]``: uppercase a string literal
+* ``Lowercase[S: Literal[str]]``: lowercase a string literal
+* ``Capitalize[S: Literal[str]]``: capitalize a string literal
+* ``Uncapitalize[S: Literal[str]]``: uncapitalize a string literal
+
+All of the operators in this section are "lifted" over union types.
+
+Raise error
+'''''''''''
+
+* ``RaiseError[S: Literal[str]]``: If this type needs to be evaluated
+  to determine some actual type, generate a type error with the
+  provided message.
+
+Update class
+''''''''''''
+
+TODO: This is kind of sketchy but it is I think needed for defining
+base classes and type decorators that do ``dataclass`` like things.
+
+* ``UpdateClass[*Ps: Member]``: A special form that *updates* an
+  existing nominal class with new members (possibly overriding old
+  ones, or removing them by making them have type ``Never``).
+
+  This can only be used in the return type of a type decorator
+  or as the return type of ``__init_subclass__``.
+
+One snag here: it introduces type-evaluation-order dependence; if the
+``UpdateClass`` return type for some ``__init_subclass__`` inspects
+some unrelated class's ``Members`` , and that class also has an
+``__init_subclass__``, then the results might depend on what order they
+are evaluated.
+
+This does actually exactly mirror a potential **runtime**
+evaluation-order dependence, though.
+
+.. _lifting:
+
+Lifting over Unions
+-------------------
+
+Many of the builtin operations are "lifted" over ``Union``.
+
+For example::
+
+    Concat[Literal['a'] | Literal['b'], Literal['c'] | Literal['d']] = (
+        Literal['ac'] | Literal['ad'] | Literal['bc'] | Literal['bd']
+    )
+
+
+TODO: EXPLAIN
+
+
 .. _rt-support:
 
 
@@ -708,15 +987,32 @@ worse. Supporting filtering while mapping would make it even more bad
 
 We can explore other options too if needed.
 
+Make the type-level operations more "strictly-typed"
+----------------------------------------------------
+
+This proposal is less "strictly-typed" than typescript
+(strictly-kinded, maybe?).
+
+Typescript has better typechecking at the alias definition site:
+For ``P[K]``, ``K`` needs to have ``keyof P``...
+
+We could do potentially better but it would require more meachinery.
+
+* ``KeyOf[T]`` - literal keys of ``T``
+* ``Member[T]``, when statically checking a type alias, could be
+  treated as having some type like ``tuple[Member[KeyOf[T], object,
+  str, ..., ...], ...]``
+* ``GetAttr[T, S: KeyOf[T]]`` - but this isn't supported yet. TS supports it.
+* We would also need to do context sensitive type bound inference
+
 
 Open Issues
 ===========
 
-* What is the best way to type base-class driven transformations using
-  ``__init_subclass__`` or (*shudder* metaclasses).
+* Should we support building new nominal types??
 
-* How to deal with situations where we are building new *nominal*
-  types and might want to reference them?
+* What invalid operations should be errors and what should return ``Never``?
+
 
 [Any points that are still being decided/discussed.]
 
