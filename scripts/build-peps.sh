@@ -1,5 +1,7 @@
 #!/bin/sh -ex
 
+export LANG=en_US.UTF-8
+
 mkdir -p build
 cd build
 if [ ! -d peps ]; then
