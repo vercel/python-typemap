@@ -12,6 +12,8 @@ if [ ! -s pep-9999.rst ]; then
     ln -s ../../../pre-pep.rst pep-9999.rst
 fi
 cd ..
-make html
+make html || true
 rm -rf ../html
 cp -r build ../html
+
+find .venv
