@@ -11,7 +11,10 @@ from typing_extensions import _AnnotatedAlias as typing_AnnotatedAlias
 
 from typemap import type_eval
 from typemap.type_eval import _apply_generic, _typing_inspect
-from typemap.type_eval._eval_typing import _eval_types
+from typemap.type_eval._eval_typing import (
+    _eval_types,
+    _get_class_type_hint_namespaces,
+)
 from typemap.typing import (
     Attrs,
     Capitalize,
@@ -458,7 +461,7 @@ def _callable_type_to_method(name, typ):
 
 def _function_type(func, *, receiver_type):
     root = inspect.unwrap(func)
-    sig = _resolved_function_signature(root)
+    sig = _resolved_function_signature(root, receiver_type)
     # XXX: __type_params__!!!
 
     empty = inspect.Parameter.empty
@@ -513,7 +516,7 @@ def _function_type(func, *, receiver_type):
     return f
 
 
-def _resolved_function_signature(func):
+def _resolved_function_signature(func, receiver_type=None):
     """Get the signature of a function with type hints resolved.
 
     This is used to deal with string annotations in the signature which are
@@ -522,7 +525,7 @@ def _resolved_function_signature(func):
 
     sig = inspect.signature(func)
 
-    _globals, _locals = _get_function_hint_namespaces(func)
+    _globals, _locals = _get_function_hint_namespaces(func, receiver_type)
     if hints := typing.get_type_hints(
         func, globalns=_globals, localns=_locals, include_extras=True
     ):
@@ -539,14 +542,32 @@ def _resolved_function_signature(func):
     return sig
 
 
-def _get_function_hint_namespaces(func):
+def _get_function_hint_namespaces(func, receiver_type=None):
     globalns = {}
     localns = {}
 
     # module globals
     module = inspect.getmodule(func)
     if module:
-        globalns |= vars(module)
+        globalns |= module.__dict__
+
+    # If no receiver was specified, this might still be a method, try to get
+    # the class from the qualname.
+    if (
+        not receiver_type
+        and (qn := getattr(func, '__qualname__', None))
+        and '.' in qn
+    ):
+        class_name = qn.rsplit('.', 1)[0]
+        receiver_type = getattr(module, class_name, None)
+
+    # Get the class's type hint namespaces
+    if receiver_type:
+        cls_globalns, cls_localns = _get_class_type_hint_namespaces(
+            receiver_type
+        )
+        globalns.update(cls_globalns)
+        localns.update(cls_localns)
 
     return globalns, localns
 
