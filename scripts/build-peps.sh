@@ -1,25 +1,15 @@
-#!/bin/sh -ex
+#!/bin/sh -e
 
-export LANG=C.utf8
+echo LANG: $LANG
 
-mkdir -p build
-cd build
-if [ ! -d peps ]; then
-    git clone --depth=1 https://github.com/python/peps/
-fi
-cd peps/peps
-if [ ! -s pep-9999.rst ]; then
-    ln -s ../../../pre-pep.rst pep-9999.rst
-fi
-cd ..
+echo locale:
+locale
 
-# sphinx tls validation of a bunch of intersphinx links is failing on
-# vercel builds and I can't be bothered to look into it more, so just
-# don't worry about failures too much here.
-make html || true
+echo "locale -a:"
+locale -a
 
-# Copy the pep we care about over the index
-cp build/pep-9999.html build/index.html
+# Load the default locale in a python script. Sphinx does this.
+python3 -c 'import locale; locale.setlocale(locale.LC_ALL, "")'
 
-rm -rf ../html
-cp -r build ../html
+mkdir -p build/html
+echo 'OK' > build/html/index.html
