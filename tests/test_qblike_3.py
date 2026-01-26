@@ -52,6 +52,15 @@ CREATE TABLE posts (
     author_id INTEGER NOT NULL,
     FOREIGN KEY (author_id) REFERENCES users (id)
 );
+
+CREATE TABLE comments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    content TEXT NOT NULL,
+    author_id INTEGER NOT NULL,
+    post_id INTEGER NOT NULL,
+    FOREIGN KEY (author_id) REFERENCES users (id),
+    FOREIGN KEY (post_id) REFERENCES posts (id)
+);
 ```
 
 Protocols are generated using AddInit[T], Create[T], and Update[T].
@@ -282,7 +291,25 @@ class Post(Table[Literal["posts"]]):
         db_type=DbString(length=1000), nullable=False
     )
     author: Field[Post, User] = column(
-        db_type=DbLinkTarget(target="User"), nullable=False
+        db_type=DbLinkTarget(target=User), nullable=False
+    )
+    comments: Field[Post, list[Comment]] = column(
+        db_type=DbLinkSource(source="Comment", cardinality=Cardinality.MANY)
+    )
+
+
+class Comment(Table[Literal["comments"]]):
+    id: Field[Comment, int] = column(
+        db_type=DbInteger(), primary_key=True, autoincrement=True
+    )
+    content: Field[Comment, str] = column(
+        db_type=DbString(length=1000), nullable=False
+    )
+    author: Field[Comment, User] = column(
+        db_type=DbLinkTarget(target=User), nullable=False
+    )
+    post: Field[Comment, Post] = column(
+        db_type=DbLinkTarget(target=Post), nullable=False
     )
 
 
@@ -311,6 +338,7 @@ def test_qblike_3_add_init_02():
             id: int
             content: str
             author: tests.test_qblike_3.User
+            comments: list[tests.test_qblike_3.Comment]
             def __init__(self: Self, *, id: int | tests.test_qblike_3.Default = ..., content: str, author: tests.test_qblike_3.User) -> None: ...
     """)
 
