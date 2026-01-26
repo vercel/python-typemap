@@ -250,6 +250,10 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
         stuff = inspect.unwrap(orig)
 
         if isinstance(stuff, types.FunctionType):
+            local_fn: types.FunctionType | classmethod | staticmethod | None = (
+                None
+            )
+
             if af := typing.cast(
                 types.FunctionType, getattr(stuff, "__annotate__", None)
             ):
@@ -280,9 +284,17 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
                 )
                 rr = ff(annotationlib.Format.VALUE)
 
-                dct[name] = make_func(orig, rr)
+                local_fn = make_func(orig, rr)
             elif af := getattr(stuff, "__annotations__", None):
-                dct[name] = stuff
+                local_fn = stuff
+
+            if local_fn is not None:
+                if orig.__class__ is classmethod:
+                    local_fn = classmethod(local_fn)
+                elif orig.__class__ is staticmethod:
+                    local_fn = staticmethod(local_fn)
+
+                dct[name] = local_fn
 
     return annos, dct
 
