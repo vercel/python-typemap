@@ -243,6 +243,7 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
                 else:
                     annos[k] = v
     elif af := getattr(boxed.cls, "__annotations__", None):
+        # TODO: substitute vars in this case
         _globals = {}
         if mod := sys.modules.get(boxed.cls.__module__):
             _globals.update(vars(mod))
