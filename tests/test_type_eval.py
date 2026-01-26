@@ -535,17 +535,17 @@ def test_eval_getarg_callable_03b():
         def f(cls, x: int, /, y: int, *, z: int) -> int: ...
 
     f = eval_typing(GetMethodLike[IndirectProtocol[C], Literal["f"]])
-    t = eval_typing(GetArg[f, Callable, Literal[0]])
+    t = eval_typing(GetArg[f, classmethod, Literal[0]])
+    t = eval_typing(GetArg[f, classmethod, Literal[1]])
     assert (
         t
         == tuple[
-            Param[Literal["cls"], type[C], Literal["positional"]],
             Param[Literal["x"], int, Literal["positional"]],
             Param[Literal["y"], int],
             Param[Literal["z"], int, Literal["keyword"]],
         ]
     )
-    t = eval_typing(GetArg[f, Callable, Literal[1]])
+    t = eval_typing(GetArg[f, classmethod, Literal[2]])
     assert t is int
 
 
@@ -574,7 +574,7 @@ def test_eval_getarg_callable_04b():
         def f(x: int, /, y: int, *, z: int) -> int: ...
 
     f = eval_typing(GetMethodLike[IndirectProtocol[C], Literal["f"]])
-    t = eval_typing(GetArg[f, Callable, Literal[0]])
+    t = eval_typing(GetArg[f, staticmethod, Literal[0]])
     assert (
         t
         == tuple[
@@ -583,7 +583,7 @@ def test_eval_getarg_callable_04b():
             Param[Literal["z"], int, Literal["keyword"]],
         ]
     )
-    t = eval_typing(GetArg[f, Callable, Literal[1]])
+    t = eval_typing(GetArg[f, staticmethod, Literal[1]])
     assert t is int
 
 
