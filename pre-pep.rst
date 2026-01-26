@@ -242,6 +242,8 @@ contains all the ``Property`` attributes of ``T``.
 The full test is `in our test suite <#qb-test_>`_.
 
 
+.. _fastapi-impl:
+
 Automatically deriving FastAPI CRUD models
 ------------------------------------------
 
