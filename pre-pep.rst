@@ -124,122 +124,8 @@ which would have return type ``list[<User>]`` where::
         content: str
 
 
-Unlike the FastAPI-style example above, we probably don't have too
-much need for runtime introspection of the types here, which is good:
-inferring the type of a function is much less likely to be feasible.
+(Example code for implementing this :ref:`below <qb-impl>`.)
 
-
-.. _qb-impl:
-
-Implementation
-''''''''''''''
-
-This will take something of a tutorial approach in discussing the
-implementation, and explain the features being used as we use
-them. More details were appear in the specification section.
-
-First, to support the annotations we saw above, we have a collection
-of dummy classes with generic types.
-
-::
-
-    class Pointer[T]:
-        pass
-
-    class Property[T](Pointer[T]):
-        pass
-
-    class Link[T](Pointer[T]):
-        pass
-
-    class SingleLink[T](Link[T]):
-        pass
-
-    class MultiLink[T](Link[T]):
-        pass
-
-The ``select`` method is where we start seeing new things.
-
-The ``**kwargs: Unpack[K]`` is part of this proposal, and allows
-*inferring* a TypedDict from keyword args.
-
-``Attrs[K]`` extracts ``Member`` types corresponding to every
-type-annotated attribute of ``K``, while calling ``NewProtocol`` with
-``Member`` arguments constructs a new structural type.
-
-``GetName`` is a getter operator that fetches the name of a ``Member``
-as a literal type--all of these mechanisms lean very heavily on literal types.
-``GetAttr`` gets the type of an attribute from a class.
-
-::
-
-    def select[ModelT, K: BaseTypedDict](
-        typ: type[ModelT],
-        /,
-        **kwargs: Unpack[K],
-    ) -> list[
-        NewProtocol[
-            *[
-                Member[
-                    GetName[c],
-                    ConvertField[GetAttr[ModelT, GetName[c]]],
-                ]
-                for c in Iter[Attrs[K]]
-            ]
-        ]
-    ]: ...
-
-ConvertField is our first type helper, and it is a conditional type
-alias, which decides between two types based on a (limited)
-subtype-ish check.
-
-In ``ConvertField``, we wish to drop the ``Property`` or ``Link``
-annotation and produce the underlying type, as well as, for links,
-producing a new target type containing only properties and wrapping
-``MultiLink`` in a list.
-
-::
-
-    type ConvertField[T] = (
-        AdjustLink[PropsOnly[PointerArg[T]], T] if IsSub[T, Link] else PointerArg[T]
-    )
-
-``PointerArg`` gets the type argument to ``Pointer`` or a subclass.
-
-``GetArg[T, Base, I]`` is one of the core primitives; it fetches the
-index ``I`` type argument to ``Base`` from a type ``T``, if ``T``
-inherits from ``Base``.
-
-(The subtleties of this will be discussed later; in this case, it just
-grabs the argument to a ``Pointer``).
-
-::
-
-    type PointerArg[T: Pointer] = GetArg[T, Pointer, Literal[0]]
-
-``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
-we've discussed already.
-
-::
-
-    type AdjustLink[Tgt, LinkTy] = list[Tgt] if IsSub[LinkTy, MultiLink] else Tgt
-
-And the final helper, ``PropsOnly[T]``, generates a new type that
-contains all the ``Property`` attributes of ``T``.
-
-::
-
-    type PropsOnly[T] = list[
-        NewProtocol[
-            *[
-                Member[GetName[p], PointerArg[GetType[p]]]
-                for p in Iter[Attrs[T]]
-                if IsSub[GetType[p], Property]
-            ]
-        ]
-    ]
-
-The full test is `in our test suite <#qb-test_>`_.
 
 
 .. _fastapi-impl:
@@ -336,41 +222,7 @@ runtime evaluation of the type annotations**. FastAPI uses the
 Pydantic models to validate and convert to/from JSON for both input
 and output from endpoints.
 
-
-Implementation
-''''''''''''''
-
-We have a more `fully-worked example <#fastapi-test_>`_ in our test
-suite, but here is a possible implementation of just ``Public``::
-
-    # Extract the default type from an Init field.
-    # If it is a Field, then we try pulling out the "default" field,
-    # otherwise we return the type itself.
-    type GetDefault[Init] = (
-        GetFieldItem[Init, Literal["default"]] if IsSub[Init, Field] else Init
-    )
-
-    # Create takes everything but the primary key and preserves defaults
-    type Create[T] = NewProtocol[
-        *[
-            Member[GetName[p], GetType[p], GetQuals[p], GetDefault[GetInit[p]]]
-            for p in Iter[Attrs[T]]
-            if not IsSub[
-                Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
-            ]
-        ]
-    ]
-
-The ``Create`` type alias creates a new type (via ``NewProtocol``) by
-iterating over the attributes of the original type.  It has access to
-names, types, qualifiers, and the literal types of initializers (in
-part through new facilities to handle the extremely common
-``= Field(...)`` like pattern used here.
-
-Here, we filter out attributes that have ``primary_key=True`` in their
-``Field`` as well as extracting default arguments (which may be either
-from a ``default`` argument to a field or specified directly as an
-initializer).
+(Example code for implementing this :ref:`below <fastapi-impl>`.)
 
 
 dataclasses-style method generation
@@ -386,43 +238,11 @@ This kind of pattern is widespread enough that :pep:`PEP 681 <681>`
 was created to represent a lowest-common denominator subset of what
 existing libraries do.
 
-.. _init-impl:
+Make it possible for libraries to implement more of these patterns
+directly in the type system will give better typing without needing
+futher special casing, typechecker plugins, hardcoded support, etc.
 
-Implementation
-''''''''''''''
-
-::
-
-    # Generate the Member field for __init__ for a class
-    type InitFnType[T] = Member[
-        Literal["__init__"],
-        Callable[
-            [
-                Param[Literal["self"], Self],
-                *[
-                    Param[
-                        GetName[p],
-                        GetType[p],
-                        # All arguments are keyword-only
-                        # It takes a default if a default is specified in the class
-                        Literal["keyword"]
-                        if IsSub[
-                            GetDefault[GetInit[p]],
-                            Never,
-                        ]
-                        else Literal["keyword", "default"],
-                    ]
-                    for p in Iter[Attrs[T]]
-                ],
-            ],
-            None,
-        ],
-        Literal["ClassVar"],
-    ]
-    type AddInit[T] = NewProtocol[
-        InitFnType[T],
-        *[x for x in Iter[Members[T]]],
-    ]
+(Example code for implementing this :ref:`below <init-impl>`.)
 
 
 Specification of Needed Preliminaries
@@ -866,9 +686,202 @@ TODO: EXPLAIN
 
 .. _rt-support:
 
-
 Runtime evaluation support
 --------------------------
+
+
+Examples / Tutorial
+===================
+
+Here we will take something of a tutorial approach in discussing how
+to achieve the goals in the examples in the motivation section,
+explain the features being used as we use them.
+
+.. _qb-impl:
+
+Prisma-style ORMs
+-----------------
+
+More details were appear in the specification section.
+
+First, to support the annotations we saw above, we have a collection
+of dummy classes with generic types.
+
+::
+
+    class Pointer[T]:
+        pass
+
+    class Property[T](Pointer[T]):
+        pass
+
+    class Link[T](Pointer[T]):
+        pass
+
+    class SingleLink[T](Link[T]):
+        pass
+
+    class MultiLink[T](Link[T]):
+        pass
+
+The ``select`` method is where we start seeing new things.
+
+The ``**kwargs: Unpack[K]`` is part of this proposal, and allows
+*inferring* a TypedDict from keyword args.
+
+``Attrs[K]`` extracts ``Member`` types corresponding to every
+type-annotated attribute of ``K``, while calling ``NewProtocol`` with
+``Member`` arguments constructs a new structural type.
+
+``GetName`` is a getter operator that fetches the name of a ``Member``
+as a literal type--all of these mechanisms lean very heavily on literal types.
+``GetAttr`` gets the type of an attribute from a class.
+
+::
+
+    def select[ModelT, K: BaseTypedDict](
+        typ: type[ModelT],
+        /,
+        **kwargs: Unpack[K],
+    ) -> list[
+        NewProtocol[
+            *[
+                Member[
+                    GetName[c],
+                    ConvertField[GetAttr[ModelT, GetName[c]]],
+                ]
+                for c in Iter[Attrs[K]]
+            ]
+        ]
+    ]: ...
+
+ConvertField is our first type helper, and it is a conditional type
+alias, which decides between two types based on a (limited)
+subtype-ish check.
+
+In ``ConvertField``, we wish to drop the ``Property`` or ``Link``
+annotation and produce the underlying type, as well as, for links,
+producing a new target type containing only properties and wrapping
+``MultiLink`` in a list.
+
+::
+
+    type ConvertField[T] = (
+        AdjustLink[PropsOnly[PointerArg[T]], T] if IsSub[T, Link] else PointerArg[T]
+    )
+
+``PointerArg`` gets the type argument to ``Pointer`` or a subclass.
+
+``GetArg[T, Base, I]`` is one of the core primitives; it fetches the
+index ``I`` type argument to ``Base`` from a type ``T``, if ``T``
+inherits from ``Base``.
+
+(The subtleties of this will be discussed later; in this case, it just
+grabs the argument to a ``Pointer``).
+
+::
+
+    type PointerArg[T: Pointer] = GetArg[T, Pointer, Literal[0]]
+
+``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
+we've discussed already.
+
+::
+
+    type AdjustLink[Tgt, LinkTy] = list[Tgt] if IsSub[LinkTy, MultiLink] else Tgt
+
+And the final helper, ``PropsOnly[T]``, generates a new type that
+contains all the ``Property`` attributes of ``T``.
+
+::
+
+    type PropsOnly[T] = list[
+        NewProtocol[
+            *[
+                Member[GetName[p], PointerArg[GetType[p]]]
+                for p in Iter[Attrs[T]]
+                if IsSub[GetType[p], Property]
+            ]
+        ]
+    ]
+
+The full test is `in our test suite <#qb-test_>`_.
+
+
+Automatically deriving FastAPI CRUD models
+------------------------------------------
+
+We have a more `fully-worked example <#fastapi-test_>`_ in our test
+suite, but here is a possible implementation of just ``Public``::
+
+    # Extract the default type from an Init field.
+    # If it is a Field, then we try pulling out the "default" field,
+    # otherwise we return the type itself.
+    type GetDefault[Init] = (
+        GetFieldItem[Init, Literal["default"]] if IsSub[Init, Field] else Init
+    )
+
+    # Create takes everything but the primary key and preserves defaults
+    type Create[T] = NewProtocol[
+        *[
+            Member[GetName[p], GetType[p], GetQuals[p], GetDefault[GetInit[p]]]
+            for p in Iter[Attrs[T]]
+            if not IsSub[
+                Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
+            ]
+        ]
+    ]
+
+The ``Create`` type alias creates a new type (via ``NewProtocol``) by
+iterating over the attributes of the original type.  It has access to
+names, types, qualifiers, and the literal types of initializers (in
+part through new facilities to handle the extremely common
+``= Field(...)`` like pattern used here.
+
+Here, we filter out attributes that have ``primary_key=True`` in their
+``Field`` as well as extracting default arguments (which may be either
+from a ``default`` argument to a field or specified directly as an
+initializer).
+
+
+.. _init-impl:
+
+dataclasses-style method generation
+-----------------------------------
+
+::
+
+    # Generate the Member field for __init__ for a class
+    type InitFnType[T] = Member[
+        Literal["__init__"],
+        Callable[
+            [
+                Param[Literal["self"], Self],
+                *[
+                    Param[
+                        GetName[p],
+                        GetType[p],
+                        # All arguments are keyword-only
+                        # It takes a default if a default is specified in the class
+                        Literal["keyword"]
+                        if IsSub[
+                            GetDefault[GetInit[p]],
+                            Never,
+                        ]
+                        else Literal["keyword", "default"],
+                    ]
+                    for p in Iter[Attrs[T]]
+                ],
+            ],
+            None,
+        ],
+        Literal["ClassVar"],
+    ]
+    type AddInit[T] = NewProtocol[
+        InitFnType[T],
+        *[x for x in Iter[Members[T]]],
+    ]
+
 
 Rationale
 =========
