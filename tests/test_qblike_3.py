@@ -3,6 +3,7 @@ import enum
 import textwrap
 
 from typing import (
+    Any,
     Callable,
     ForwardRef,
     Literal,
@@ -85,7 +86,15 @@ class Table[name: str]:
     pass
 
 
-class FieldArgs(TypedDict, total=False):
+class Field[Table, PyType]:
+    def __lt__(self, other: Any) -> Filter: ...
+
+
+type FieldTable[T] = GetArg[GetType[T], Field, Literal[0]]
+type FieldPyType[T] = GetArg[GetType[T], Field, Literal[1]]
+
+
+class ColumnArgs(TypedDict, total=False):
     primary_key: ReadOnly[bool]
     db_type: ReadOnly[DbType]
     nullable: ReadOnly[bool]
@@ -94,7 +103,7 @@ class FieldArgs(TypedDict, total=False):
     default: ReadOnly[object]
 
 
-class Field[Args: FieldArgs](InitField[Args]):
+class column[Args: ColumnArgs](InitField[Args]):
     pass
 
 
@@ -125,6 +134,10 @@ type FieldIsDefaultNone[Init] = (
     and IsSub[GetFieldItem[Init, Literal["default"], None], None]
     else Literal[False]
 )
+
+
+class Filter:
+    pass
 
 
 class Cardinality(enum.Enum):
@@ -163,13 +176,13 @@ type InitFnType[T] = Member[
                 Param[
                     GetName[p],
                     (
-                        GetType[p]
+                        FieldPyType[p]
                         if IsSub[
                             Literal[True], FieldIsRequiredForCreate[GetInit[p]]
                         ]
-                        else GetType[p] | None
+                        else FieldPyType[p] | None
                         if IsSub[Literal[True], FieldIsDefaultNone[GetInit[p]]]
-                        else GetType[p] | Default
+                        else FieldPyType[p] | Default
                     ),
                     (
                         Literal["keyword"]
@@ -192,7 +205,7 @@ type InitFnType[T] = Member[
 ]
 type AddInit[T] = NewProtocol[
     InitFnType[T],
-    *[Member[GetName[p], GetType[p], GetQuals[p]] for p in Iter[Attrs[T]]],
+    *[Member[GetName[p], FieldPyType[p], GetQuals[p]] for p in Iter[Attrs[T]]],
 ]
 
 
@@ -205,17 +218,17 @@ type Create[T] = NewProtocol[
         Member[
             GetName[p],
             (
-                GetType[p]
+                FieldPyType[p]
                 if IsSub[
                     Literal[True],
                     FieldIsRequiredForCreate[GetInit[p]],
                 ]
-                else GetType[p] | None
+                else FieldPyType[p] | None
                 if IsSub[
                     Literal[True],
                     FieldIsDefaultNone[GetInit[p]],
                 ]
-                else GetType[p] | Default
+                else FieldPyType[p] | Default
             ),
             GetQuals[p],
         ]
@@ -231,7 +244,7 @@ type Create[T] = NewProtocol[
 ]
 type Update[T] = NewProtocol[
     *[
-        Member[GetName[p], GetType[p] | NoChange, GetQuals[p]]
+        Member[GetName[p], FieldPyType[p] | NoChange, GetQuals[p]]
         for p in Iter[Attrs[T]]
         if not IsSub[
             Literal[True],
@@ -245,25 +258,31 @@ type Update[T] = NewProtocol[
 
 
 class User(Table[Literal["users"]]):
-    id: int = Field(db_type=DbInteger(), primary_key=True, autoincrement=True)
-    name: str = Field(db_type=DbString(length=50), nullable=False)
-    email: str = Field(
+    id: Field[User, int] = column(
+        db_type=DbInteger(), primary_key=True, autoincrement=True
+    )
+    name: Field[User, str] = column(
+        db_type=DbString(length=150), nullable=False
+    )
+    email: Field[User, str] = column(
         db_type=DbString(length=100), unique=True, nullable=False
     )
-    age: int | None = Field(db_type=DbInteger())
-    active: bool = Field(db_type=DbBoolean(), default=True)
-    posts: list[Post] = Field(
-        db_type=DbLinkSource(
-            source=ForwardRef("Post"), cardinality=Cardinality.MANY
-        )
+    age: Field[User, int | None] = column(db_type=DbInteger())
+    active: Field[User, bool] = column(db_type=DbBoolean(), default=True)
+    posts: Field[User, list[Post]] = column(
+        db_type=DbLinkSource(source="Post", cardinality=Cardinality.MANY)
     )
 
 
 class Post(Table[Literal["posts"]]):
-    id: int = Field(db_type=DbInteger(), primary_key=True, autoincrement=True)
-    content: str = Field(db_type=DbString(length=1000), nullable=False)
-    author: User = Field(
-        db_type=DbLinkTarget(target=ForwardRef("User")), nullable=False
+    id: Field[Post, int] = column(
+        db_type=DbInteger(), primary_key=True, autoincrement=True
+    )
+    content: Field[Post, str] = column(
+        db_type=DbString(length=1000), nullable=False
+    )
+    author: Field[Post, User] = column(
+        db_type=DbLinkTarget(target="User"), nullable=False
     )
 
 
