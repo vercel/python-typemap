@@ -24,19 +24,26 @@ different conditions of Python typing.
 Motivation
 ==========
 
-Python has a gradual type system, but at the heart of it is a fairly
-conventional and tame static type system (apart from untagged union
-types and type narrowing, which are common in gradual type systems but
-not in traditional static ones).  In Python as a language, on the
-other hand, it is not unusual to perform complex metaprogramming,
-especially at the library layer.
+Python has a gradual type system, but at the heart of it is a *fairly*
+conventional static type system.
 
-Typically, type safety is lost when doing these sorts of things. Some
-libraries come with custom mypy plugins, and a special-case
-``@dataclass_transform`` decorator was added specifically to cover the
-case of dataclass-like transformations (:pep:`PEP 681 <681>`).
+In Python as a language, on the other hand, it is not unusual to
+perform complex metaprogramming, especially in libraries and
+frameworks. The type system typically cannot model metaprogramming.
 
-Examples: pydantic/fastapi, dataclasses, sqlalchemy
+To bridge the gap between metaprogramming and the type
+system, some libraries come with custom mypy plugins (though then
+other typechecker suffer). The case of dataclass-like transformations
+was considered common enough that a special-case
+``@dataclass_transform`` decorator was added specifically to cover
+that case (:pep:`PEP 681 <681>`).
+
+We are proposing to add to the type system type manipulation
+facilities that are more capable of keeping up with dynamic Python
+code.
+
+We will present a few examples of problems that could be solved with
+more powerful type manipulation.
 
 Prisma-style ORMs
 -----------------
