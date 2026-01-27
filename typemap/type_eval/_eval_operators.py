@@ -704,7 +704,7 @@ def _get_raw_args(tp, base_head, ctx) -> typing.Any:
 
     if tp_head is base_head:
         args = typing.get_args(evaled)
-        if _is_method_like(tp):
+        if _is_method_like(tp) and base_head is not GenericCallable:
             args = _fix_callable_args(base_head, args)
 
         return args
