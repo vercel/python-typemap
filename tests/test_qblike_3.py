@@ -19,7 +19,6 @@ from typemap.typing import (
     GetArg,
     GetAttr,
     GetName,
-    GetQuals,
     GetType,
     GetInit,
     InitField,
@@ -73,6 +72,7 @@ type ReplaceNever[T, D] = T if not IsSub[T, Never] else D
 type GetInitFieldItem[T: InitField, K, Default] = ReplaceNever[
     GetAttr[GetArg[T, InitField, Literal[0]], K], Default
 ]
+type TypeName[T] = Literal[T.__name__]
 
 
 # Database Types
@@ -100,12 +100,13 @@ class Table[name: str]:
     pass
 
 
-class Field[Table, PyType]:
+class Field[Table, Name, PyType]:
     def __lt__(self, other: Any) -> Filter[Table]: ...
 
 
-type FieldTable[T] = GetArg[GetType[T], Field, Literal[0]]
-type FieldPyType[T] = GetArg[GetType[T], Field, Literal[1]]
+type FieldTable[T] = GetArg[T, Field, Literal[0]]
+type FieldName[T] = GetArg[T, Field, Literal[1]]
+type FieldPyType[T] = GetArg[T, Field, Literal[2]]
 
 
 class ColumnArgs(TypedDict, total=False):
@@ -133,13 +134,13 @@ type ColumnInitHasDefault[Init] = (
     else Literal[False]
 )
 
-type FieldValueNeverNull[F, C] = (
+type ReadValueNeverNull[M] = (
     Literal[True]
-    if not IsSub[Literal[True], ColumnInitIsNullable[C]]
-    or IsSub[Literal[True], ColumnInitIsAutoincrement[C]]
+    if not IsSub[Literal[True], ColumnInitIsNullable[GetInit[M]]]
+    or IsSub[Literal[True], ColumnInitIsAutoincrement[GetInit[M]]]
     or (
-        IsSub[FieldPyType[F], list]
-        and IsSub[GetArg[FieldPyType[F], list, Literal[0]], Table]
+        IsSub[FieldPyType[GetType[M]], list]
+        and IsSub[GetArg[FieldPyType[GetType[M]], list, Literal[0]], Table]
     )
     else Literal[False]
 )
@@ -175,119 +176,194 @@ class DbLinkSource[Args: DbLinkSourceArgs](InitField[Args]):
 # Query Types
 
 
-type Select[T] = NewProtocol[
+type QueryEntry[T: Table, FieldNames: tuple[Literal[str], ...]] = tuple[
+    T, FieldNames
+]
+type EntryTable[E: QueryEntry] = GetArg[E, tuple, Literal[0]]
+type EntryFields[E: QueryEntry] = GetArg[E, tuple, Literal[1]]
+
+type EntryFieldMembers[E: QueryEntry] = tuple[
+    *[
+        m
+        for m in Iter[Attrs[EntryTable[E]]]
+        if any(IsSub[GetName[m], f] for f in Iter[EntryFields[E]])
+    ]
+]
+
+type EntryIsTable[E: QueryEntry, T: Table] = (
+    Literal[True]
+    if IsSub[EntryTable[E], T] and IsSub[T, EntryTable[E]]
+    else Literal[False]
+)
+type EntriesHasTable[Es: tuple[QueryEntry, ...], T: Table] = (
+    Literal[True]
+    if any(IsSub[Literal[True], EntryIsTable[e, T]] for e in Iter[Es])
+    else Literal[False]
+)
+
+type MakeQueryEntryAllFields[T: Table] = QueryEntry[
+    T,
+    tuple[*[GetName[m] for m in Iter[Attrs[T]] if IsSub[GetType[m], Field]],],
+]
+type MakeQueryEntryNamedFields[
+    T: Table,
+    FieldNames: tuple[Literal[str], ...],
+] = QueryEntry[
+    T,
+    tuple[
+        *[
+            GetName[m]
+            for m in Iter[Attrs[T]]
+            if IsSub[GetType[m], Field]
+            and any(IsSub[FieldName[GetType[m]], f] for f in Iter[FieldNames])
+        ],
+    ],
+]
+
+type AddTable[Entries, New: Table] = tuple[
+    *[  # Existing entries
+        (
+            e
+            if not IsSub[Literal[True], EntryIsTable[e, New]]
+            else MakeQueryEntryAllFields[New]
+        )
+        for e in Iter[Entries]
+    ],
+    *(  # Add entries if not present
+        []
+        if IsSub[Literal[True], EntriesHasTable[Entries, New]]
+        else [MakeQueryEntryAllFields[New]]
+    ),
+]
+type AddField[Entries, New: Field] = tuple[
+    *[  # Existing entries
+        (
+            e  # Non-matching entry
+            if not IsSub[Literal[True], EntryIsTable[e, FieldTable[New]]]
+            else MakeQueryEntryNamedFields[
+                EntryTable[e],
+                tuple[*[f for f in Iter[EntryFields[e]]], FieldName[New]],
+            ]
+        )
+        for e in Iter[Entries]
+    ],
+    *(  # Add entries if not present
+        []
+        if IsSub[Literal[True], EntriesHasTable[Entries, FieldTable[New]]]
+        else [QueryEntry[FieldTable[New], tuple[FieldName[New]]]]
+    ),
+]
+type AddEntries[Entries, News: tuple[Table | Field, ...]] = (
+    Entries
+    if IsSub[Length[News], Literal[0]]
+    else AddEntries[
+        (
+            AddTable[Entries, GetArg[News, tuple, Literal[0]]]
+            if IsSub[GetArg[News, tuple, Literal[0]], Table]
+            else AddField[Entries, GetArg[News, tuple, Literal[0]]]
+        ),
+        tuple[*([n for n in Iter[News]][1:])],
+    ]
+)
+type UniqueEntries[Entries] = AddEntries[tuple[()], Entries]
+
+
+def select[*Es](
+    *entity: Unpack[Es],
+) -> Query[UniqueEntries[tuple[*[e for e in Iter[Es]]]]]: ...
+
+
+class Query[Es: tuple[QueryEntry[Table, tuple[Member]], ...]]:
+    pass
+
+
+type Select[E] = NewProtocol[
     *[
         Member[
-            GetName[p],
+            GetName[m],
             (
-                FieldPyType[p]
+                FieldPyType[GetType[m]]
                 if IsSub[
                     Literal[True],
-                    FieldValueNeverNull[GetType[p], GetInit[p]],
+                    ReadValueNeverNull[m],
                 ]
-                else FieldPyType[p] | None
+                else FieldPyType[GetType[m]] | None
             ),
-            GetQuals[p],
         ]
-        for p in Iter[Attrs[T]]
+        for m in Iter[EntryFieldMembers[E]]
     ],
 ]
 
 
-type AddTable[Tables, New] = (
-    Tables
-    if any(IsSub[t, New] and IsSub[New, t] for t in Iter[Tables])
-    else tuple[*[t for t in Iter[Tables]], New]
-)
-type AddTables[Tables, News] = (
-    Tables
-    if IsSub[Length[News], Literal[0]]
-    else AddTables[
-        AddTable[Tables, GetArg[News, tuple, Literal[0]]],
-        tuple[*([n for n in Iter[News]][1:])],
-    ]
-)
-type UniqueTables[Tables] = AddTables[tuple[()], Tables]
-
-
-def select[*E](
-    *entity: Unpack[E],
-) -> Query[UniqueTables[tuple[*[e for e in Iter[E]]]]]: ...
-
-
-class Query[E: tuple[type[Table], ...]]:
-    pass
-
-
-type QueryRow[E: tuple[type[Table], ...]] = (
-    Select[GetArg[E, tuple, Literal[0]]]
-    if IsSub[Literal[1], Length[E]]
+type QueryRow[Es: tuple[QueryEntry[Table, tuple[Member]], ...]] = (
+    Select[GetArg[Es, tuple, Literal[0]]]
+    if IsSub[Literal[1], Length[Es]]
     else NewProtocol[
         *[
             Member[
-                Literal[e.__name__],
+                TypeName[EntryTable[e]],
                 Select[e],
             ]
-            for e in Iter[E]
+            for e in Iter[Es]
         ]
     ]
 )
 
 
 class Session:
-    def execute[E: tuple[type[Table], ...]](
-        self, query: Query[E]
-    ) -> list[QueryRow[E]]: ...
+    def execute[Es: tuple[type[Table], ...]](
+        self, query: Query[Es]
+    ) -> list[QueryRow[Es]]: ...
 
 
 # Application Types
 
 
 class User(Table[Literal["users"]]):
-    id: Field[User, int] = column(
+    id: Field[User, Literal["id"], int] = column(
         db_type=DbInteger(), primary_key=True, autoincrement=True
     )
-    name: Field[User, str] = column(
+    name: Field[User, Literal["name"], str] = column(
         db_type=DbString(length=150), nullable=False
     )
-    email: Field[User, str] = column(
+    email: Field[User, Literal["email"], str] = column(
         db_type=DbString(length=100), unique=True, nullable=False
     )
-    age: Field[User, int | None] = column(db_type=DbInteger())
-    active: Field[User, bool] = column(
+    age: Field[User, Literal["age"], int | None] = column(db_type=DbInteger())
+    active: Field[User, Literal["active"], bool] = column(
         db_type=DbBoolean(), default=True, nullable=False
     )
-    posts: Field[User, list[Post]] = column(
+    posts: Field[User, Literal["posts"], list[Post]] = column(
         db_type=DbLinkSource(source="Post", cardinality=Cardinality.MANY)
     )
 
 
 class Post(Table[Literal["posts"]]):
-    id: Field[Post, int] = column(
+    id: Field[Post, Literal["id"], int] = column(
         db_type=DbInteger(), primary_key=True, autoincrement=True
     )
-    content: Field[Post, str] = column(
+    content: Field[Post, Literal["content"], str] = column(
         db_type=DbString(length=1000), nullable=False
     )
-    author: Field[Post, User] = column(
+    author: Field[Post, Literal["author"], User] = column(
         db_type=DbLinkTarget(target=User), nullable=False
     )
-    comments: Field[Post, list[Comment]] = column(
+    comments: Field[Post, Literal["comments"], list[Comment]] = column(
         db_type=DbLinkSource(source="Comment", cardinality=Cardinality.MANY)
     )
 
 
 class Comment(Table[Literal["comments"]]):
-    id: Field[Comment, int] = column(
+    id: Field[Comment, Literal["id"], int] = column(
         db_type=DbInteger(), primary_key=True, autoincrement=True
     )
-    content: Field[Comment, str] = column(
+    content: Field[Comment, Literal["content"], str] = column(
         db_type=DbString(length=1000), nullable=False
     )
-    author: Field[Comment, User] = column(
+    author: Field[Comment, Literal["author"], User] = column(
         db_type=DbLinkTarget(target=User), nullable=False
     )
-    post: Field[Comment, Post] = column(
+    post: Field[Comment, Literal["post"], Post] = column(
         db_type=DbLinkTarget(target=Post), nullable=False
     )
 
@@ -295,20 +371,24 @@ class Comment(Table[Literal["comments"]]):
 # Tests
 
 
+type AttrNames[T] = tuple[*[GetName[f] for f in Iter[Attrs[T]]]]
+
+
 def test_qblike_3_select_01():
     # select(User)
     query = eval_call_with_types(select, User)
-    fmt = format_helper.format_class(query)
 
+    fmt = format_helper.format_class(query)
     assert fmt == textwrap.dedent("""\
-        class Query[tuple[tests.test_qblike_3.User]]:
+        class Query[tuple[tuple[tests.test_qblike_3.User, tuple[typing.Literal['id'], typing.Literal['name'], typing.Literal['email'], typing.Literal['age'], typing.Literal['active'], typing.Literal['posts']]]]]:
     """)
 
     results = eval_call_with_types(Session.execute, Session, query)
     result = eval_typing(GetArg[results, list, Literal[0]])
+
     fmt = format_helper.format_class(result)
     assert fmt == textwrap.dedent("""\
-        class Select[tests.test_qblike_3.User]:
+        class Select[tuple[tests.test_qblike_3.User, tuple[typing.Literal['id'], typing.Literal['name'], typing.Literal['email'], typing.Literal['age'], typing.Literal['active'], typing.Literal['posts']]]]:
             id: int
             name: str
             email: str
@@ -321,17 +401,18 @@ def test_qblike_3_select_01():
 def test_qblike_3_select_02():
     # select(User, User)
     query = eval_call_with_types(select, User, User)
-    fmt = format_helper.format_class(query)
 
+    fmt = format_helper.format_class(query)
     assert fmt == textwrap.dedent("""\
-        class Query[tuple[tests.test_qblike_3.User]]:
+        class Query[tuple[tuple[tests.test_qblike_3.User, tuple[typing.Literal['id'], typing.Literal['name'], typing.Literal['email'], typing.Literal['age'], typing.Literal['active'], typing.Literal['posts']]]]]:
     """)
 
     results = eval_call_with_types(Session.execute, Session, query)
     result = eval_typing(GetArg[results, list, Literal[0]])
+
     fmt = format_helper.format_class(result)
     assert fmt == textwrap.dedent("""\
-        class Select[tests.test_qblike_3.User]:
+        class Select[tuple[tests.test_qblike_3.User, tuple[typing.Literal['id'], typing.Literal['name'], typing.Literal['email'], typing.Literal['age'], typing.Literal['active'], typing.Literal['posts']]]]:
             id: int
             name: str
             email: str
@@ -344,25 +425,22 @@ def test_qblike_3_select_02():
 def test_qblike_3_select_03():
     # select(User, Post)
     query = eval_call_with_types(select, User, Post)
-    fmt = format_helper.format_class(query)
 
+    fmt = format_helper.format_class(query)
     assert fmt == textwrap.dedent("""\
-        class Query[tuple[tests.test_qblike_3.User, tests.test_qblike_3.Post]]:
+        class Query[tuple[tuple[tests.test_qblike_3.User, tuple[typing.Literal['id'], typing.Literal['name'], typing.Literal['email'], typing.Literal['age'], typing.Literal['active'], typing.Literal['posts']]], tuple[tests.test_qblike_3.Post, tuple[typing.Literal['id'], typing.Literal['content'], typing.Literal['author'], typing.Literal['comments']]]]]:
     """)
 
     results = eval_call_with_types(Session.execute, Session, query)
     result = eval_typing(GetArg[results, list, Literal[0]])
-    fmt = format_helper.format_class(result)
-    assert fmt == textwrap.dedent("""\
-        class QueryRow[tuple[tests.test_qblike_3.User, tests.test_qblike_3.Post]]:
-            User: tests.test_qblike_3.Select[tests.test_qblike_3.User]
-            Post: tests.test_qblike_3.Select[tests.test_qblike_3.Post]
-    """)
+
+    result_names = eval_typing(AttrNames[result])
+    assert result_names == tuple[Literal["User"], Literal["Post"]]
 
     result_user = eval_typing(GetAttr[result, Literal["User"]])
     fmt = format_helper.format_class(result_user)
     assert fmt == textwrap.dedent("""\
-        class Select[tests.test_qblike_3.User]:
+        class Select[tuple[tests.test_qblike_3.User, tuple[typing.Literal['id'], typing.Literal['name'], typing.Literal['email'], typing.Literal['age'], typing.Literal['active'], typing.Literal['posts']]]]:
             id: int
             name: str
             email: str
@@ -374,9 +452,103 @@ def test_qblike_3_select_03():
     result_post = eval_typing(GetAttr[result, Literal["Post"]])
     fmt = format_helper.format_class(result_post)
     assert fmt == textwrap.dedent("""\
-        class Select[tests.test_qblike_3.Post]:
+        class Select[tuple[tests.test_qblike_3.Post, tuple[typing.Literal['id'], typing.Literal['content'], typing.Literal['author'], typing.Literal['comments']]]]:
             id: int
             content: str
             author: tests.test_qblike_3.User
             comments: list[tests.test_qblike_3.Comment]
+    """)
+
+
+def test_qblike_3_select_04():
+    # select(User.name)
+    user_name = eval_typing(GetAttr[User, Literal["name"]])
+    query = eval_call_with_types(select, user_name)
+
+    fmt = format_helper.format_class(query)
+    assert fmt == textwrap.dedent("""\
+        class Query[tuple[tuple[tests.test_qblike_3.User, tuple[typing.Literal['name']]]]]:
+    """)
+
+    results = eval_call_with_types(Session.execute, Session, query)
+    result = eval_typing(GetArg[results, list, Literal[0]])
+
+    fmt = format_helper.format_class(result)
+    assert fmt == textwrap.dedent("""\
+        class Select[tuple[tests.test_qblike_3.User, tuple[typing.Literal['name']]]]:
+            name: str
+    """)
+
+
+def test_qblike_3_select_05():
+    # select(User.name, User.name)
+    user_name = eval_typing(GetAttr[User, Literal["name"]])
+    query = eval_call_with_types(select, user_name, user_name)
+
+    fmt = format_helper.format_class(query)
+    assert fmt == textwrap.dedent("""\
+        class Query[tuple[tuple[tests.test_qblike_3.User, tuple[typing.Literal['name']]]]]:
+    """)
+
+    results = eval_call_with_types(Session.execute, Session, query)
+    result = eval_typing(GetArg[results, list, Literal[0]])
+
+    fmt = format_helper.format_class(result)
+    assert fmt == textwrap.dedent("""\
+        class Select[tuple[tests.test_qblike_3.User, tuple[typing.Literal['name']]]]:
+            name: str
+    """)
+
+
+def test_qblike_3_select_06():
+    # select(User.name, User.email)
+    user_name = eval_typing(GetAttr[User, Literal["name"]])
+    user_email = eval_typing(GetAttr[User, Literal["email"]])
+    query = eval_call_with_types(select, user_name, user_email)
+
+    fmt = format_helper.format_class(query)
+    assert fmt == textwrap.dedent("""\
+        class Query[tuple[tuple[tests.test_qblike_3.User, tuple[typing.Literal['name'], typing.Literal['email']]]]]:
+    """)
+
+    results = eval_call_with_types(Session.execute, Session, query)
+    result = eval_typing(GetArg[results, list, Literal[0]])
+
+    fmt = format_helper.format_class(result)
+    assert fmt == textwrap.dedent("""\
+        class Select[tuple[tests.test_qblike_3.User, tuple[typing.Literal['name'], typing.Literal['email']]]]:
+            name: str
+            email: str
+    """)
+
+
+def test_qblike_3_select_07():
+    # select(User.name, Post.content)
+    user_name = eval_typing(GetAttr[User, Literal["name"]])
+    post_content = eval_typing(GetAttr[Post, Literal["content"]])
+    query = eval_call_with_types(select, user_name, post_content)
+
+    fmt = format_helper.format_class(query)
+    assert fmt == textwrap.dedent("""\
+        class Query[tuple[tuple[tests.test_qblike_3.User, tuple[typing.Literal['name']]], tuple[tests.test_qblike_3.Post, tuple[typing.Literal['content']]]]]:
+    """)
+
+    results = eval_call_with_types(Session.execute, Session, query)
+    result = eval_typing(GetArg[results, list, Literal[0]])
+
+    result_names = eval_typing(AttrNames[result])
+    assert result_names == tuple[Literal["User"], Literal["Post"]]
+
+    result_user = eval_typing(GetAttr[result, Literal["User"]])
+    fmt = format_helper.format_class(result_user)
+    assert fmt == textwrap.dedent("""\
+        class Select[tuple[tests.test_qblike_3.User, tuple[typing.Literal['name']]]]:
+            name: str
+    """)
+
+    result_post = eval_typing(GetAttr[result, Literal["Post"]])
+    fmt = format_helper.format_class(result_post)
+    assert fmt == textwrap.dedent("""\
+        class Select[tuple[tests.test_qblike_3.Post, tuple[typing.Literal['content']]]]:
+            content: str
     """)
