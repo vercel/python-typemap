@@ -134,9 +134,6 @@ which would have return type ``list[<User>]`` where::
 (Example code for implementing this :ref:`below <qb-impl>`.)
 
 
-
-.. _fastapi-impl:
-
 Automatically deriving FastAPI CRUD models
 ------------------------------------------
 
@@ -819,6 +816,8 @@ contains all the ``Property`` attributes of ``T``.
 
 The full test is `in our test suite <#qb-test_>`_.
 
+
+.. _fastapi-impl:
 
 Automatically deriving FastAPI CRUD models
 ------------------------------------------
