@@ -219,15 +219,20 @@ Those types, evaluated, would look something like::
 
 
 
-While the implementation of ``Public``, ``Create``, and ``Update``
-(presented in the next subsection) are certainly more complex than
-duplicating code would be, they perform quite mechanical operations
-and could be included in the framework library.
+While the implementation of ``Public``, ``Create``, and ``Update`` are
+certainly more complex than duplicating code would be, they perform
+quite mechanical operations and could be included in the framework
+library.
 
 A notable feature of this use case is that it **depends on performing
 runtime evaluation of the type annotations**. FastAPI uses the
 Pydantic models to validate and convert to/from JSON for both input
 and output from endpoints.
+
+Currently it is possible to do the runtime half of this: we could write
+functions that generate Pydantic models at runtime based on whatever
+rules we wished. But this is unsatisfying, because we would not be
+able to properly statically typecheck the functions.
 
 (Example code for implementing this :ref:`below <fastapi-impl>`.)
 
