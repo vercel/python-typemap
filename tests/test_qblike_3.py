@@ -127,7 +127,7 @@ class DbString:
     length: int
 
 
-type DbType = DbInteger | DbString
+type DbType = DbBoolean | DbInteger | DbString | DbLinkTarget | DbLinkSource
 
 
 class Table[name: str]:
