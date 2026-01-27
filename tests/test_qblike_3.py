@@ -34,7 +34,7 @@ from . import format_helper
 """
 An example of a SQL-Alchemy like ORM.
 
-The User and Post classes model a SQLite schema:
+The User, Post, and Comment classes model a SQLite schema:
 ```
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +61,41 @@ CREATE TABLE comments (
 );
 ```
 
-Protocols are generated using AddInit[T], Create[T], and Update[T].
+Users can query using the `select` function, which generates a `Query` object
+with the specified tables and fields.
+
+Users can then execute the query using `Session.execute`, which returns a
+list of `QueryRow` objects.
+
+If a single table is selected, the `QueryRow` object will contain the selected
+fields.
+
+For example, `select(User)` will return a list of:
+
+    class Select[User, tuple[...]]:
+        id: int
+        name: str
+        email: str
+        age: int | None
+        active: bool
+        posts: list[Post]
+
+If multiple tables are selected, the `QueryRow` object will contain a field for
+each table, which in turn contains the selected fields.
+
+For example, `select(User.name, Post.content)` will return a list of:
+
+    class QueryRow[...]:
+        User: Select[User, tuple[...]]]:
+        Post: Select[Post, tuple[...]]]:
+
+    where,
+
+    class Select[User, tuple[...]]:
+        name: str
+
+    class Select[Post, tuple[...]]:
+        content: str
 """
 
 
