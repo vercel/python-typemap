@@ -285,8 +285,15 @@ def _eval_AnyOf(*tp, ctx):
 @type_eval.register_evaluator(_BoolLiteral)
 @_lift_evaluated
 def _eval_BoolLiteral(tp, *, ctx):
+    from typemap.typing import _BoolLiteralGenericAlias
+
     if isinstance(tp, type):
         raise TypeError(f"Expected literal type, got '{tp.__name__}'")
+
+    # If already wrapped, just return it
+    if isinstance(tp, _BoolLiteralGenericAlias):
+        return tp
+
     return _BoolLiteral[tp]
 
 

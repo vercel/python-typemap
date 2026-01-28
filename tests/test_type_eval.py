@@ -1001,6 +1001,13 @@ def test_never_is():
     assert d == _BoolLiteral[True]
 
 
+def test_eval_list_is_sub_01():
+    d = eval_typing(list[IsSub[int, str]])
+    assert d == list[_BoolLiteral[False]]
+    d = eval_typing(list[not IsSub[int, str]])
+    assert d == list[_BoolLiteral[True]]
+
+
 def test_matches_01():
     d = eval_typing(Matches[int, int])
     assert d == _BoolLiteral[True]

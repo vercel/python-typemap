@@ -182,16 +182,6 @@ def eval_typing(obj: typing.Any):
         result = _eval_types(obj, ctx)
         if not isinstance(result, list) and result in ctx.known_recursive_types:
             result = ctx.known_recursive_types[result]
-
-        if isinstance(result, bool):
-            # Wrap a boolean result with _BoolLiteral
-            # This is because `not` calls `__bool__` first so a boolean
-            # expression like `not _BoolLiteral[True]` will result `False`,
-            # not `_BoolLiteral[False]` as we want.
-            import typemap.typing as nt
-
-            result = nt._BoolLiteral[result]
-
         return result
 
 
@@ -256,6 +246,15 @@ def _eval_types(obj: typing.Any, ctx: EvalContext):
         # keep those results as they are already "consistent".
         ctx.resolved |= {x: x for x in child_ctx.known_recursive_types.keys()}
         ctx.known_recursive_types |= child_ctx.known_recursive_types
+
+    if isinstance(evaled, bool):
+        # Wrap a boolean result with _BoolLiteral
+        # This is because `not` calls `__bool__` first so a boolean
+        # expression like `not _BoolLiteral[True]` will result `False`,
+        # not `_BoolLiteral[False]` as we want.
+        import typemap.typing as nt
+
+        evaled = nt._BoolLiteral[evaled]
 
     # Don't cache iterators as they are stateful and can only be consumed once.
     # This is important for Iter results that may be used multiple times.
