@@ -34,6 +34,7 @@ from typemap.typing import (
     IsSub,
     Iter,
     Length,
+    Matches,
     Member,
     Members,
     NewProtocol,
@@ -998,6 +999,99 @@ def test_uppercase_never():
 def test_never_is():
     d = eval_typing(IsSub[Never, Never])
     assert d == _LiteralGeneric[True]
+
+
+def test_matches_01():
+    d = eval_typing(Matches[int, int])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(Matches[int, str])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(Matches[str, int])
+    assert d == _LiteralGeneric[False]
+
+
+def test_matches_02():
+    class A:
+        pass
+
+    class B(A):
+        pass
+
+    class C(B):
+        pass
+
+    class D(A):
+        pass
+
+    class X:
+        pass
+
+    d = eval_typing(Matches[A, A])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(Matches[A, B])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[B, A])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[B, C])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[C, B])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[C, D])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[D, C])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(Matches[A, X])
+    assert d == _LiteralGeneric[False]
+
+
+def test_matches_03():
+    class A[T]:
+        pass
+
+    class B[T](A[T]):
+        pass
+
+    class C(B[int]):
+        pass
+
+    class D(A[str]):
+        pass
+
+    class X:
+        pass
+
+    d = eval_typing(Matches[A[int], A[int]])
+    assert d == _LiteralGeneric[True]
+    d = eval_typing(Matches[A[int], A[str]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(Matches[A[int], B[int]])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[B[int], A[int]])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[A[int], B[str]])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[B[str], A[int]])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[B[int], C])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[C, B[int]])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[B[str], C])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[C, B[str]])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[C, D])
+    assert d == _LiteralGeneric[False]
+    d = eval_typing(Matches[D, C])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(Matches[A[int], X])
+    assert d == _LiteralGeneric[False]
 
 
 def test_eval_iter_01():
