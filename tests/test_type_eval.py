@@ -19,6 +19,7 @@ import pytest
 
 from typemap.type_eval import eval_typing
 from typemap.typing import (
+    AllOf,
     AnyOf,
     Attrs,
     Bool,
@@ -1097,6 +1098,77 @@ def test_eval_bool_05():
     assert d == Literal[True]
 
     d = eval_typing(IsIntLiteral[str])
+    assert d == Literal[False]
+
+
+def test_eval_all_01():
+    d = eval_typing(AllOf[()])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(AllOf[_LiteralGeneric[True]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(AllOf[_LiteralGeneric[False]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(AllOf[_LiteralGeneric[True], _LiteralGeneric[True]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(AllOf[_LiteralGeneric[True], _LiteralGeneric[False]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(AllOf[_LiteralGeneric[False], _LiteralGeneric[True]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(AllOf[_LiteralGeneric[False], _LiteralGeneric[False]])
+    assert d == _LiteralGeneric[False]
+
+
+def test_eval_all_02():
+    d = eval_typing(AllOf[Literal[True], Literal[True]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(AllOf[Literal[True], Literal[False]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(AllOf[Literal[False], Literal[True]])
+    assert d == _LiteralGeneric[False]
+
+
+type ContainsAllInt[Ts] = AllOf[*[IsSub[t, int] for t in Iter[Ts]]]
+type ContainsAllIntToLiteral[Ts] = (
+    Literal[True] if Bool[ContainsAllInt[Ts]] else Literal[False]
+)
+
+
+def test_eval_all_03():
+    d = eval_typing(ContainsAllInt[tuple[()]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(ContainsAllInt[tuple[int]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(ContainsAllInt[tuple[str]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(ContainsAllInt[tuple[int, int]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(ContainsAllInt[tuple[int, str]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(ContainsAllInt[tuple[str, str]])
+    assert d == _LiteralGeneric[False]
+
+
+def test_eval_all_04():
+    d = eval_typing(ContainsAllIntToLiteral[tuple[()]])
+    assert d == Literal[True]
+
+    d = eval_typing(ContainsAllIntToLiteral[tuple[int]])
+    assert d == Literal[True]
+
+    d = eval_typing(ContainsAllIntToLiteral[tuple[str]])
     assert d == Literal[False]
 
 

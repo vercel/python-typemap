@@ -227,6 +227,11 @@ def Bool(self, tp):
 
 
 @_SpecialForm
+def AllOf(self, tp):
+    return _BoolGenericAlias(self, tp)
+
+
+@_SpecialForm
 def AnyOf(self, tp):
     return _BoolGenericAlias(self, tp)
 

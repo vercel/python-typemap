@@ -16,6 +16,7 @@ from typemap.type_eval._eval_typing import (
     _get_class_type_hint_namespaces,
 )
 from typemap.typing import (
+    AllOf,
     AnyOf,
     Attrs,
     Bool,
@@ -258,6 +259,12 @@ def _eval_bool_tp(tp):
 @_lift_evaluated
 def _eval_Bool(tp, *, ctx):
     return _eval_bool_tp(tp)
+
+
+@type_eval.register_evaluator(AllOf)
+@_lift_evaluated
+def _eval_AllOf(*tp, ctx):
+    return _LiteralGeneric[all(_eval_bool_tp(tp) for tp in tp)]
 
 
 @type_eval.register_evaluator(AnyOf)
