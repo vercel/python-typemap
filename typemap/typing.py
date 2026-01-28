@@ -217,3 +217,7 @@ def IsSubSimilar(self, tps):
 
 
 IsSub = IsSubSimilar
+
+
+class _LiteralGeneric[T: bool]:
+    pass
