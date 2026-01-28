@@ -371,10 +371,10 @@ Note first that no changes to the **Python** grammar are being
 proposed, only to the grammar of what Python expressions are
 considered as valid types.
 
-(It's also slightly imprecise to call this a grammar: where operator
-names are mentioned directly, like ``IsSub``, they require that name
-to be imported, and it could also be used qualified as
-``typing.IsSub`` or imported as a different name.)
+(It's also slightly imprecise to call this a grammar:
+``<bool-operator>`` refers to any of the names defined in the
+:ref:`Boolean Operators <boolean-ops>` section, which might be
+imported qualified or with some other name)
 
 ::
 
@@ -390,17 +390,12 @@ to be imported, and it could also be used qualified as
         | <ident>[<variadic-type-arg> +]
 
    # Type conditional checks are boolean compositions of
-   # "subtype checking" and boolean Literal type checking.
+   # boolean type operators
    <type-bool> =
-         IsSub[<type>, <type>]
-       | Bool[<type>]
+         <bool-operator>[<type> +]
        | not <type-bool>
        | <type-bool> and <type-bool>
        | <type-bool> or <type-bool>
-
-       # Do we want these next two? Maybe not.
-       | Any[<variadic-type-arg> +]
-       | All[<variadic-type-arg> +]
 
    <variadic-type-arg> =
          <type> ,
@@ -415,8 +410,46 @@ to be imported, and it could also be used qualified as
          if <type-bool>
 
 
-TODO: explain conditional types and iteration
+There are three core syntactic features introduced: type booleans,
+conditional types and unpacked comprehension types.
 
+Type booleans
+'''''''''''''
+
+Type booleans are a special subset of the type language that can be
+used in the body of conditionals.  They consist of the
+:ref:`Boolean Operators <boolean-ops>`, defined below,
+potentially combined with ``and``, ``or``, and ``not``.
+
+When evaluated, they will evaluate to ``Literal[True]`` or
+``Literal[False]]``.
+
+(We want to restrict what operators may be used in a conditional
+so that at runtime, we can have those operators produce "type" values
+with appropriate behavior, without needing to change the behavior of
+existing ``Literal[False]`` values and the like.)
+
+
+Conditional types
+'''''''''''''''''
+
+The type ``true_typ if bool_typ else false_typ`` is a conditional
+type, which resolves to ``true_typ`` if ``bool_typ`` is equivalent to
+``Literal[True]`` and to ``true_typ`` otherwise.
+
+``bool_typ`` is a type, but it needs syntactically be a type boolean,
+defined above.
+
+Unpacked comprehension
+''''''''''''''''''''''
+
+An unpacked comprehension, ``*[ty for t in Iter[iter_ty]]`` may appear
+anywhere in a type that ``Unpack[...]`` is currently allowed, and it
+evaluates essentially to an ``Unpack`` of a tuple produced by a list
+comprehension iterating over the arguments of tuple type ``iter_ty``.
+
+The comprehension may also have ``if`` clauses, which filter in the
+usual way.
 
 Type operators
 --------------
@@ -425,13 +458,24 @@ In some sections below we write things like ``Literal[int]]`` to mean
 "a literal that is of type ``int``". I don't think I'm really
 proposing to add that as a notion, but we could.
 
-Boolean types
-'''''''''''''
+.. _boolean-ops:
+
+Boolean operators
+'''''''''''''''''
 
 * ``IsSub[T, S]``: What we would **want** is that it returns a boolean
   literal type indicating whether ``T`` is a subtype of ``S``.
   To support runtime checking, we probably need something weaker.
 
+* ``Bool[T]``: Returns ``Literal[True]`` if ``T`` is also
+  ``Literal[True]`` or a union containing it.
+  Equivalent to ``IsSub[T, Literal[True]] and not IsSub[T, Never]``.
+
+* ``Any[*Ts]``: Returns ``Literal[True]`` if any of ``Ts`` are true
+  (by the rule given in ``Bool``) and ``Literal[False]`` otherwise.
+
+* ``All[*Ts]``: Returns ``Literal[True]`` if all of ``Ts`` are true
+  (by the rule given in ``Bool``) and ``Literal[False]`` otherwise.
 
 Basic operators
 '''''''''''''''
