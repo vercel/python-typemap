@@ -476,7 +476,7 @@ Object inspection
 '''''''''''''''''
 
 * ``Members[T]``: produces a ``tuple`` of ``Member`` types describing
-  the members (attributes and methods) of class ``T``.
+  the members (attributes and methods) of class or typed dict ``T``.
 
   In order to allow typechecking time and runtime evaluation coincide
   more closely, **only members with explicit type annotations are included**.
@@ -495,11 +495,12 @@ Object inspection
   * ``Init`` is the literal type of the attribute initializer in the
     class (see :ref:`InitField <init-field>`)
   * ``D`` is the defining class of the member. (That is, which class
-    the member is inherited from.)
+    the member is inherited from. Always ``Never``, for a ``TypedDict``)
 
-* ``MemberQuals = Literal['ClassVar', 'Final']`` - ``MemberQuals`` is
-  the type of "qualifiers" that can apply to a member; currently
-  ``ClassVar`` and ``Final``
+* ``MemberQuals = Literal['ClassVar', 'Final', 'NotRequired, 'ReadOnly']`` -
+  ``MemberQuals`` is the type of "qualifiers" that can apply to a
+  member; currently ``ClassVar`` and ``Final`` apply to classes and
+  ``NotRequired``, and ``ReadOnly`` to typed dicts
 
 
 Methods are returned as callables using the new ``Param`` based
