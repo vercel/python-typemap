@@ -1184,7 +1184,7 @@ def test_eval_bool_04():
 
 
 type IsIntBool[T] = Bool[IsSub[T, int]]
-type IsIntLiteral[T] = Literal[True] if IsIntBool[T] else Literal[False]
+type IsIntLiteral[T] = Literal[True] if Bool[IsIntBool[T]] else Literal[False]
 
 
 def test_eval_bool_05():
@@ -1231,7 +1231,7 @@ def test_eval_all_02():
 
 type ContainsAllInt[Ts] = AllOf[*[IsSub[t, int] for t in Iter[Ts]]]
 type ContainsAllIntToLiteral[Ts] = (
-    Literal[True] if ContainsAllInt[Ts] else Literal[False]
+    Literal[True] if Bool[ContainsAllInt[Ts]] else Literal[False]
 )
 
 
@@ -1314,7 +1314,7 @@ def test_eval_any_02():
 
 type ContainsAnyInt[Ts] = AnyOf[*[IsSub[t, int] for t in Iter[Ts]]]
 type ContainsAnyIntToLiteral[Ts] = (
-    Literal[True] if ContainsAnyInt[Ts] else Literal[False]
+    Literal[True] if Bool[ContainsAnyInt[Ts]] else Literal[False]
 )
 
 
