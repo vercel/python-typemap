@@ -3,6 +3,10 @@ import typing
 from typing import Literal
 from typing import _GenericAlias  # type: ignore
 
+
+from .type_eval._wrapped_value import _BoolValue
+
+
 _SpecialForm: typing.Any = typing._SpecialForm
 
 # Not type-level computation but related
@@ -219,5 +223,5 @@ def IsSubSimilar(self, tps):
 IsSub = IsSubSimilar
 
 
-class _LiteralGeneric[T: bool]:
+class _LiteralGeneric[B: bool](_BoolValue):
     pass
