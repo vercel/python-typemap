@@ -223,5 +223,9 @@ def IsSubSimilar(self, tps):
 IsSub = IsSubSimilar
 
 
+class Bool[T: typing.Literal[True, False]]:
+    pass
+
+
 class _LiteralGeneric[B: bool](_BoolValue):
     pass
