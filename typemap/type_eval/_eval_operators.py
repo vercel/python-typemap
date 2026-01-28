@@ -239,13 +239,13 @@ def _eval_Iter(tp, *, ctx):
 @type_eval.register_evaluator(IsSubtype)
 @_lift_evaluated
 def _eval_IsSubtype(lhs, rhs, *, ctx):
-    return type_eval.issubtype(lhs, rhs)
+    return _LiteralGeneric[type_eval.issubtype(lhs, rhs)]
 
 
 @type_eval.register_evaluator(IsSubSimilar)
 @_lift_evaluated
 def _eval_IsSubSimilar(lhs, rhs, *, ctx):
-    return type_eval.issubsimilar(lhs, rhs)
+    return _LiteralGeneric[type_eval.issubsimilar(lhs, rhs)]
 
 
 @type_eval.register_evaluator(Matches)

@@ -205,7 +205,7 @@ class _IsGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
     def __bool__(self):
         evaluator = special_form_evaluator.get()
         if evaluator:
-            return evaluator(self)
+            return bool(evaluator(self))
         else:
             return False
 
