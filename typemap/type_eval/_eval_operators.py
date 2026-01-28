@@ -44,7 +44,7 @@ from typemap.typing import (
     StrSlice,
     Uncapitalize,
     Uppercase,
-    _LiteralGeneric,
+    _BoolLiteral,
 )
 
 ##################################################################
@@ -238,19 +238,19 @@ def _eval_Iter(tp, *, ctx):
 @type_eval.register_evaluator(IsSubtype)
 @_lift_evaluated
 def _eval_IsSubtype(lhs, rhs, *, ctx):
-    return _LiteralGeneric[type_eval.issubtype(lhs, rhs)]
+    return _BoolLiteral[type_eval.issubtype(lhs, rhs)]
 
 
 @type_eval.register_evaluator(IsSubSimilar)
 @_lift_evaluated
 def _eval_IsSubSimilar(lhs, rhs, *, ctx):
-    return _LiteralGeneric[type_eval.issubsimilar(lhs, rhs)]
+    return _BoolLiteral[type_eval.issubsimilar(lhs, rhs)]
 
 
 @type_eval.register_evaluator(Matches)
 @_lift_evaluated
 def _eval_Matches(lhs, rhs, *, ctx):
-    return _LiteralGeneric[
+    return _BoolLiteral[
         type_eval.issubsimilar(lhs, rhs) and type_eval.issubsimilar(rhs, lhs)
     ]
 
@@ -258,9 +258,9 @@ def _eval_Matches(lhs, rhs, *, ctx):
 def _eval_bool_tp(tp):
     if _typing_inspect.is_generic_alias(tp):
         if tp.__origin__ is typing.Literal:
-            return _LiteralGeneric[bool(tp.__args__[0])]
-        elif tp.__origin__ is _LiteralGeneric:
-            return _LiteralGeneric[bool(tp.__args__[0])]
+            return _BoolLiteral[bool(tp.__args__[0])]
+        elif tp.__origin__ is _BoolLiteral:
+            return _BoolLiteral[bool(tp.__args__[0])]
     raise TypeError(f"Expected Literal type, got {tp}")
 
 
@@ -273,21 +273,21 @@ def _eval_Bool(tp, *, ctx):
 @type_eval.register_evaluator(AllOf)
 @_lift_evaluated
 def _eval_AllOf(*tp, ctx):
-    return _LiteralGeneric[all(_eval_bool_tp(tp) for tp in tp)]
+    return _BoolLiteral[all(_eval_bool_tp(tp) for tp in tp)]
 
 
 @type_eval.register_evaluator(AnyOf)
 @_lift_evaluated
 def _eval_AnyOf(*tp, ctx):
-    return _LiteralGeneric[any(_eval_bool_tp(tp) for tp in tp)]
+    return _BoolLiteral[any(_eval_bool_tp(tp) for tp in tp)]
 
 
-@type_eval.register_evaluator(_LiteralGeneric)
+@type_eval.register_evaluator(_BoolLiteral)
 @_lift_evaluated
-def _eval_LiteralGeneric(tp, *, ctx):
+def _eval_BoolLiteral(tp, *, ctx):
     if isinstance(tp, type):
         raise TypeError(f"Expected literal type, got '{tp.__name__}'")
-    return _LiteralGeneric[tp]
+    return _BoolLiteral[tp]
 
 
 ##################################################################

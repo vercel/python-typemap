@@ -184,13 +184,13 @@ def eval_typing(obj: typing.Any):
             result = ctx.known_recursive_types[result]
 
         if isinstance(result, bool):
-            # Wrap a boolean result with _LiteralGeneric
+            # Wrap a boolean result with _BoolLiteral
             # This is because `not` calls `__bool__` first so a boolean
-            # expression like `not _LiteralGeneric[True]` will result `False`,
-            # not `_LiteralGeneric[False]` as we want.
+            # expression like `not _BoolLiteral[True]` will result `False`,
+            # not `_BoolLiteral[False]` as we want.
             import typemap.typing as nt
 
-            result = nt._LiteralGeneric[result]
+            result = nt._BoolLiteral[result]
 
         return result
 
@@ -347,6 +347,13 @@ def _eval_type_var(obj: typing.TypeVar, ctx: EvalContext):
 # do there, and doing it puts weird stuff in the caches.
 @_eval_types_impl.register
 def _eval_literal(obj: typing_LiteralGenericAlias, ctx: EvalContext):
+    from typemap.typing import _BoolLiteralGenericAlias
+
+    if isinstance(obj, _BoolLiteralGenericAlias):
+        # If this is _BoolLiteralGenericAlias, defer to the registered evaluator
+        if func := _eval_funcs.get(obj.__origin__):
+            return func(*typing.get_args(obj), ctx=ctx)
+
     return obj
 
 

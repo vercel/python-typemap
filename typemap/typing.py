@@ -1,7 +1,7 @@
 import contextvars
 import typing
 from typing import Literal
-from typing import _GenericAlias  # type: ignore
+from typing import _GenericAlias, _LiteralGenericAlias  # type: ignore
 
 _SpecialForm: typing.Any = typing._SpecialForm
 
@@ -241,11 +241,11 @@ def AnyOf(self, tp):
     return _BoolGenericAlias(self, tp)
 
 
-class _LiteralGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
+class _BoolLiteralGenericAlias(_LiteralGenericAlias, _root=True):  # type: ignore[call-arg]
     def __bool__(self):
         return typing.get_args(self)[0]
 
 
 @_SpecialForm
-def _LiteralGeneric(self, tp):
-    return _LiteralGenericAlias(self, tp)
+def _BoolLiteral(self, tp):
+    return _BoolLiteralGenericAlias(self, tp)
