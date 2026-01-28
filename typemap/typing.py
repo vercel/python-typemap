@@ -201,7 +201,9 @@ class _BoolGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
     def __bool__(self):
         evaluator = special_form_evaluator.get()
         if evaluator:
-            return evaluator(self)
+            result = evaluator(self)
+            # Unwrap _LiteralGeneric
+            return bool(result)
         else:
             return False
 
