@@ -399,10 +399,10 @@ imported qualified or with some other name)
 
    <variadic-type-arg> =
          <type> ,
-       | * <type-for-iter> ,
+       | * [ <type-for-iter> ] ,
 
 
-   <type-for> = [ <type> <type-for-iter>+ <type-for-if>* ]
+   <type-for> = <type> <type-for-iter>+ <type-for-if>*
    <type-for-iter> =
          # Iterate over a tuple type
          for <var> in Iter[<type>]
