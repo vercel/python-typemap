@@ -210,14 +210,12 @@ class _IsGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
             return False
 
 
-@_SpecialForm
-def IsSubtype(self, tps):
-    return _IsGenericAlias(self, tps)
+class IsSubtype[Lhs, Rhs]:
+    pass
 
 
-@_SpecialForm
-def IsSubSimilar(self, tps):
-    return _IsGenericAlias(self, tps)
+class IsSubSimilar[Lhs, Rhs]:
+    pass
 
 
 class Matches[Lhs, Rhs]:
