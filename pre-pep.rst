@@ -467,14 +467,19 @@ Boolean operators
   literal type indicating whether ``T`` is a subtype of ``S``.
   To support runtime checking, we probably need something weaker.
 
+  TODO: Discuss this in detail.
+
+* ``Matches[T, S]``:
+  Equivalent to ``IsSub[T, S] and IsSub[S, T]``.
+
 * ``Bool[T]``: Returns ``Literal[True]`` if ``T`` is also
   ``Literal[True]`` or a union containing it.
   Equivalent to ``IsSub[T, Literal[True]] and not IsSub[T, Never]``.
 
-* ``Any[*Ts]``: Returns ``Literal[True]`` if any of ``Ts`` are true
+* ``AnyOf[*Ts]``: Returns ``Literal[True]`` if any of ``Ts`` are true
   (by the rule given in ``Bool``) and ``Literal[False]`` otherwise.
 
-* ``All[*Ts]``: Returns ``Literal[True]`` if all of ``Ts`` are true
+* ``AllOf[*Ts]``: Returns ``Literal[True]`` if all of ``Ts`` are true
   (by the rule given in ``Bool``) and ``Literal[False]`` otherwise.
 
 Basic operators
