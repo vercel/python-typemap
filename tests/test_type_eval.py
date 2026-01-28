@@ -994,7 +994,7 @@ def test_uppercase_never():
 
 def test_never_is():
     d = eval_typing(IsSub[Never, Never])
-    assert d is True
+    assert d == _LiteralGeneric[True]
 
 
 def test_eval_iter_01():
@@ -1150,7 +1150,9 @@ def test_eval_literal_idempotent_01():
 
 
 def test_is_literal_true_vs_one():
-    assert eval_typing(IsSub[Literal[True], Literal[1]]) is False
+    assert (
+        eval_typing(IsSub[Literal[True], Literal[1]]) == _LiteralGeneric[False]
+    )
 
 
 def test_callable_to_signature_01():
@@ -1318,7 +1320,7 @@ def test_type_eval_annotated_01():
 
 def test_type_eval_annotated_02():
     res = eval_typing(IsSub[GetAttr[AnnoTest, Literal["a"]], int])
-    assert res is True
+    assert res == _LiteralGeneric[True]
 
 
 def test_type_eval_annotated_03():
