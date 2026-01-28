@@ -223,6 +223,10 @@ def IsSubSimilar(self, tps):
 IsSub = IsSubSimilar
 
 
+class AllOf[*Ts]:
+    pass
+
+
 class AnyOf[*Ts]:
     pass
 
