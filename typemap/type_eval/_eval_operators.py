@@ -38,7 +38,6 @@ from typemap.typing import (
     Slice,
     SpecialFormEllipsis,
     StrConcat,
-    StrSlice,
     Uncapitalize,
     Uppercase,
 )
@@ -905,6 +904,12 @@ def _eval_Slice(tp, start, end, *, ctx):
     end = _eval_literal(end, ctx)
     if _typing_inspect.is_generic_alias(tp) and tp.__origin__ is tuple:
         return tp.__origin__[tp.__args__[start:end]]
+    elif (
+        _typing_inspect.is_generic_alias(tp)
+        and tp.__origin__ is typing.Literal
+        and isinstance(tp.__args__[0], str)
+    ):
+        return tp.__origin__[tp.__args__[0][start:end]]
     else:
         raise TypeError(f"Invalid type argument to Slice: {tp} is not a tuple")
 
@@ -925,7 +930,6 @@ _string_literal_op(Lowercase, op=str.lower)
 _string_literal_op(Capitalize, op=str.capitalize)
 _string_literal_op(Uncapitalize, op=lambda s: s[0:1].lower() + s[1:])
 _string_literal_op(StrConcat, op=lambda s, t: s + t)
-_string_literal_op(StrSlice, op=lambda s, start, end: s[start:end])
 
 
 ##################################################################

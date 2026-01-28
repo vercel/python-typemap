@@ -38,7 +38,6 @@ from typemap.typing import (
     Slice,
     SpecialFormEllipsis,
     StrConcat,
-    StrSlice,
     Uppercase,
 )
 
@@ -241,12 +240,12 @@ def test_type_strings_4():
 
 
 def test_type_strings_5():
-    d = eval_typing(StrSlice[Literal["abcd"], Literal[0], Literal[1]])
+    d = eval_typing(Slice[Literal["abcd"], Literal[0], Literal[1]])
     assert d == Literal["a"]
 
 
 def test_type_strings_6():
-    d = eval_typing(StrSlice[Literal["abcd"], Literal[1], Literal[None]])
+    d = eval_typing(Slice[Literal["abcd"], Literal[1], Literal[None]])
     assert d == Literal["bcd"]
 
 
@@ -1058,6 +1057,20 @@ def test_eval_slice_01():
     )
     d = eval_typing(Slice[t, Literal[1], Literal[1]])
     assert d == tuple[()]
+
+
+def test_eval_slice_02():
+    t = Literal["abcde"]
+    d = eval_typing(Slice[t, Literal[1], Literal[3]])
+    assert d == Literal["bc"]
+    d = eval_typing(Slice[t, Literal[1], Literal[None]])
+    assert d == Literal["bcde"]
+    d = eval_typing(Slice[t, Literal[None], Literal[3]])
+    assert d == Literal["abc"]
+    d = eval_typing(Slice[t, Literal[None], Literal[None]])
+    assert d == Literal["abcde"]
+    d = eval_typing(Slice[t, Literal[1], Literal[1]])
+    assert d == Literal[""]
 
 
 def test_eval_literal_idempotent_01():
