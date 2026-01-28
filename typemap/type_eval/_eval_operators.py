@@ -16,6 +16,7 @@ from typemap.type_eval._eval_typing import (
     _get_class_type_hint_namespaces,
 )
 from typemap.typing import (
+    AnyOf,
     Attrs,
     Bool,
     Capitalize,
@@ -243,6 +244,12 @@ def _eval_IsSubtype(lhs, rhs, *, ctx):
 @_lift_evaluated
 def _eval_IsSubSimilar(lhs, rhs, *, ctx):
     return type_eval.issubsimilar(lhs, rhs)
+
+
+@type_eval.register_evaluator(AnyOf)
+@_lift_evaluated
+def _eval_AnyOf(*tps, ctx):
+    return _LiteralGeneric[any(_eval_bool_tp(tp) for tp in tps)]
 
 
 @type_eval.register_evaluator(Bool)

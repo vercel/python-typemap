@@ -223,6 +223,10 @@ def IsSubSimilar(self, tps):
 IsSub = IsSubSimilar
 
 
+class AnyOf[*Ts]:
+    pass
+
+
 class Bool[T: typing.Literal[True, False]]:
     pass
 
