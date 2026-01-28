@@ -147,6 +147,10 @@ class Length[S: tuple]:
     pass
 
 
+class Slice[S: str | tuple, Start: int | None, End: int | None]:
+    pass
+
+
 class Uppercase[S: str]:
     pass
 

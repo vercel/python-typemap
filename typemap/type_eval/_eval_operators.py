@@ -35,6 +35,7 @@ from typemap.typing import (
     Members,
     NewProtocol,
     Param,
+    Slice,
     SpecialFormEllipsis,
     StrConcat,
     StrSlice,
@@ -894,6 +895,18 @@ def _eval_Length(tp, *, ctx) -> typing.Any:
     else:
         # XXX: Or should we return Never?
         raise TypeError(f"Invalid type argument to Length: {tp} is not a tuple")
+
+
+@type_eval.register_evaluator(Slice)
+@_lift_over_unions
+def _eval_Slice(tp, start, end, *, ctx):
+    tp = _eval_types(tp, ctx)
+    start = _eval_literal(start, ctx)
+    end = _eval_literal(end, ctx)
+    if _typing_inspect.is_generic_alias(tp) and tp.__origin__ is tuple:
+        return tp.__origin__[tp.__args__[start:end]]
+    else:
+        raise TypeError(f"Invalid type argument to Slice: {tp} is not a tuple")
 
 
 # String literals

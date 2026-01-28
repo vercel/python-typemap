@@ -35,6 +35,7 @@ from typemap.typing import (
     Members,
     NewProtocol,
     Param,
+    Slice,
     SpecialFormEllipsis,
     StrConcat,
     StrSlice,
@@ -1041,6 +1042,22 @@ def test_eval_length_01():
 
     d = eval_typing(Length[tuple[int, ...]])
     assert d == Literal[None]
+
+
+def test_eval_slice_01():
+    t = tuple[Literal[0], Literal[1], Literal[2], Literal[3], Literal[4]]
+    d = eval_typing(Slice[t, Literal[1], Literal[3]])
+    assert d == tuple[Literal[1], Literal[2]]
+    d = eval_typing(Slice[t, Literal[1], Literal[None]])
+    assert d == tuple[Literal[1], Literal[2], Literal[3], Literal[4]]
+    d = eval_typing(Slice[t, Literal[None], Literal[3]])
+    assert d == tuple[Literal[0], Literal[1], Literal[2]]
+    d = eval_typing(Slice[t, Literal[None], Literal[None]])
+    assert (
+        d == tuple[Literal[0], Literal[1], Literal[2], Literal[3], Literal[4]]
+    )
+    d = eval_typing(Slice[t, Literal[1], Literal[1]])
+    assert d == tuple[()]
 
 
 def test_eval_literal_idempotent_01():
