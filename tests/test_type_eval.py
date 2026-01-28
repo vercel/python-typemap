@@ -39,6 +39,7 @@ from typemap.typing import (
     StrConcat,
     StrSlice,
     Uppercase,
+    _LiteralGeneric,
 )
 
 from . import format_helper
@@ -1024,6 +1025,103 @@ def test_eval_iter_02():
 
     d = eval_typing(ConcatTupleWithSelf[tuple[int, str]])
     assert d == tuple[int, str, int, str]
+
+
+type NotLiteralGeneric[T] = not T
+type AndLiteralGeneric[L, R] = L and R
+type OrLiteralGeneric[L, R] = L or R
+type LiteralGenericToLiteral[T] = Literal[True] if T else Literal[False]
+type NotLiteralGenericToLiteral[T] = Literal[True] if not T else Literal[False]
+
+
+def test_eval_literal_generic_01():
+    d = eval_typing(_LiteralGeneric[True])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(_LiteralGeneric[False])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(_LiteralGeneric[1])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(_LiteralGeneric[0])
+    assert d == _LiteralGeneric[False]
+
+
+def test_eval_literal_generic_02():
+    d = eval_typing(not _LiteralGeneric[True])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(NotLiteralGeneric[_LiteralGeneric[True]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(NotLiteralGeneric[_LiteralGeneric[False]])
+    assert d == _LiteralGeneric[True]
+
+
+def test_eval_literal_generic_03():
+    d = eval_typing(
+        AndLiteralGeneric[_LiteralGeneric[True], _LiteralGeneric[True]]
+    )
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(
+        AndLiteralGeneric[_LiteralGeneric[True], _LiteralGeneric[False]]
+    )
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(
+        AndLiteralGeneric[_LiteralGeneric[False], _LiteralGeneric[True]]
+    )
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(
+        AndLiteralGeneric[_LiteralGeneric[False], _LiteralGeneric[False]]
+    )
+    assert d == _LiteralGeneric[False]
+
+
+def test_eval_literal_generic_04():
+    d = eval_typing(
+        OrLiteralGeneric[_LiteralGeneric[True], _LiteralGeneric[True]]
+    )
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(
+        OrLiteralGeneric[_LiteralGeneric[True], _LiteralGeneric[False]]
+    )
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(
+        OrLiteralGeneric[_LiteralGeneric[False], _LiteralGeneric[True]]
+    )
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(
+        OrLiteralGeneric[_LiteralGeneric[False], _LiteralGeneric[False]]
+    )
+    assert d == _LiteralGeneric[False]
+
+
+def test_eval_literal_generic_05():
+    d = eval_typing(LiteralGenericToLiteral[_LiteralGeneric[True]])
+    assert d == Literal[True]
+
+    d = eval_typing(LiteralGenericToLiteral[_LiteralGeneric[False]])
+    assert d == Literal[False]
+
+
+def test_eval_literal_generic_06():
+    d = eval_typing(NotLiteralGenericToLiteral[_LiteralGeneric[True]])
+    assert d == Literal[False]
+
+    d = eval_typing(NotLiteralGenericToLiteral[_LiteralGeneric[False]])
+    assert d == Literal[True]
+
+
+def test_eval_literal_generic_error_01():
+    with pytest.raises(TypeError, match="Expected literal type, got 'int'"):
+        eval_typing(_LiteralGeneric[int])
 
 
 def test_eval_length_01():
