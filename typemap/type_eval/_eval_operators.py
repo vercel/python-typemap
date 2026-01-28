@@ -34,6 +34,7 @@ from typemap.typing import (
     Iter,
     Length,
     Lowercase,
+    Matches,
     Member,
     Members,
     NewProtocol,
@@ -244,6 +245,14 @@ def _eval_IsSubtype(lhs, rhs, *, ctx):
 @_lift_evaluated
 def _eval_IsSubSimilar(lhs, rhs, *, ctx):
     return _LiteralGeneric[type_eval.issubsimilar(lhs, rhs)]
+
+
+@type_eval.register_evaluator(Matches)
+@_lift_evaluated
+def _eval_Matches(lhs, rhs, *, ctx):
+    return _LiteralGeneric[
+        type_eval.issubsimilar(lhs, rhs) and type_eval.issubsimilar(rhs, lhs)
+    ]
 
 
 def _eval_bool_tp(tp):

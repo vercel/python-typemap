@@ -218,6 +218,11 @@ def IsSubSimilar(self, tps):
     return _BoolGenericAlias(self, tps)
 
 
+@_SpecialForm
+def Matches(self, tps):
+    return _BoolGenericAlias(self, tps)
+
+
 IsSub = IsSubSimilar
 
 
