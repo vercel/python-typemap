@@ -396,6 +396,8 @@ imported qualified or with some other name)
        | not <type-bool>
        | <type-bool> and <type-bool>
        | <type-bool> or <type-bool>
+       | any(<type-bool-for>)
+       | all(<type-bool-for>)
 
    <variadic-type-arg> =
          <type> ,
@@ -410,6 +412,9 @@ imported qualified or with some other name)
          if <type-bool>
 
 
+(``<type-bool-for>`` is identical to ``<type-for>`` except that the
+result type is a ``<type-bool>`` instead of a ``<type>``.)
+
 There are three core syntactic features introduced: type booleans,
 conditional types and unpacked comprehension types.
 
@@ -417,9 +422,11 @@ Type booleans
 '''''''''''''
 
 Type booleans are a special subset of the type language that can be
-used in the body of conditionals.  They consist of the
-:ref:`Boolean Operators <boolean-ops>`, defined below,
-potentially combined with ``and``, ``or``, and ``not``.
+used in the body of conditionals.  They consist of the :ref:`Boolean
+Operators <boolean-ops>`, defined below, potentially combined with
+``and``, ``or``, ``not``, ``all``, and ``any``. For ``all`` and
+``any``, the argument is a comprehension of type booleans, evaluated
+in the same was as the :ref:`unpacked comprehensions <unpacked>`.
 
 When evaluated, they will evaluate to ``Literal[True]`` or
 ``Literal[False]]``.
@@ -439,6 +446,8 @@ type, which resolves to ``true_typ`` if ``bool_typ`` is equivalent to
 
 ``bool_typ`` is a type, but it needs syntactically be a type boolean,
 defined above.
+
+.. _unpacked:
 
 Unpacked comprehension
 ''''''''''''''''''''''
@@ -476,11 +485,8 @@ Boolean operators
   ``Literal[True]`` or a union containing it.
   Equivalent to ``IsSub[T, Literal[True]] and not IsSub[T, Never]``.
 
-* ``AnyOf[*Ts]``: Returns ``Literal[True]`` if any of ``Ts`` are true
-  (by the rule given in ``Bool``) and ``Literal[False]`` otherwise.
-
-* ``AllOf[*Ts]``: Returns ``Literal[True]`` if all of ``Ts`` are true
-  (by the rule given in ``Bool``) and ``Literal[False]`` otherwise.
+  This is useful for invoking "helper aliases" that return a boolean
+  literal type.
 
 Basic operators
 '''''''''''''''
