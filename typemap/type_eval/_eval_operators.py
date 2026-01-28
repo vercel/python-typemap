@@ -40,6 +40,7 @@ from typemap.typing import (
     StrSlice,
     Uncapitalize,
     Uppercase,
+    _LiteralGeneric,
 )
 
 ##################################################################
@@ -240,6 +241,14 @@ def _eval_IsSubtype(lhs, rhs, *, ctx):
 @_lift_evaluated
 def _eval_IsSubSimilar(lhs, rhs, *, ctx):
     return type_eval.issubsimilar(lhs, rhs)
+
+
+@type_eval.register_evaluator(_LiteralGeneric)
+@_lift_evaluated
+def _eval_LiteralGeneric(tp, *, ctx):
+    if isinstance(tp, type):
+        raise TypeError(f"Expected literal type, got '{tp.__name__}'")
+    return _LiteralGeneric[tp]
 
 
 ##################################################################
