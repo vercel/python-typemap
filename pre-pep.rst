@@ -769,6 +769,30 @@ the results together. In Python, the logic looks like::
 Runtime evaluation support
 --------------------------
 
+An important goal is supporting runtime evaluation of these computed
+types.  We do not propose to add an official evaluator to the standard
+library, but intend to release a third-party evaluator library.
+
+While most of the extensions to the type system are "inert" type
+operator applications, the syntax also includes list iteration and
+conditionals, which will be automatically evaluated when the
+``__annotate__`` method of a class, alias, or function is called.
+
+In order to allow an evaluator library to trigger type evaluation in
+those cases, we add a new hook to ``typing``:
+
+* ``special_form_evaluator``: This is a ``ContextVar`` that holds a
+  callable that will be invoked with a ``typing._GenericAlias``
+  argument when ``__bool__`` is called on a
+  :ref:`Boolean Operator <boolean-ops>` or ``__iter__`` is called
+  on ``typing.Iter``.
+  The returned value will then have ``bool`` or ``iter`` called upon
+  it before being returned.
+
+  If set to ``None`` (the default), the boolean operators will return
+  ``False`` while ``Iter`` will evaluate to
+  ``iter(typing.TypeVarTuple("_IterDummy"))``.
+  (TODO: Or should it be to ``iter([])``?)
 
 Examples / Tutorial
 ===================
