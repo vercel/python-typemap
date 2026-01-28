@@ -21,7 +21,7 @@ from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
 if typing.TYPE_CHECKING:
     from typing import Any
 
-from . import _apply_generic, _typing_inspect
+from . import _apply_generic, _typing_inspect, _wrapped_value
 
 
 __all__ = ("eval_typing",)
@@ -437,11 +437,12 @@ class _GlobalsWrapper(dict):
 
     For example, suppose we have:
 
-        type IsIntBool[T] = Bool[IsSub[T, int]]
+        type IsIntBool[T] = IsSub[T, int]
         type IsIntLiteral[T] = Literal[True] if IsIntBool[T] else Literal[False]
 
-    Though Bool is a special form, IsIntBool is not, and so when used in a
-    boolean context, it will always evaluate to true.
+    Though `IsSub` results in a `_LiteralGeneric`, `IsIntBool` is not itself
+    a `_LiteralGeneric`. So when used in `IsIntLiteral`, it will always evaluate
+    to true.
     """
 
     def __init__(self, base_dict, ctx):
@@ -452,6 +453,10 @@ class _GlobalsWrapper(dict):
         value = super().__getitem__(key)
         if isinstance(value, typing.TypeAliasType):
             return _TypeAliasWrapper(value, self._ctx)
+        elif isinstance(value, type) and issubclass(
+            value, _wrapped_value._BoolExpr
+        ):
+            return _GenericClassWrapper(value, self._ctx)
         return value
 
 
@@ -470,6 +475,22 @@ class _TypeAliasWrapper:
 
     def __getattr__(self, name):
         return getattr(self._type_alias, name)
+
+
+class _GenericClassWrapper:
+    def __init__(self, generic_class, ctx):
+        self._generic_class = generic_class
+        self._ctx = ctx
+
+    def __getitem__(self, item):
+        result = self._generic_class[item]
+        # Immediately evaluate the generic alias
+        if isinstance(result, (types.GenericAlias, typing._GenericAlias)):
+            return _eval_types(result, self._ctx)
+        return result
+
+    def __getattr__(self, name):
+        return getattr(self._generic_class, name)
 
 
 @_eval_types_impl.register

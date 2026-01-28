@@ -4,7 +4,7 @@ from typing import Literal
 from typing import _GenericAlias  # type: ignore
 
 
-from .type_eval._wrapped_value import _BoolValue
+from .type_eval._wrapped_value import _BoolExpr, _BoolValue
 
 
 _SpecialForm: typing.Any = typing._SpecialForm
@@ -210,30 +210,30 @@ class _IsGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
             return False
 
 
-class IsSubtype[Lhs, Rhs]:
+class IsSubtype[Lhs, Rhs](_BoolExpr):
     pass
 
 
-class IsSubSimilar[Lhs, Rhs]:
+class IsSubSimilar[Lhs, Rhs](_BoolExpr):
     pass
 
 
-class Matches[Lhs, Rhs]:
+class Matches[Lhs, Rhs](_BoolExpr):
     pass
 
 
 IsSub = IsSubSimilar
 
 
-class AllOf[*Ts]:
+class AllOf[*Ts](_BoolExpr):
     pass
 
 
-class AnyOf[*Ts]:
+class AnyOf[*Ts](_BoolExpr):
     pass
 
 
-class Bool[T: typing.Literal[True, False]]:
+class Bool[T: typing.Literal[True, False]](_BoolExpr):
     pass
 
 

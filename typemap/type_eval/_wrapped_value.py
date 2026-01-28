@@ -1,3 +1,7 @@
+class _BoolExpr:
+    pass
+
+
 class _BoolValue:
     class _WrappedInstance:
         def __init__(self, value: bool, type_name: str):
