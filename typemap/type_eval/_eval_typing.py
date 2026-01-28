@@ -410,7 +410,13 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
             # Type alias types are already added in _eval_types
             child_ctx.alias_stack.add(new_obj)
 
-        ff = types.FunctionType(func.__code__, mod.__dict__, None, None, args)
+        ff = types.FunctionType(
+            func.__code__,
+            _GlobalsWrapper(mod.__dict__, child_ctx),
+            None,
+            None,
+            args,
+        )
         unpacked = ff(annotationlib.Format.VALUE)
 
         child_ctx.seen[obj] = unpacked
@@ -420,6 +426,50 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
     ctx.recursive_type_alias = child_ctx.recursive_type_alias
 
     return evaled
+
+
+class _GlobalsWrapper(dict):
+    """Wraps module dict to make type aliases in type aliases evaluate
+    immediately.
+
+    This allows us to ensure that generic aliases which resolve to
+    _LiteralGeneric are evaluated *before* they are used as booleans.
+
+    For example, suppose we have:
+
+        type IsIntBool[T] = Bool[IsSub[T, int]]
+        type IsIntLiteral[T] = Literal[True] if IsIntBool[T] else Literal[False]
+
+    Though Bool is a special form, IsIntBool is not, and so when used in a
+    boolean context, it will always evaluate to true.
+    """
+
+    def __init__(self, base_dict, ctx):
+        super().__init__(base_dict)
+        self._ctx = ctx
+
+    def __getitem__(self, key):
+        value = super().__getitem__(key)
+        if isinstance(value, typing.TypeAliasType):
+            return _TypeAliasWrapper(value, self._ctx)
+        return value
+
+
+class _TypeAliasWrapper:
+    def __init__(self, type_alias, ctx):
+        self._type_alias = type_alias
+        self._ctx = ctx
+
+    def __getitem__(self, item):
+        result = self._type_alias[item]
+        # If the result of a type alias is a generic alias, immediately
+        # evaluate it.
+        if isinstance(result, types.GenericAlias):
+            return _eval_types(result, self._ctx)
+        return result
+
+    def __getattr__(self, name):
+        return getattr(self._type_alias, name)
 
 
 @_eval_types_impl.register
