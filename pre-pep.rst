@@ -517,7 +517,8 @@ Basic operators
   (or ``Literal[None]`` if it is unbounded)
 
 
-All of the operators in this section are "lifted" over union types.
+All of the operators in this section are :ref:`lifted over union types
+<lifting>`.
 
 Union processing
 ''''''''''''''''
@@ -579,7 +580,8 @@ with ``Param``, discussed below.)
 * ``GetInit[T: Member]``
 * ``GetDefiner[T: Member]``
 
-
+All of the operators in this section are :ref:`lifted over union types
+<lifting>`. (BUT TODO: should they be?)
 
 Object creation
 '''''''''''''''
@@ -591,7 +593,6 @@ Object creation
 
 * ``NewTypedDict[*Ps: Member]`` -- TODO: Needs fleshing out; will work
   similarly to ``NewProtocol`` but has different flags
-
 
 
 .. _init-field:
@@ -701,7 +702,8 @@ for all unicode!).
 * ``Capitalize[S: Literal[str]]``: capitalize a string literal
 * ``Uncapitalize[S: Literal[str]]``: uncapitalize a string literal
 
-All of the operators in this section are "lifted" over union types.
+All of the operators in this section are :ref:`lifted over union types
+<lifting>`.
 
 Raise error
 '''''''''''
@@ -746,7 +748,20 @@ For example::
     )
 
 
-TODO: EXPLAIN
+When an operation is lifted over union types, we take the cross
+product of the union elements for each argument position, evaluate the
+operator for each tuple in the cross product, and then union all of
+the results together. In Python, the logic looks like::
+
+    args_union_els = [get_union_elems(arg) for arg in args]
+    results = [
+        eval_operator(*xs)
+        for xs in itertools.product(*args_union_els)
+    ]
+    if results:
+        return Union[*results]
+    else:
+        return Never
 
 
 .. _rt-support:
