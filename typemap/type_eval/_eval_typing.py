@@ -437,12 +437,10 @@ class _GlobalsWrapper(dict):
 
     For example, suppose we have:
 
-        type IsIntBool[T] = IsSub[T, int]
-        type IsIntLiteral[T] = Literal[True] if IsIntBool[T] else Literal[False]
+        type BoolToLiteral[T] = Literal[True] if Bool[T] else Literal[False]
 
-    Though `IsSub` results in a `_LiteralGeneric`, `IsIntBool` is not itself
-    a `_LiteralGeneric`. So when used in `IsIntLiteral`, it will always evaluate
-    to true.
+    Though `Bool` results in a `_LiteralGeneric`, it is not one itself. So when
+    used in `BoolToLiteral`, it will always evaluate to true.
     """
 
     def __init__(self, base_dict, ctx):
@@ -451,30 +449,11 @@ class _GlobalsWrapper(dict):
 
     def __getitem__(self, key):
         value = super().__getitem__(key)
-        if isinstance(value, typing.TypeAliasType):
-            return _TypeAliasWrapper(value, self._ctx)
-        elif isinstance(value, type) and issubclass(
+        if isinstance(value, type) and issubclass(
             value, _wrapped_value._BoolExpr
         ):
             return _GenericClassWrapper(value, self._ctx)
         return value
-
-
-class _TypeAliasWrapper:
-    def __init__(self, type_alias, ctx):
-        self._type_alias = type_alias
-        self._ctx = ctx
-
-    def __getitem__(self, item):
-        result = self._type_alias[item]
-        # If the result of a type alias is a generic alias, immediately
-        # evaluate it.
-        if isinstance(result, types.GenericAlias):
-            return _eval_types(result, self._ctx)
-        return result
-
-    def __getattr__(self, name):
-        return getattr(self._type_alias, name)
 
 
 class _GenericClassWrapper:
