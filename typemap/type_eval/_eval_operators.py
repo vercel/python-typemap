@@ -17,6 +17,7 @@ from typemap.type_eval._eval_typing import (
 )
 from typemap.typing import (
     Attrs,
+    Bool,
     Capitalize,
     DropAnnotations,
     FromUnion,
@@ -241,6 +242,21 @@ def _eval_IsSubtype(lhs, rhs, *, ctx):
 @_lift_evaluated
 def _eval_IsSubSimilar(lhs, rhs, *, ctx):
     return _LiteralGeneric[type_eval.issubsimilar(lhs, rhs)]
+
+
+def _eval_bool_tp(tp):
+    if _typing_inspect.is_generic_alias(tp):
+        if tp.__origin__ is typing.Literal:
+            return _LiteralGeneric[bool(tp.__args__[0])]
+        elif tp.__origin__ is _LiteralGeneric:
+            return _LiteralGeneric[bool(tp.__args__[0])]
+    raise TypeError(f"Expected Literal type, got {tp}")
+
+
+@type_eval.register_evaluator(Bool)
+@_lift_evaluated
+def _eval_Bool(tp, *, ctx):
+    return _eval_bool_tp(tp)
 
 
 @type_eval.register_evaluator(_LiteralGeneric)

@@ -20,6 +20,7 @@ import pytest
 from typemap.type_eval import eval_typing
 from typemap.typing import (
     Attrs,
+    Bool,
     FromUnion,
     GenericCallable,
     GetArg,
@@ -1032,6 +1033,70 @@ type AndLiteralGeneric[L, R] = L and R
 type OrLiteralGeneric[L, R] = L or R
 type LiteralGenericToLiteral[T] = Literal[True] if T else Literal[False]
 type NotLiteralGenericToLiteral[T] = Literal[True] if not T else Literal[False]
+
+
+def test_eval_bool_01():
+    d = eval_typing(Bool[Literal[True]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(Bool[Literal[False]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(Bool[Literal[1]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(Bool[Literal[0]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(Bool[Literal["true"]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(Bool[Literal["false"]])
+    assert d == _LiteralGeneric[True]
+
+
+def test_eval_bool_02():
+    d = eval_typing(Bool[_LiteralGeneric[True]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(Bool[_LiteralGeneric[False]])
+    assert d == _LiteralGeneric[False]
+
+
+def test_eval_bool_03():
+    d = eval_typing(NotLiteralGeneric[Bool[Literal[True]]])
+    assert d == _LiteralGeneric[False]
+
+    d = eval_typing(NotLiteralGeneric[Bool[Literal[False]]])
+    assert d == _LiteralGeneric[True]
+
+
+type NestedBool0[T] = Bool[T]
+type NestedBool1[T] = NestedBool0[Bool[T]]
+type NestedBool2[T] = NestedBool1[Bool[T]]
+type NestedBool3[T] = NestedBool2[Bool[T]]
+type NestedBool4[T] = NestedBool3[Bool[T]]
+type NestedBool5[T] = NestedBool4[Bool[T]]
+
+
+def test_eval_bool_04():
+    d = eval_typing(NestedBool5[Literal[True]])
+    assert d == _LiteralGeneric[True]
+
+    d = eval_typing(NestedBool5[Literal[False]])
+    assert d == _LiteralGeneric[False]
+
+
+type IsIntBool[T] = Bool[IsSub[T, int]]
+type IsIntLiteral[T] = Literal[True] if Bool[IsIntBool[T]] else Literal[False]
+
+
+def test_eval_bool_05():
+    d = eval_typing(IsIntLiteral[int])
+    assert d == Literal[True]
+
+    d = eval_typing(IsIntLiteral[str])
+    assert d == Literal[False]
 
 
 def test_eval_literal_generic_01():

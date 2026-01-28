@@ -221,6 +221,11 @@ def IsSubSimilar(self, tps):
 IsSub = IsSubSimilar
 
 
+@_SpecialForm
+def Bool(self, tp):
+    return _BoolGenericAlias(self, tp)
+
+
 class _LiteralGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
     def __bool__(self):
         return typing.get_args(self)[0]
