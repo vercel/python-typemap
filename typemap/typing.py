@@ -197,7 +197,7 @@ def Iter(self, tp):
     return _IterGenericAlias(self, (tp,))
 
 
-class _IsGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
+class _BoolGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
     def __bool__(self):
         evaluator = special_form_evaluator.get()
         if evaluator:
@@ -208,12 +208,12 @@ class _IsGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
 
 @_SpecialForm
 def IsSubtype(self, tps):
-    return _IsGenericAlias(self, tps)
+    return _BoolGenericAlias(self, tps)
 
 
 @_SpecialForm
 def IsSubSimilar(self, tps):
-    return _IsGenericAlias(self, tps)
+    return _BoolGenericAlias(self, tps)
 
 
 IsSub = IsSubSimilar
