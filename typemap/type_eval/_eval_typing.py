@@ -182,6 +182,16 @@ def eval_typing(obj: typing.Any):
         result = _eval_types(obj, ctx)
         if not isinstance(result, list) and result in ctx.known_recursive_types:
             result = ctx.known_recursive_types[result]
+
+        if isinstance(result, bool):
+            # Wrap a boolean result with _LiteralGeneric
+            # This is because `not` calls `__bool__` first so a boolean
+            # expression like `not _LiteralGeneric[True]` will result `False`,
+            # not `_LiteralGeneric[False]` as we want.
+            from typemap.typing import _LiteralGeneric
+
+            result = _LiteralGeneric[result]  # type: ignore[valid-type]
+
         return result
 
 
