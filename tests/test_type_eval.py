@@ -25,6 +25,7 @@ from typemap.typing import (
     GenericCallable,
     GetArg,
     GetArgs,
+    GetMember,
     GetMemberType,
     GetName,
     GetType,
@@ -377,6 +378,21 @@ def test_type_from_union_06():
         FromUnion[GetArg[GetArg[d, tuple, Literal[2]], list, Literal[0]]]
     )
     assert _is_generic_permutation(n, tuple[int, list[IntTree]])
+
+
+def test_getmember_01():
+    d = eval_typing(GetMember[TA, Literal["x"]])
+    assert d == Member[Literal["x"], int, Never, Never, TA]
+    d = eval_typing(GetMemberType[TA, Literal["a"]])
+    assert d == Never
+
+    d = eval_typing(GetMember[TA | TB, Literal["x"]])
+    assert d == (
+        Member[Literal["x"], int, Never, Never, TA]
+        | Member[Literal["x"], str, Never, Never, TB]
+    )
+    d = eval_typing(GetMember[TA | TB, Literal[""]])
+    assert d == Never
 
 
 def test_getarg_never():

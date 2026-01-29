@@ -25,6 +25,7 @@ from typemap.typing import (
     GetAnnotations,
     GetArg,
     GetArgs,
+    GetMember,
     GetMemberType,
     InitField,
     IsSubSimilar,
@@ -657,19 +658,20 @@ def _get_function_hint_namespaces(func, receiver_type=None):
     return globalns, localns
 
 
+def _hint_to_member(n, t, qs, init, d, *, ctx):
+    return Member[
+        typing.Literal[n],
+        _eval_types(t, ctx),
+        _mk_literal_union(*qs),
+        init,
+        d,
+    ]
+
+
 def _hints_to_members(hints, ctx):
     """Convert a hints dictionary to a tuple of Member types."""
     return tuple[
-        *[
-            Member[
-                typing.Literal[n],
-                _eval_types(t, ctx),
-                _mk_literal_union(*qs),
-                init,
-                d,
-            ]
-            for n, (t, qs, init, d) in hints.items()
-        ]
+        *[_hint_to_member(n, *hint, ctx=ctx) for n, hint in hints.items()]
     ]
 
 
@@ -688,6 +690,21 @@ def _eval_Members(tp, *, ctx):
         **get_annotated_method_hints(tp),
     }
     return _hints_to_members(hints, ctx)
+
+
+@type_eval.register_evaluator(GetMember)
+@_lift_over_unions
+def _eval_GetMember(tp, prop, *, ctx):
+    # XXX: extras?
+    name = _from_literal(prop)
+    hints = {
+        **get_annotated_type_hints(tp, include_extras=True),
+        **get_annotated_method_hints(tp),
+    }
+    if name in hints:
+        return _hint_to_member(name, *hints[name], ctx=ctx)
+    else:
+        return typing.Never
 
 
 ##################################################################

@@ -131,6 +131,10 @@ class FromUnion[T]:
     pass
 
 
+class GetMember[Lhs, Prop]:
+    pass
+
+
 class GetMemberType[Lhs, Prop]:
     pass
 

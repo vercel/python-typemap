@@ -540,6 +540,9 @@ Object inspection
 * ``Attrs[T]``: like ``Members[T]`` but only returns attributes (not
   methods).
 
+* ``GetMember[T, S: Literal[str]]``: Produces a ``Member`` type for the
+  member named ``S`` from the class ``T``.
+
 * ``Member[N: Literal[str], T, Q: MemberQuals, Init, D]``: ``Member``,
   is a simple type, not an operator, that is used to describe members
   of classes.  Its type parameters encode the information about each
