@@ -21,6 +21,7 @@ from typemap.type_eval import eval_typing
 from typemap.typing import (
     Attrs,
     Bool,
+    Cls,
     FromUnion,
     GenericCallable,
     GetArg,
@@ -1610,6 +1611,262 @@ def test_new_protocol_with_methods_02():
             @staticmethod
             def static_method(x: int) -> int: ...
     """)
+
+
+def test_type_eval_cls_01():
+    res = eval_typing(Cls)
+    assert res == Cls
+
+
+def test_type_eval_cls_02():
+    class A:
+        child: Cls | None
+
+    class B(A):
+        pass
+
+    assert eval_typing(GetMemberType[A, Literal["child"]]) == A | None
+    assert eval_typing(GetMemberType[B, Literal["child"]]) == B | None
+
+    assert (
+        eval_typing(Attrs[A])
+        == tuple[Member[Literal["child"], A | None, Never, Never, A]]
+    )
+    assert (
+        eval_typing(Attrs[B])
+        == tuple[Member[Literal["child"], B | None, Never, Never, A]]
+    )
+
+    assert (
+        eval_typing(Members[A])
+        == tuple[Member[Literal["child"], A | None, Never, Never, A]]
+    )
+    assert (
+        eval_typing(Members[B])
+        == tuple[Member[Literal["child"], B | None, Never, Never, A]]
+    )
+
+    fmt = format_helper.format_class(A)
+    assert fmt == textwrap.dedent("""\
+        class A:
+            child: tests.test_type_eval.test_type_eval_cls_02.<locals>.A | None
+    """)
+    fmt = format_helper.format_class(B)
+    assert fmt == textwrap.dedent("""\
+        class B:
+            child: tests.test_type_eval.test_type_eval_cls_02.<locals>.B | None
+    """)
+
+
+type ValueOrNone = GetMemberType[Cls, Literal["value"]] | None
+
+
+def test_type_eval_cls_03():
+    class A:
+        value: int
+        maybe: ValueOrNone
+
+    assert eval_typing(GetMemberType[A, Literal["maybe"]]) == int | None
+
+    assert (
+        eval_typing(Attrs[A])
+        == tuple[
+            Member[Literal["value"], int, Never, Never, A],
+            Member[Literal["maybe"], int | None, Never, Never, A],
+        ]
+    )
+    assert (
+        eval_typing(Members[A])
+        == tuple[
+            Member[Literal["value"], int, Never, Never, A],
+            Member[Literal["maybe"], int | None, Never, Never, A],
+        ]
+    )
+
+    fmt = format_helper.format_class(A)
+    assert fmt == textwrap.dedent("""\
+        class A:
+            value: int
+            maybe: int | None
+    """)
+
+
+def test_type_eval_cls_04():
+    class A[T]:
+        value: T
+        maybe: ValueOrNone
+
+    assert eval_typing(GetMemberType[A[int], Literal["maybe"]]) == int | None
+    assert (
+        eval_typing(GetMemberType[A[list[int]], Literal["maybe"]])
+        == list[int] | None
+    )
+
+    assert (
+        eval_typing(Attrs[A[int]])
+        == tuple[
+            Member[Literal["value"], int, Never, Never, A[int]],
+            Member[Literal["maybe"], int | None, Never, Never, A[int]],
+        ]
+    )
+    assert (
+        eval_typing(Attrs[A[list[int]]])
+        == tuple[
+            Member[
+                Literal["value"],
+                list[int],
+                Never,
+                Never,
+                A[list[int]],
+            ],
+            Member[
+                Literal["maybe"],
+                list[int] | None,
+                Never,
+                Never,
+                A[list[int]],
+            ],
+        ]
+    )
+
+    assert (
+        eval_typing(Members[A[int]])
+        == tuple[
+            Member[Literal["value"], int, Never, Never, A[int]],
+            Member[Literal["maybe"], int | None, Never, Never, A[int]],
+        ]
+    )
+    assert (
+        eval_typing(Members[A[list[int]]])
+        == tuple[
+            Member[
+                Literal["value"],
+                list[int],
+                Never,
+                Never,
+                A[list[int]],
+            ],
+            Member[
+                Literal["maybe"],
+                list[int] | None,
+                Never,
+                Never,
+                A[list[int]],
+            ],
+        ]
+    )
+
+
+def test_type_eval_cls_05():
+    class A:
+        value: str
+        maybe: ValueOrNone
+
+    class B:
+        value: int
+        maybe: GetMemberType[A, Literal["maybe"]]
+
+    assert eval_typing(GetMemberType[B, Literal["maybe"]]) == str | None
+
+    assert (
+        eval_typing(Attrs[B])
+        == tuple[
+            Member[Literal["value"], int, Never, Never, B],
+            Member[Literal["maybe"], str | None, Never, Never, B],
+        ]
+    )
+
+    assert (
+        eval_typing(Members[B])
+        == tuple[
+            Member[Literal["value"], int, Never, Never, B],
+            Member[Literal["maybe"], str | None, Never, Never, B],
+        ]
+    )
+
+
+def test_type_eval_cls_06():
+    class A[T]:
+        value: T
+        maybe: ValueOrNone
+
+    class B[T, U]:
+        value: T
+        maybe: GetMemberType[A[U], Literal["maybe"]]
+
+    assert (
+        eval_typing(GetMemberType[B[int, list[str]], Literal["maybe"]])
+        == list[str] | None
+    )
+
+    assert (
+        eval_typing(Attrs[B[int, list[str]]])
+        == tuple[
+            Member[
+                Literal["value"],
+                int,
+                Never,
+                Never,
+                B[int, list[str]],
+            ],
+            Member[
+                Literal["maybe"],
+                list[str] | None,
+                Never,
+                Never,
+                B[int, list[str]],
+            ],
+        ]
+    )
+
+    assert (
+        eval_typing(Members[B[int, list[str]]])
+        == tuple[
+            Member[
+                Literal["value"],
+                int,
+                Never,
+                Never,
+                B[int, list[str]],
+            ],
+            Member[
+                Literal["maybe"],
+                list[str] | None,
+                Never,
+                Never,
+                B[int, list[str]],
+            ],
+        ]
+    )
+
+
+type AttrSetOfOnlyInt[T, N] = (
+    set[GetMemberType[T, N]]
+    if IsSub[GetMemberType[T, N], int]
+    else GetMemberType[T, N]
+)
+
+
+def test_type_eval_cls_07():
+    class A:
+        value: int
+        maybe: ValueOrNone
+
+    class B:
+        value: str
+        maybe: ValueOrNone
+
+    assert eval_typing(AttrSetOfOnlyInt[A, Literal["value"]]) == set[int]
+    assert eval_typing(AttrSetOfOnlyInt[B, Literal["value"]]) is str
+
+
+def test_type_eval_cls_08():
+    class A[T]:
+        value: T
+        maybe: ValueOrNone
+
+    assert eval_typing(AttrSetOfOnlyInt[A[int], Literal["value"]]) == set[int]
+    assert eval_typing(AttrSetOfOnlyInt[A[str], Literal["value"]]) is str
 
 
 ##############
