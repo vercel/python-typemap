@@ -39,9 +39,9 @@ from typemap.typing import (
     Members,
     NewProtocol,
     Param,
+    Slice,
     SpecialFormEllipsis,
     StrConcat,
-    StrSlice,
     Uncapitalize,
     Uppercase,
     _BoolLiteral,
@@ -955,6 +955,24 @@ def _eval_Length(tp, *, ctx) -> typing.Any:
         raise TypeError(f"Invalid type argument to Length: {tp} is not a tuple")
 
 
+@type_eval.register_evaluator(Slice)
+@_lift_over_unions
+def _eval_Slice(tp, start, end, *, ctx):
+    tp = _eval_types(tp, ctx)
+    start = _eval_literal(start, ctx)
+    end = _eval_literal(end, ctx)
+    if _typing_inspect.is_generic_alias(tp) and tp.__origin__ is tuple:
+        return tp.__origin__[tp.__args__[start:end]]
+    elif (
+        _typing_inspect.is_generic_alias(tp)
+        and tp.__origin__ is typing.Literal
+        and isinstance(tp.__args__[0], str)
+    ):
+        return tp.__origin__[tp.__args__[0][start:end]]
+    else:
+        return typing.Never
+
+
 # String literals
 
 
@@ -971,7 +989,6 @@ _string_literal_op(Lowercase, op=str.lower)
 _string_literal_op(Capitalize, op=str.capitalize)
 _string_literal_op(Uncapitalize, op=lambda s: s[0:1].lower() + s[1:])
 _string_literal_op(StrConcat, op=lambda s, t: s + t)
-_string_literal_op(StrSlice, op=lambda s, start, end: s[start:end])
 
 
 ##################################################################

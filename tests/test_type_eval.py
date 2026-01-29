@@ -39,9 +39,9 @@ from typemap.typing import (
     Members,
     NewProtocol,
     Param,
+    Slice,
     SpecialFormEllipsis,
     StrConcat,
-    StrSlice,
     Uppercase,
     _BoolLiteral,
 )
@@ -245,12 +245,12 @@ def test_type_strings_4():
 
 
 def test_type_strings_5():
-    d = eval_typing(StrSlice[Literal["abcd"], Literal[0], Literal[1]])
+    d = eval_typing(Slice[Literal["abcd"], Literal[0], Literal[1]])
     assert d == Literal["a"]
 
 
 def test_type_strings_6():
-    d = eval_typing(StrSlice[Literal["abcd"], Literal[1], Literal[None]])
+    d = eval_typing(Slice[Literal["abcd"], Literal[1], Literal[None]])
     assert d == Literal["bcd"]
 
 
@@ -1490,6 +1490,43 @@ def test_eval_length_01():
 
     d = eval_typing(Length[tuple[int, ...]])
     assert d == Literal[None]
+
+
+def test_eval_slice_01():
+    t = tuple[Literal[0], Literal[1], Literal[2], Literal[3], Literal[4]]
+    d = eval_typing(Slice[t, Literal[1], Literal[3]])
+    assert d == tuple[Literal[1], Literal[2]]
+    d = eval_typing(Slice[t, Literal[1], Literal[None]])
+    assert d == tuple[Literal[1], Literal[2], Literal[3], Literal[4]]
+    d = eval_typing(Slice[t, Literal[None], Literal[3]])
+    assert d == tuple[Literal[0], Literal[1], Literal[2]]
+    d = eval_typing(Slice[t, Literal[None], Literal[None]])
+    assert (
+        d == tuple[Literal[0], Literal[1], Literal[2], Literal[3], Literal[4]]
+    )
+    d = eval_typing(Slice[t, Literal[1], Literal[1]])
+    assert d == tuple[()]
+
+
+def test_eval_slice_02():
+    t = Literal["abcde"]
+    d = eval_typing(Slice[t, Literal[1], Literal[3]])
+    assert d == Literal["bc"]
+    d = eval_typing(Slice[t, Literal[1], Literal[None]])
+    assert d == Literal["bcde"]
+    d = eval_typing(Slice[t, Literal[None], Literal[3]])
+    assert d == Literal["abc"]
+    d = eval_typing(Slice[t, Literal[None], Literal[None]])
+    assert d == Literal["abcde"]
+    d = eval_typing(Slice[t, Literal[1], Literal[1]])
+    assert d == Literal[""]
+
+
+def test_eval_slice_03():
+    d = eval_typing(Slice[int, Literal[1], Literal[2]])
+    assert d == Never
+    d = eval_typing(Slice[dict[int, str], Literal[1], Literal[2]])
+    assert d == Never
 
 
 def test_eval_literal_idempotent_01():
