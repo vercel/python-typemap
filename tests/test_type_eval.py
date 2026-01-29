@@ -1073,6 +1073,13 @@ def test_eval_slice_02():
     assert d == Literal[""]
 
 
+def test_eval_slice_03():
+    d = eval_typing(Slice[int, Literal[1], Literal[2]])
+    assert d == Never
+    d = eval_typing(Slice[dict[int, str], Literal[1], Literal[2]])
+    assert d == Never
+
+
 def test_eval_literal_idempotent_01():
     t = Literal[int]
     for _ in range(5):

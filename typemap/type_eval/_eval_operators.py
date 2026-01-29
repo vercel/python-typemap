@@ -911,7 +911,7 @@ def _eval_Slice(tp, start, end, *, ctx):
     ):
         return tp.__origin__[tp.__args__[0][start:end]]
     else:
-        raise TypeError(f"Invalid type argument to Slice: {tp} is not a tuple")
+        return typing.Never
 
 
 # String literals
