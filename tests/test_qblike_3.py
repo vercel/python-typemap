@@ -25,6 +25,7 @@ from typemap.typing import (
     InitField,
     IsSub,
     Iter,
+    Matches,
     Member,
     NewProtocol,
     Slice,
@@ -222,9 +223,7 @@ type EntryFieldMembers[T: Table, FieldNames: tuple[Literal[str], ...]] = tuple[
     ]
 ]
 
-type EntryIsTable[E: QueryEntry, T: Table] = (
-    IsSub[EntryTable[E], T] and IsSub[T, EntryTable[E]]
-)
+type EntryIsTable[E: QueryEntry, T: Table] = Matches[EntryTable[E], T]
 type EntriesHasTable[Es: tuple[QueryEntry, ...], T: Table] = any(
     Bool[EntryIsTable[e, T]] for e in Iter[Es]
 )
