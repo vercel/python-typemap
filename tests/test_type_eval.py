@@ -41,6 +41,7 @@ from typemap.typing import (
     Slice,
     SpecialFormEllipsis,
     StrConcat,
+    TypeName,
     Uppercase,
     _BoolLiteral,
 )
@@ -988,6 +989,26 @@ def test_eval_getarg_custom_08():
     assert eval_typing(GetArg[t, Container, Literal[0]]) is Any
     assert eval_typing(GetArg[t, Container, Literal[-1]]) is Any
     assert eval_typing(GetArg[t, Container, Literal[1]]) == Never
+
+
+def test_eval_typename_01():
+    d = eval_typing(TypeName[int])
+    assert d == Literal["int"]
+    d = eval_typing(TypeName[str])
+    assert d == Literal["str"]
+    d = eval_typing(TypeName[list[int]])
+    assert d == Literal["list"]
+    d = eval_typing(TypeName[list[str]])
+    assert d == Literal["list"]
+
+    class C:
+        pass
+
+    d = eval_typing(TypeName[C])
+    assert d == Literal["C"]
+
+    d = eval_typing(TypeName[GetA1[int, str]])
+    assert d == Literal["int"]
 
 
 type _Works[Ts, I] = Literal[True]

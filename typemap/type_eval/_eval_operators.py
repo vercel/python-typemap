@@ -41,6 +41,7 @@ from typemap.typing import (
     Slice,
     SpecialFormEllipsis,
     StrConcat,
+    TypeName,
     Uncapitalize,
     Uppercase,
     _BoolLiteral,
@@ -921,6 +922,12 @@ def _eval_GetArgs(tp, base, *, ctx) -> typing.Any:
     if args is None:
         return typing.Never
     return tuple[*args]  # type: ignore[valid-type]
+
+
+@type_eval.register_evaluator(TypeName)
+@_lift_over_unions
+def _eval_TypeName(tp, *, ctx) -> typing.Any:
+    return typing.Literal[tp.__name__]
 
 
 @type_eval.register_evaluator(GetAnnotations)

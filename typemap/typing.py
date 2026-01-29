@@ -147,6 +147,10 @@ class GetArgs[Tp, Base]:
     pass
 
 
+class TypeName[T: type]:
+    pass
+
+
 class Length[S: tuple]:
     pass
 
