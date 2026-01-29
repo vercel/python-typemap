@@ -183,6 +183,10 @@ class NewProtocol[*T]:
     pass
 
 
+class Cls:
+    pass
+
+
 class RaiseError[S: str, *Ts]:
     """Raise a type error with the given message when evaluated.
 
