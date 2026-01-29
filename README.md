@@ -1,6 +1,6 @@
 # Computed Types in Python
 
-See [spec-draft.rst](spec-draft.rst) for the specification draft and [pre-pep.rst](pre-pep.rst) for the PEP draft.
+See [pep.rst](pep.rst) for the PEP draft and [design-qs.rst](design-qs.rst) for some design discussion not yet merged into the PEP.
 
 ## Development
 

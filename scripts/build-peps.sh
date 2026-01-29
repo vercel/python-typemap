@@ -9,7 +9,7 @@ if [ ! -d peps ]; then
 fi
 cd peps/peps
 if [ ! -s pep-9999.rst ]; then
-    ln -s ../../../pre-pep.rst pep-9999.rst
+    ln -s ../../../pep.rst pep-9999.rst
 fi
 cd ..
 
