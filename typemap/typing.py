@@ -231,16 +231,6 @@ def Bool(self, tp):
     return _BoolGenericAlias(self, tp)
 
 
-@_SpecialForm
-def AllOf(self, tp):
-    return _BoolGenericAlias(self, tp)
-
-
-@_SpecialForm
-def AnyOf(self, tp):
-    return _BoolGenericAlias(self, tp)
-
-
 class _BoolLiteralGenericAlias(_LiteralGenericAlias, _root=True):  # type: ignore[call-arg]
     def __bool__(self):
         return typing.get_args(self)[0]
