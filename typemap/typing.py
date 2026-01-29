@@ -112,11 +112,11 @@ type ArgsParam[T] = Param[Literal[None], T, Literal["*"]]
 type KwargsParam[T] = Param[Literal[None], T, Literal["**"]]
 
 
-type GetName[T: Member | Param] = GetAttr[T, Literal["name"]]
-type GetType[T: Member | Param] = GetAttr[T, Literal["typ"]]
-type GetQuals[T: Member | Param] = GetAttr[T, Literal["quals"]]
-type GetInit[T: Member] = GetAttr[T, Literal["init"]]
-type GetDefiner[T: Member] = GetAttr[T, Literal["definer"]]
+type GetName[T: Member | Param] = GetMemberType[T, Literal["name"]]
+type GetType[T: Member | Param] = GetMemberType[T, Literal["typ"]]
+type GetQuals[T: Member | Param] = GetMemberType[T, Literal["quals"]]
+type GetInit[T: Member] = GetMemberType[T, Literal["init"]]
+type GetDefiner[T: Member] = GetMemberType[T, Literal["definer"]]
 
 
 class Attrs[T]:
@@ -131,7 +131,7 @@ class FromUnion[T]:
     pass
 
 
-class GetAttr[Lhs, Prop]:
+class GetMemberType[Lhs, Prop]:
     pass
 
 

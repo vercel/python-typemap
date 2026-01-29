@@ -16,7 +16,7 @@ from typemap.typing import (
     GetType,
     Member,
     GetName,
-    GetAttr,
+    GetMemberType,
     GetArg,
 )
 
@@ -49,7 +49,7 @@ def select[K: BaseTypedDict](
     *[
         Member[
             GetName[c],
-            FilterLinks[GetAttr[A, GetName[c]]],
+            FilterLinks[GetMemberType[A, GetName[c]]],
         ]
         for c in Iter[Attrs[K]]
     ]
@@ -118,7 +118,7 @@ def test_qblike_3():
             z: tests.test_qblike.Link[tests.test_qblike.PropsOnly[tests.test_qblike.Tgt]]
         """)
 
-    res = eval_typing(GetAttr[ret, Literal["z"]])
+    res = eval_typing(GetMemberType[ret, Literal["z"]])
     tgt = res.__args__[0]
     # XXX: this should probably be pre-evaluated already?
     tgt = eval_typing(tgt)

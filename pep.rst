@@ -510,8 +510,8 @@ Basic operators
   cannot be.
 
 
-* ``GetAttr[T, S: Literal[str]]``: Extract the type of the member
-  named ``S`` from the class ``T``.
+* ``GetMemberType[T, S: Literal[str]]``: Extract the type of the
+  member named ``S`` from the class ``T``.
 
 * ``Length[T: tuple]`` - get the length of a tuple as an int literal
   (or ``Literal[None]`` if it is unbounded)
@@ -837,7 +837,7 @@ type-annotated attribute of ``K``, while calling ``NewProtocol`` with
 
 ``GetName`` is a getter operator that fetches the name of a ``Member``
 as a literal type--all of these mechanisms lean very heavily on literal types.
-``GetAttr`` gets the type of an attribute from a class.
+``GetMemberType`` gets the type of an attribute from a class.
 
 ::
 
@@ -850,7 +850,7 @@ as a literal type--all of these mechanisms lean very heavily on literal types.
             *[
                 Member[
                     GetName[c],
-                    ConvertField[GetAttr[ModelT, GetName[c]]],
+                    ConvertField[GetMemberType[ModelT, GetName[c]]],
                 ]
                 for c in Iter[Attrs[K]]
             ]
@@ -1119,7 +1119,8 @@ We could do potentially better but it would require more meachinery.
 * ``Member[T]``, when statically checking a type alias, could be
   treated as having some type like ``tuple[Member[KeyOf[T], object,
   str, ..., ...], ...]``
-* ``GetAttr[T, S: KeyOf[T]]`` - but this isn't supported yet. TS supports it.
+* ``GetMemberType[T, S: KeyOf[T]]`` - but this isn't supported yet.
+  TS supports it.
 * We would also need to do context sensitive type bound inference
 
 

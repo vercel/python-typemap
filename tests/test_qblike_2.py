@@ -12,7 +12,7 @@ from typemap.typing import (
     GetType,
     Member,
     GetName,
-    GetAttr,
+    GetMemberType,
     GetArg,
 )
 
@@ -58,7 +58,7 @@ type-annotated attribute of ``K``, while calling ``NewProtocol`` with
 
 ``GetName`` is a getter operator that fetches the name of a ``Member``
 as a literal type--all of these mechanisms lean very heavily on literal types.
-``GetAttr`` gets the type of an attribute from a class.
+``GetMemberType`` gets the type of an attribute from a class.
 
 """
 
@@ -72,7 +72,7 @@ def select[ModelT, K: BaseTypedDict](
         *[
             Member[
                 GetName[c],
-                ConvertField[GetAttr[ModelT, GetName[c]]],
+                ConvertField[GetMemberType[ModelT, GetName[c]]],
             ]
             for c in Iter[Attrs[K]]
         ]
@@ -198,7 +198,7 @@ def test_qblike2_2():
             posts: list[tests.test_qblike_2.PropsOnly[tests.test_qblike_2.Post]]
         """)
 
-    res = eval_typing(GetAttr[ret, Literal["posts"]])
+    res = eval_typing(GetMemberType[ret, Literal["posts"]])
     tgt = res.__args__[0]
     # XXX: this should probably be pre-evaluated already?
     fmt = format_helper.format_class(tgt)

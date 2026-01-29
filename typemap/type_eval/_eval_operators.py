@@ -25,7 +25,7 @@ from typemap.typing import (
     GetAnnotations,
     GetArg,
     GetArgs,
-    GetAttr,
+    GetMemberType,
     InitField,
     IsSubSimilar,
     IsSubtype,
@@ -705,9 +705,9 @@ def _eval_FromUnion(tp, *, ctx):
 ##################################################################
 
 
-@type_eval.register_evaluator(GetAttr)
+@type_eval.register_evaluator(GetMemberType)
 @_lift_over_unions
-def _eval_GetAttr(tp, prop, *, ctx):
+def _eval_GetMemberType(tp, prop, *, ctx):
     # XXX: extras?
     name = _from_literal(prop)
     hints = {
