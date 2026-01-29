@@ -22,10 +22,11 @@ from typemap.typing import (
     GetType,
     GetInit,
     InitField,
+    IsSub,
     Iter,
     Member,
     NewProtocol,
-    IsSub,
+    Slice,
 )
 
 from . import format_helper
@@ -296,7 +297,7 @@ type AddEntries[Entries, News: tuple[Table | Field, ...]] = (
             if IsSub[GetArg[News, tuple, Literal[0]], Table]
             else AddField[Entries, GetArg[News, tuple, Literal[0]]]
         ),
-        tuple[*([n for n in Iter[News]][1:])],
+        Slice[News, Literal[1], Literal[None]],
     ]
 )
 type UniqueEntries[Entries] = AddEntries[tuple[()], Entries]
