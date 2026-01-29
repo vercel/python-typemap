@@ -255,31 +255,35 @@ def _eval_Matches(lhs, rhs, *, ctx):
     ]
 
 
-def _eval_bool_tp(tp):
-    if _typing_inspect.is_generic_alias(tp):
-        if tp.__origin__ is typing.Literal:
-            return _BoolLiteral[bool(tp.__args__[0])]
-        elif tp.__origin__ is _BoolLiteral:
-            return _BoolLiteral[bool(tp.__args__[0])]
-    raise TypeError(f"Expected Literal type, got {tp}")
+def _eval_bool_tp(tp, ctx):
+    if _typing_inspect.is_generic_alias(tp) and tp.__origin__ is _BoolLiteral:
+        return _BoolLiteral[bool(tp.__args__[0])]
+    else:
+        return _BoolLiteral[
+            any(
+                type_eval.issubsimilar(arg, typing.Literal[True])
+                and not type_eval.issubsimilar(arg, typing.Never)
+                for arg in _union_elems(tp, ctx)
+            )
+        ]
 
 
 @type_eval.register_evaluator(Bool)
 @_lift_evaluated
 def _eval_Bool(tp, *, ctx):
-    return _eval_bool_tp(tp)
+    return _eval_bool_tp(tp, ctx)
 
 
 @type_eval.register_evaluator(AllOf)
 @_lift_evaluated
 def _eval_AllOf(*tp, ctx):
-    return _BoolLiteral[all(_eval_bool_tp(tp) for tp in tp)]
+    return _BoolLiteral[all(_eval_bool_tp(tp, ctx) for tp in tp)]
 
 
 @type_eval.register_evaluator(AnyOf)
 @_lift_evaluated
 def _eval_AnyOf(*tp, ctx):
-    return _BoolLiteral[any(_eval_bool_tp(tp) for tp in tp)]
+    return _BoolLiteral[any(_eval_bool_tp(tp, ctx) for tp in tp)]
 
 
 @type_eval.register_evaluator(_BoolLiteral)

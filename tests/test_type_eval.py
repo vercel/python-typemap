@@ -1146,23 +1146,64 @@ def test_eval_bool_01():
     assert d == _BoolLiteral[False]
 
     d = eval_typing(Bool[Literal[1]])
-    assert d == _BoolLiteral[True]
+    assert d == _BoolLiteral[False]
 
     d = eval_typing(Bool[Literal[0]])
     assert d == _BoolLiteral[False]
 
     d = eval_typing(Bool[Literal["true"]])
-    assert d == _BoolLiteral[True]
+    assert d == _BoolLiteral[False]
 
     d = eval_typing(Bool[Literal["false"]])
-    assert d == _BoolLiteral[True]
+    assert d == _BoolLiteral[False]
 
-
-def test_eval_bool_02():
     d = eval_typing(Bool[_BoolLiteral[True]])
     assert d == _BoolLiteral[True]
 
     d = eval_typing(Bool[_BoolLiteral[False]])
+    assert d == _BoolLiteral[False]
+
+    d = eval_typing(Bool[Never])
+    assert d == _BoolLiteral[False]
+
+    d = eval_typing(Bool[int])
+    assert d == _BoolLiteral[False]
+
+    class C:
+        pass
+
+    d = eval_typing(Bool[C])
+    assert d == _BoolLiteral[False]
+
+    d = eval_typing(Bool[True])
+    assert d == _BoolLiteral[True]
+
+    d = eval_typing(Bool[False])
+    assert d == _BoolLiteral[False]
+
+
+def test_eval_bool_02():
+    d = eval_typing(Bool[Literal[True] | Literal[False]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(Bool[Literal[False] | Literal[True]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(Bool[Literal[True] | Never])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(Bool[Never | Literal[True]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(Bool[Literal[False] | Never])
+    assert d == _BoolLiteral[False]
+    d = eval_typing(Bool[Never | Literal[False]])
+    assert d == _BoolLiteral[False]
+    d = eval_typing(Bool[Literal[True] | int])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(Bool[int | Literal[True]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(Bool[Literal[False] | int])
+    assert d == _BoolLiteral[False]
+    d = eval_typing(Bool[int | Literal[False]])
+    assert d == _BoolLiteral[False]
+    d = eval_typing(Bool[int | str])
     assert d == _BoolLiteral[False]
 
 
@@ -1208,30 +1249,45 @@ def test_eval_all_01():
 
     d = eval_typing(AllOf[_BoolLiteral[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AllOf[_BoolLiteral[False]])
     assert d == _BoolLiteral[False]
 
     d = eval_typing(AllOf[_BoolLiteral[True], _BoolLiteral[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AllOf[_BoolLiteral[True], _BoolLiteral[False]])
     assert d == _BoolLiteral[False]
-
     d = eval_typing(AllOf[_BoolLiteral[False], _BoolLiteral[True]])
     assert d == _BoolLiteral[False]
-
     d = eval_typing(AllOf[_BoolLiteral[False], _BoolLiteral[False]])
+    assert d == _BoolLiteral[False]
+
+    d = eval_typing(AllOf[Literal[True] | Literal[False]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(AllOf[int | Never])
+    assert d == _BoolLiteral[False]
+    d = eval_typing(
+        AllOf[Literal[0] | Literal[True], Literal[2] | Literal[True]]
+    )
+    assert d == _BoolLiteral[True]
+    d = eval_typing(AllOf[Literal[0] | Literal[1], Literal[2] | Literal[True]])
+    assert d == _BoolLiteral[False]
+    d = eval_typing(AllOf[Literal[0] | Literal[1], Literal[2] | Literal[3]])
     assert d == _BoolLiteral[False]
 
 
 def test_eval_all_02():
-    d = eval_typing(AllOf[Literal[True], Literal[True]])
+    d = eval_typing(AllOf[()])
     assert d == _BoolLiteral[True]
 
-    d = eval_typing(AllOf[Literal[True], Literal[False]])
+    d = eval_typing(AllOf[Literal[True]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(AllOf[Literal[False]])
     assert d == _BoolLiteral[False]
 
+    d = eval_typing(AllOf[Literal[True], Literal[True]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(AllOf[Literal[True], Literal[False]])
+    assert d == _BoolLiteral[False]
     d = eval_typing(AllOf[Literal[False], Literal[True]])
     assert d == _BoolLiteral[False]
 
@@ -1248,16 +1304,13 @@ def test_eval_all_03():
 
     d = eval_typing(ContainsAllInt[tuple[int]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(ContainsAllInt[tuple[str]])
     assert d == _BoolLiteral[False]
 
     d = eval_typing(ContainsAllInt[tuple[int, int]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(ContainsAllInt[tuple[int, str]])
     assert d == _BoolLiteral[False]
-
     d = eval_typing(ContainsAllInt[tuple[str, str]])
     assert d == _BoolLiteral[False]
 
@@ -1268,7 +1321,6 @@ def test_eval_all_04():
 
     d = eval_typing(ContainsAllIntToLiteral[tuple[int]])
     assert d == Literal[True]
-
     d = eval_typing(ContainsAllIntToLiteral[tuple[str]])
     assert d == Literal[False]
 
@@ -1279,20 +1331,29 @@ def test_eval_any_01():
 
     d = eval_typing(AnyOf[_BoolLiteral[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AnyOf[_BoolLiteral[False]])
     assert d == _BoolLiteral[False]
 
     d = eval_typing(AnyOf[_BoolLiteral[True], _BoolLiteral[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AnyOf[_BoolLiteral[True], _BoolLiteral[False]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AnyOf[_BoolLiteral[False], _BoolLiteral[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AnyOf[_BoolLiteral[False], _BoolLiteral[False]])
+    assert d == _BoolLiteral[False]
+
+    d = eval_typing(AnyOf[Literal[True] | Literal[False]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(AnyOf[int | Never])
+    assert d == _BoolLiteral[False]
+    d = eval_typing(
+        AnyOf[Literal[0] | Literal[True], Literal[2] | Literal[True]]
+    )
+    assert d == _BoolLiteral[True]
+    d = eval_typing(AnyOf[Literal[0] | Literal[1], Literal[2] | Literal[True]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(AnyOf[Literal[0] | Literal[1], Literal[2] | Literal[3]])
     assert d == _BoolLiteral[False]
 
 
@@ -1302,19 +1363,15 @@ def test_eval_any_02():
 
     d = eval_typing(AnyOf[Literal[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AnyOf[Literal[False]])
     assert d == _BoolLiteral[False]
 
     d = eval_typing(AnyOf[Literal[True], Literal[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AnyOf[Literal[True], Literal[False]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AnyOf[Literal[False], Literal[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AnyOf[Literal[False], Literal[False]])
     assert d == _BoolLiteral[False]
 
@@ -1331,16 +1388,13 @@ def test_eval_any_03():
 
     d = eval_typing(ContainsAnyInt[tuple[int]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(ContainsAnyInt[tuple[str]])
     assert d == _BoolLiteral[False]
 
     d = eval_typing(ContainsAnyInt[tuple[int, int]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(ContainsAnyInt[tuple[int, str]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(ContainsAnyInt[tuple[str, str]])
     assert d == _BoolLiteral[False]
 
@@ -1351,7 +1405,6 @@ def test_eval_any_04():
 
     d = eval_typing(ContainsAnyIntToLiteral[tuple[int]])
     assert d == Literal[True]
-
     d = eval_typing(ContainsAnyIntToLiteral[tuple[str]])
     assert d == Literal[False]
 
@@ -1359,14 +1412,15 @@ def test_eval_any_04():
 def test_eval_literal_generic_01():
     d = eval_typing(_BoolLiteral[True])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(_BoolLiteral[False])
     assert d == _BoolLiteral[False]
-
     d = eval_typing(_BoolLiteral[1])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(_BoolLiteral[0])
+    assert d == _BoolLiteral[False]
+    d = eval_typing(_BoolLiteral[_BoolLiteral[True]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(_BoolLiteral[_BoolLiteral[False]])
     assert d == _BoolLiteral[False]
 
 
@@ -1376,7 +1430,6 @@ def test_eval_literal_generic_02():
 
     d = eval_typing(NotLiteralGeneric[_BoolLiteral[True]])
     assert d == _BoolLiteral[False]
-
     d = eval_typing(NotLiteralGeneric[_BoolLiteral[False]])
     assert d == _BoolLiteral[True]
 
@@ -1384,13 +1437,10 @@ def test_eval_literal_generic_02():
 def test_eval_literal_generic_03():
     d = eval_typing(AndLiteralGeneric[_BoolLiteral[True], _BoolLiteral[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(AndLiteralGeneric[_BoolLiteral[True], _BoolLiteral[False]])
     assert d == _BoolLiteral[False]
-
     d = eval_typing(AndLiteralGeneric[_BoolLiteral[False], _BoolLiteral[True]])
     assert d == _BoolLiteral[False]
-
     d = eval_typing(AndLiteralGeneric[_BoolLiteral[False], _BoolLiteral[False]])
     assert d == _BoolLiteral[False]
 
@@ -1398,13 +1448,10 @@ def test_eval_literal_generic_03():
 def test_eval_literal_generic_04():
     d = eval_typing(OrLiteralGeneric[_BoolLiteral[True], _BoolLiteral[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(OrLiteralGeneric[_BoolLiteral[True], _BoolLiteral[False]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(OrLiteralGeneric[_BoolLiteral[False], _BoolLiteral[True]])
     assert d == _BoolLiteral[True]
-
     d = eval_typing(OrLiteralGeneric[_BoolLiteral[False], _BoolLiteral[False]])
     assert d == _BoolLiteral[False]
 
@@ -1412,7 +1459,6 @@ def test_eval_literal_generic_04():
 def test_eval_literal_generic_05():
     d = eval_typing(LiteralGenericToLiteral[_BoolLiteral[True]])
     assert d == Literal[True]
-
     d = eval_typing(LiteralGenericToLiteral[_BoolLiteral[False]])
     assert d == Literal[False]
 
@@ -1420,7 +1466,6 @@ def test_eval_literal_generic_05():
 def test_eval_literal_generic_06():
     d = eval_typing(NotLiteralGenericToLiteral[_BoolLiteral[True]])
     assert d == Literal[False]
-
     d = eval_typing(NotLiteralGenericToLiteral[_BoolLiteral[False]])
     assert d == Literal[True]
 
