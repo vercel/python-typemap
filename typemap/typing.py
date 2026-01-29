@@ -75,7 +75,7 @@ class DropAnnotations[T]:
 ###
 
 
-MemberQuals = Literal["ClassVar", "Final"]
+MemberQuals = Literal["ClassVar", "Final", "NotRequired", "ReadOnly"]
 
 
 class Member[

@@ -24,19 +24,26 @@ different conditions of Python typing.
 Motivation
 ==========
 
-Python has a gradual type system, but at the heart of it is a fairly
-conventional and tame static type system (apart from untagged union
-types and type narrowing, which are common in gradual type systems but
-not in traditional static ones).  In Python as a language, on the
-other hand, it is not unusual to perform complex metaprogramming,
-especially at the library layer.
+Python has a gradual type system, but at the heart of it is a *fairly*
+conventional static type system.
 
-Typically, type safety is lost when doing these sorts of things. Some
-libraries come with custom mypy plugins, and a special-case
-``@dataclass_transform`` decorator was added specifically to cover the
-case of dataclass-like transformations (:pep:`PEP 681 <681>`).
+In Python as a language, on the other hand, it is not unusual to
+perform complex metaprogramming, especially in libraries and
+frameworks. The type system typically cannot model metaprogramming.
 
-Examples: pydantic/fastapi, dataclasses, sqlalchemy
+To bridge the gap between metaprogramming and the type
+system, some libraries come with custom mypy plugins (though then
+other typechecker suffer). The case of dataclass-like transformations
+was considered common enough that a special-case
+``@dataclass_transform`` decorator was added specifically to cover
+that case (:pep:`PEP 681 <681>`).
+
+We are proposing to add to the type system type manipulation
+facilities that are more capable of keeping up with dynamic Python
+code.
+
+We will present a few examples of problems that could be solved with
+more powerful type manipulation.
 
 Prisma-style ORMs
 -----------------
@@ -124,122 +131,7 @@ which would have return type ``list[<User>]`` where::
         content: str
 
 
-Unlike the FastAPI-style example above, we probably don't have too
-much need for runtime introspection of the types here, which is good:
-inferring the type of a function is much less likely to be feasible.
-
-
-.. _qb-impl:
-
-Implementation
-''''''''''''''
-
-This will take something of a tutorial approach in discussing the
-implementation, and explain the features being used as we use
-them. More details were appear in the specification section.
-
-First, to support the annotations we saw above, we have a collection
-of dummy classes with generic types.
-
-::
-
-    class Pointer[T]:
-        pass
-
-    class Property[T](Pointer[T]):
-        pass
-
-    class Link[T](Pointer[T]):
-        pass
-
-    class SingleLink[T](Link[T]):
-        pass
-
-    class MultiLink[T](Link[T]):
-        pass
-
-The ``select`` method is where we start seeing new things.
-
-The ``**kwargs: Unpack[K]`` is part of this proposal, and allows
-*inferring* a TypedDict from keyword args.
-
-``Attrs[K]`` extracts ``Member`` types corresponding to every
-type-annotated attribute of ``K``, while calling ``NewProtocol`` with
-``Member`` arguments constructs a new structural type.
-
-``GetName`` is a getter operator that fetches the name of a ``Member``
-as a literal type--all of these mechanisms lean very heavily on literal types.
-``GetAttr`` gets the type of an attribute from a class.
-
-::
-
-    def select[ModelT, K: BaseTypedDict](
-        typ: type[ModelT],
-        /,
-        **kwargs: Unpack[K],
-    ) -> list[
-        NewProtocol[
-            *[
-                Member[
-                    GetName[c],
-                    ConvertField[GetAttr[ModelT, GetName[c]]],
-                ]
-                for c in Iter[Attrs[K]]
-            ]
-        ]
-    ]: ...
-
-ConvertField is our first type helper, and it is a conditional type
-alias, which decides between two types based on a (limited)
-subtype-ish check.
-
-In ``ConvertField``, we wish to drop the ``Property`` or ``Link``
-annotation and produce the underlying type, as well as, for links,
-producing a new target type containing only properties and wrapping
-``MultiLink`` in a list.
-
-::
-
-    type ConvertField[T] = (
-        AdjustLink[PropsOnly[PointerArg[T]], T] if IsSub[T, Link] else PointerArg[T]
-    )
-
-``PointerArg`` gets the type argument to ``Pointer`` or a subclass.
-
-``GetArg[T, Base, I]`` is one of the core primitives; it fetches the
-index ``I`` type argument to ``Base`` from a type ``T``, if ``T``
-inherits from ``Base``.
-
-(The subtleties of this will be discussed later; in this case, it just
-grabs the argument to a ``Pointer``).
-
-::
-
-    type PointerArg[T: Pointer] = GetArg[T, Pointer, Literal[0]]
-
-``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
-we've discussed already.
-
-::
-
-    type AdjustLink[Tgt, LinkTy] = list[Tgt] if IsSub[LinkTy, MultiLink] else Tgt
-
-And the final helper, ``PropsOnly[T]``, generates a new type that
-contains all the ``Property`` attributes of ``T``.
-
-::
-
-    type PropsOnly[T] = list[
-        NewProtocol[
-            *[
-                Member[GetName[p], PointerArg[GetType[p]]]
-                for p in Iter[Attrs[T]]
-                if IsSub[GetType[p], Property]
-            ]
-        ]
-    ]
-
-The full test is `in our test suite <#qb-test_>`_.
+(Example code for implementing this :ref:`below <qb-impl>`.)
 
 
 Automatically deriving FastAPI CRUD models
@@ -324,51 +216,22 @@ Those types, evaluated, would look something like::
 
 
 
-While the implementation of ``Public``, ``Create``, and ``Update``
-(presented in the next subsection) are certainly more complex than
-duplicating code would be, they perform quite mechanical operations
-and could be included in the framework library.
+While the implementation of ``Public``, ``Create``, and ``Update`` are
+certainly more complex than duplicating code would be, they perform
+quite mechanical operations and could be included in the framework
+library.
 
 A notable feature of this use case is that it **depends on performing
 runtime evaluation of the type annotations**. FastAPI uses the
 Pydantic models to validate and convert to/from JSON for both input
 and output from endpoints.
 
+Currently it is possible to do the runtime half of this: we could write
+functions that generate Pydantic models at runtime based on whatever
+rules we wished. But this is unsatisfying, because we would not be
+able to properly statically typecheck the functions.
 
-Implementation
-''''''''''''''
-
-We have a more `fully-worked example <#fastapi-test_>`_ in our test
-suite, but here is a possible implementation of just ``Public``::
-
-    # Extract the default type from an Init field.
-    # If it is a Field, then we try pulling out the "default" field,
-    # otherwise we return the type itself.
-    type GetDefault[Init] = (
-        GetFieldItem[Init, Literal["default"]] if IsSub[Init, Field] else Init
-    )
-
-    # Create takes everything but the primary key and preserves defaults
-    type Create[T] = NewProtocol[
-        *[
-            Member[GetName[p], GetType[p], GetQuals[p], GetDefault[GetInit[p]]]
-            for p in Iter[Attrs[T]]
-            if not IsSub[
-                Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
-            ]
-        ]
-    ]
-
-The ``Create`` type alias creates a new type (via ``NewProtocol``) by
-iterating over the attributes of the original type.  It has access to
-names, types, qualifiers, and the literal types of initializers (in
-part through new facilities to handle the extremely common
-``= Field(...)`` like pattern used here.
-
-Here, we filter out attributes that have ``primary_key=True`` in their
-``Field`` as well as extracting default arguments (which may be either
-from a ``default`` argument to a field or specified directly as an
-initializer).
+(Example code for implementing this :ref:`below <fastapi-impl>`.)
 
 
 dataclasses-style method generation
@@ -384,43 +247,11 @@ This kind of pattern is widespread enough that :pep:`PEP 681 <681>`
 was created to represent a lowest-common denominator subset of what
 existing libraries do.
 
-.. _init-impl:
+Make it possible for libraries to implement more of these patterns
+directly in the type system will give better typing without needing
+futher special casing, typechecker plugins, hardcoded support, etc.
 
-Implementation
-''''''''''''''
-
-::
-
-    # Generate the Member field for __init__ for a class
-    type InitFnType[T] = Member[
-        Literal["__init__"],
-        Callable[
-            [
-                Param[Literal["self"], Self],
-                *[
-                    Param[
-                        GetName[p],
-                        GetType[p],
-                        # All arguments are keyword-only
-                        # It takes a default if a default is specified in the class
-                        Literal["keyword"]
-                        if IsSub[
-                            GetDefault[GetInit[p]],
-                            Never,
-                        ]
-                        else Literal["keyword", "default"],
-                    ]
-                    for p in Iter[Attrs[T]]
-                ],
-            ],
-            None,
-        ],
-        Literal["ClassVar"],
-    ]
-    type AddInit[T] = NewProtocol[
-        InitFnType[T],
-        *[x for x in Iter[Members[T]]],
-    ]
+(Example code for implementing this :ref:`below <init-impl>`.)
 
 
 Specification of Needed Preliminaries
@@ -540,10 +371,10 @@ Note first that no changes to the **Python** grammar are being
 proposed, only to the grammar of what Python expressions are
 considered as valid types.
 
-(It's also slightly imprecise to call this a grammar: where operator
-names are mentioned directly, like ``IsSub``, they require that name
-to be imported, and it could also be used qualified as
-``typing.IsSub`` or imported as a different name.)
+(It's also slightly imprecise to call this a grammar:
+``<bool-operator>`` refers to any of the names defined in the
+:ref:`Boolean Operators <boolean-ops>` section, which might be
+imported qualified or with some other name)
 
 ::
 
@@ -559,24 +390,21 @@ to be imported, and it could also be used qualified as
         | <ident>[<variadic-type-arg> +]
 
    # Type conditional checks are boolean compositions of
-   # "subtype checking" and boolean Literal type checking.
+   # boolean type operators
    <type-bool> =
-         IsSub[<type>, <type>]
-       | Bool[<type>]
+         <bool-operator>[<type> +]
        | not <type-bool>
        | <type-bool> and <type-bool>
        | <type-bool> or <type-bool>
-
-       # Do we want these next two? Maybe not.
-       | Any[<variadic-type-arg> +]
-       | All[<variadic-type-arg> +]
+       | any(<type-bool-for>)
+       | all(<type-bool-for>)
 
    <variadic-type-arg> =
          <type> ,
-       | * <type-for-iter> ,
+       | * [ <type-for-iter> ] ,
 
 
-   <type-for> = [ <type> <type-for-iter>+ <type-for-if>* ]
+   <type-for> = <type> <type-for-iter>+ <type-for-if>*
    <type-for-iter> =
          # Iterate over a tuple type
          for <var> in Iter[<type>]
@@ -584,8 +412,53 @@ to be imported, and it could also be used qualified as
          if <type-bool>
 
 
-TODO: explain conditional types and iteration
+(``<type-bool-for>`` is identical to ``<type-for>`` except that the
+result type is a ``<type-bool>`` instead of a ``<type>``.)
 
+There are three core syntactic features introduced: type booleans,
+conditional types and unpacked comprehension types.
+
+Type booleans
+'''''''''''''
+
+Type booleans are a special subset of the type language that can be
+used in the body of conditionals.  They consist of the :ref:`Boolean
+Operators <boolean-ops>`, defined below, potentially combined with
+``and``, ``or``, ``not``, ``all``, and ``any``. For ``all`` and
+``any``, the argument is a comprehension of type booleans, evaluated
+in the same was as the :ref:`unpacked comprehensions <unpacked>`.
+
+When evaluated, they will evaluate to ``Literal[True]`` or
+``Literal[False]]``.
+
+(We want to restrict what operators may be used in a conditional
+so that at runtime, we can have those operators produce "type" values
+with appropriate behavior, without needing to change the behavior of
+existing ``Literal[False]`` values and the like.)
+
+
+Conditional types
+'''''''''''''''''
+
+The type ``true_typ if bool_typ else false_typ`` is a conditional
+type, which resolves to ``true_typ`` if ``bool_typ`` is equivalent to
+``Literal[True]`` and to ``true_typ`` otherwise.
+
+``bool_typ`` is a type, but it needs syntactically be a type boolean,
+defined above.
+
+.. _unpacked:
+
+Unpacked comprehension
+''''''''''''''''''''''
+
+An unpacked comprehension, ``*[ty for t in Iter[iter_ty]]`` may appear
+anywhere in a type that ``Unpack[...]`` is currently allowed, and it
+evaluates essentially to an ``Unpack`` of a tuple produced by a list
+comprehension iterating over the arguments of tuple type ``iter_ty``.
+
+The comprehension may also have ``if`` clauses, which filter in the
+usual way.
 
 Type operators
 --------------
@@ -594,13 +467,26 @@ In some sections below we write things like ``Literal[int]]`` to mean
 "a literal that is of type ``int``". I don't think I'm really
 proposing to add that as a notion, but we could.
 
-Boolean types
-'''''''''''''
+.. _boolean-ops:
+
+Boolean operators
+'''''''''''''''''
 
 * ``IsSub[T, S]``: What we would **want** is that it returns a boolean
   literal type indicating whether ``T`` is a subtype of ``S``.
   To support runtime checking, we probably need something weaker.
 
+  TODO: Discuss this in detail.
+
+* ``Matches[T, S]``:
+  Equivalent to ``IsSub[T, S] and IsSub[S, T]``.
+
+* ``Bool[T]``: Returns ``Literal[True]`` if ``T`` is also
+  ``Literal[True]`` or a union containing it.
+  Equivalent to ``IsSub[T, Literal[True]] and not IsSub[T, Never]``.
+
+  This is useful for invoking "helper aliases" that return a boolean
+  literal type.
 
 Basic operators
 '''''''''''''''
@@ -631,7 +517,8 @@ Basic operators
   (or ``Literal[None]`` if it is unbounded)
 
 
-All of the operators in this section are "lifted" over union types.
+All of the operators in this section are :ref:`lifted over union types
+<lifting>`.
 
 Union processing
 ''''''''''''''''
@@ -645,7 +532,7 @@ Object inspection
 '''''''''''''''''
 
 * ``Members[T]``: produces a ``tuple`` of ``Member`` types describing
-  the members (attributes and methods) of class ``T``.
+  the members (attributes and methods) of class or typed dict ``T``.
 
   In order to allow typechecking time and runtime evaluation coincide
   more closely, **only members with explicit type annotations are included**.
@@ -664,11 +551,12 @@ Object inspection
   * ``Init`` is the literal type of the attribute initializer in the
     class (see :ref:`InitField <init-field>`)
   * ``D`` is the defining class of the member. (That is, which class
-    the member is inherited from.)
+    the member is inherited from. Always ``Never``, for a ``TypedDict``)
 
-* ``MemberQuals = Literal['ClassVar', 'Final']`` - ``MemberQuals`` is
-  the type of "qualifiers" that can apply to a member; currently
-  ``ClassVar`` and ``Final``
+* ``MemberQuals = Literal['ClassVar', 'Final', 'NotRequired, 'ReadOnly']`` -
+  ``MemberQuals`` is the type of "qualifiers" that can apply to a
+  member; currently ``ClassVar`` and ``Final`` apply to classes and
+  ``NotRequired``, and ``ReadOnly`` to typed dicts
 
 
 Methods are returned as callables using the new ``Param`` based
@@ -692,7 +580,8 @@ with ``Param``, discussed below.)
 * ``GetInit[T: Member]``
 * ``GetDefiner[T: Member]``
 
-
+All of the operators in this section are :ref:`lifted over union types
+<lifting>`. (BUT TODO: should they be?)
 
 Object creation
 '''''''''''''''
@@ -704,7 +593,6 @@ Object creation
 
 * ``NewTypedDict[*Ps: Member]`` -- TODO: Needs fleshing out; will work
   similarly to ``NewProtocol`` but has different flags
-
 
 
 .. _init-field:
@@ -814,7 +702,8 @@ for all unicode!).
 * ``Capitalize[S: Literal[str]]``: capitalize a string literal
 * ``Uncapitalize[S: Literal[str]]``: uncapitalize a string literal
 
-All of the operators in this section are "lifted" over union types.
+All of the operators in this section are :ref:`lifted over union types
+<lifting>`.
 
 Raise error
 '''''''''''
@@ -859,14 +748,244 @@ For example::
     )
 
 
-TODO: EXPLAIN
+When an operation is lifted over union types, we take the cross
+product of the union elements for each argument position, evaluate the
+operator for each tuple in the cross product, and then union all of
+the results together. In Python, the logic looks like::
+
+    args_union_els = [get_union_elems(arg) for arg in args]
+    results = [
+        eval_operator(*xs)
+        for xs in itertools.product(*args_union_els)
+    ]
+    if results:
+        return Union[*results]
+    else:
+        return Never
 
 
 .. _rt-support:
 
-
 Runtime evaluation support
 --------------------------
+
+An important goal is supporting runtime evaluation of these computed
+types.  We do not propose to add an official evaluator to the standard
+library, but intend to release a third-party evaluator library.
+
+While most of the extensions to the type system are "inert" type
+operator applications, the syntax also includes list iteration and
+conditionals, which will be automatically evaluated when the
+``__annotate__`` method of a class, alias, or function is called.
+
+In order to allow an evaluator library to trigger type evaluation in
+those cases, we add a new hook to ``typing``:
+
+* ``special_form_evaluator``: This is a ``ContextVar`` that holds a
+  callable that will be invoked with a ``typing._GenericAlias``
+  argument when ``__bool__`` is called on a
+  :ref:`Boolean Operator <boolean-ops>` or ``__iter__`` is called
+  on ``typing.Iter``.
+  The returned value will then have ``bool`` or ``iter`` called upon
+  it before being returned.
+
+  If set to ``None`` (the default), the boolean operators will return
+  ``False`` while ``Iter`` will evaluate to
+  ``iter(typing.TypeVarTuple("_IterDummy"))``.
+  (TODO: Or should it be to ``iter([])``?)
+
+Examples / Tutorial
+===================
+
+Here we will take something of a tutorial approach in discussing how
+to achieve the goals in the examples in the motivation section,
+explain the features being used as we use them.
+
+.. _qb-impl:
+
+Prisma-style ORMs
+-----------------
+
+First, to support the annotations we saw above, we have a collection
+of dummy classes with generic types.
+
+::
+
+    class Pointer[T]:
+        pass
+
+    class Property[T](Pointer[T]):
+        pass
+
+    class Link[T](Pointer[T]):
+        pass
+
+    class SingleLink[T](Link[T]):
+        pass
+
+    class MultiLink[T](Link[T]):
+        pass
+
+The ``select`` method is where we start seeing new things.
+
+The ``**kwargs: Unpack[K]`` is part of this proposal, and allows
+*inferring* a TypedDict from keyword args.
+
+``Attrs[K]`` extracts ``Member`` types corresponding to every
+type-annotated attribute of ``K``, while calling ``NewProtocol`` with
+``Member`` arguments constructs a new structural type.
+
+``GetName`` is a getter operator that fetches the name of a ``Member``
+as a literal type--all of these mechanisms lean very heavily on literal types.
+``GetAttr`` gets the type of an attribute from a class.
+
+::
+
+    def select[ModelT, K: BaseTypedDict](
+        typ: type[ModelT],
+        /,
+        **kwargs: Unpack[K],
+    ) -> list[
+        NewProtocol[
+            *[
+                Member[
+                    GetName[c],
+                    ConvertField[GetAttr[ModelT, GetName[c]]],
+                ]
+                for c in Iter[Attrs[K]]
+            ]
+        ]
+    ]: ...
+
+ConvertField is our first type helper, and it is a conditional type
+alias, which decides between two types based on a (limited)
+subtype-ish check.
+
+In ``ConvertField``, we wish to drop the ``Property`` or ``Link``
+annotation and produce the underlying type, as well as, for links,
+producing a new target type containing only properties and wrapping
+``MultiLink`` in a list.
+
+::
+
+    type ConvertField[T] = (
+        AdjustLink[PropsOnly[PointerArg[T]], T] if IsSub[T, Link] else PointerArg[T]
+    )
+
+``PointerArg`` gets the type argument to ``Pointer`` or a subclass.
+
+``GetArg[T, Base, I]`` is one of the core primitives; it fetches the
+index ``I`` type argument to ``Base`` from a type ``T``, if ``T``
+inherits from ``Base``.
+
+(The subtleties of this will be discussed later; in this case, it just
+grabs the argument to a ``Pointer``).
+
+::
+
+    type PointerArg[T: Pointer] = GetArg[T, Pointer, Literal[0]]
+
+``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
+we've discussed already.
+
+::
+
+    type AdjustLink[Tgt, LinkTy] = list[Tgt] if IsSub[LinkTy, MultiLink] else Tgt
+
+And the final helper, ``PropsOnly[T]``, generates a new type that
+contains all the ``Property`` attributes of ``T``.
+
+::
+
+    type PropsOnly[T] = list[
+        NewProtocol[
+            *[
+                Member[GetName[p], PointerArg[GetType[p]]]
+                for p in Iter[Attrs[T]]
+                if IsSub[GetType[p], Property]
+            ]
+        ]
+    ]
+
+The full test is `in our test suite <#qb-test_>`_.
+
+
+.. _fastapi-impl:
+
+Automatically deriving FastAPI CRUD models
+------------------------------------------
+
+We have a more `fully-worked example <#fastapi-test_>`_ in our test
+suite, but here is a possible implementation of just ``Public``::
+
+    # Extract the default type from an Init field.
+    # If it is a Field, then we try pulling out the "default" field,
+    # otherwise we return the type itself.
+    type GetDefault[Init] = (
+        GetFieldItem[Init, Literal["default"]] if IsSub[Init, Field] else Init
+    )
+
+    # Create takes everything but the primary key and preserves defaults
+    type Create[T] = NewProtocol[
+        *[
+            Member[GetName[p], GetType[p], GetQuals[p], GetDefault[GetInit[p]]]
+            for p in Iter[Attrs[T]]
+            if not IsSub[
+                Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
+            ]
+        ]
+    ]
+
+The ``Create`` type alias creates a new type (via ``NewProtocol``) by
+iterating over the attributes of the original type.  It has access to
+names, types, qualifiers, and the literal types of initializers (in
+part through new facilities to handle the extremely common
+``= Field(...)`` like pattern used here.
+
+Here, we filter out attributes that have ``primary_key=True`` in their
+``Field`` as well as extracting default arguments (which may be either
+from a ``default`` argument to a field or specified directly as an
+initializer).
+
+
+.. _init-impl:
+
+dataclasses-style method generation
+-----------------------------------
+
+::
+
+    # Generate the Member field for __init__ for a class
+    type InitFnType[T] = Member[
+        Literal["__init__"],
+        Callable[
+            [
+                Param[Literal["self"], Self],
+                *[
+                    Param[
+                        GetName[p],
+                        GetType[p],
+                        # All arguments are keyword-only
+                        # It takes a default if a default is specified in the class
+                        Literal["keyword"]
+                        if IsSub[
+                            GetDefault[GetInit[p]],
+                            Never,
+                        ]
+                        else Literal["keyword", "default"],
+                    ]
+                    for p in Iter[Attrs[T]]
+                ],
+            ],
+            None,
+        ],
+        Literal["ClassVar"],
+    ]
+    type AddInit[T] = NewProtocol[
+        InitFnType[T],
+        *[x for x in Iter[Members[T]]],
+    ]
+
 
 Rationale
 =========
@@ -1011,8 +1130,18 @@ Open Issues
 
 * What invalid operations should be errors and what should return ``Never``?
 
+What exactly are the subtyping (etc) rules for unevaluated types
+----------------------------------------------------------------
 
-[Any points that are still being decided/discussed.]
+Because of generic functions, there will be plenty of cases where we
+can't evaluate a type operator (because it's applied to an unresolved
+type variable), and exactly what the type evaluation rules should be
+in those cases is somewhat unclear.
+
+Currently, in the proof of concept implementation in mypy, stuck type
+evaluations implement subtype checking fully invariantly: we check
+that the operators match and that every operand matches in both
+arguments invariantly.
 
 
 Acknowledgements

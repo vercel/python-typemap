@@ -75,17 +75,33 @@ def replace_section(rst_content: str, label: str, new_content: str) -> str:
             section_level = get_section_level(lines[i + 1])
             break
 
-    if section_title_idx is None:
+    if section_title_idx is None or section_underline_idx is None or section_level is None:
         raise ValueError(f"No section heading found after label '{label}'")
 
     # Find where the section ends (next section at same or higher level)
     section_end_idx = len(lines)
 
+    # Pattern to match RST labels like ".. _label-name:" or ".. _#label-name:"
+    label_pattern = re.compile(r'^\.\.\s+_#?[\w-]+:\s*$')
+
     for i in range(section_underline_idx + 1, len(lines) - 1):
         if is_section_underline(lines[i + 1], lines[i]):
             next_level = get_section_level(lines[i + 1])
             if next_level is not None and next_level <= section_level:
+                # Walk backward past blank lines and labels to find all labels
+                # that belong to this next section
                 section_end_idx = i
+
+                idx = i
+                while idx > section_underline_idx + 1:
+                    prev_line = lines[idx - 1]
+                    if label_pattern.match(prev_line):
+                        idx -= 1
+                        section_end_idx = idx
+                    elif not prev_line.strip():
+                        idx -= 1
+                    else:
+                        break
                 break
 
     # Build the result
@@ -102,7 +118,7 @@ def replace_section(rst_content: str, label: str, new_content: str) -> str:
     # Add the new content
     result_lines.extend(new_content_lines)
 
-    # Add blank line before next section if needed
+    # Add blank line before next section if needed (when content doesn't end with one)
     if section_end_idx < len(lines):
         if result_lines and result_lines[-1].strip():
             result_lines.append('')

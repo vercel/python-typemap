@@ -21,11 +21,7 @@ from . import format_helper
 
 # Begin PEP section: Prisma-style ORMs
 
-"""This will take something of a tutorial approach in discussing the
-implementation, and explain the features being used as we use
-them. More details were appear in the specification section.
-
-First, to support the annotations we saw above, we have a collection
+"""First, to support the annotations we saw above, we have a collection
 of dummy classes with generic types.
 """
 
