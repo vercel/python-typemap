@@ -15,6 +15,7 @@ from typing import (
 from typemap.type_eval import eval_call_with_types, eval_typing
 from typemap.typing import (
     Attrs,
+    Bool,
     Length,
     GetArg,
     GetAttr,
@@ -163,21 +164,17 @@ type ColumnInitIsNullable[Init] = GetInitFieldItem[
 type ColumnInitIsAutoincrement[Init] = GetInitFieldItem[
     Init, Literal["autoincrement"], Literal[False]
 ]
-type ColumnInitHasDefault[Init] = (
-    Literal[True]
-    if not IsSub[GetInitFieldItem[Init, Literal["default"], Never], Never]
-    else Literal[False]
-)
+type ColumnInitHasDefault[Init] = not IsSub[
+    GetInitFieldItem[Init, Literal["default"], Never], Never
+]
 
 type ReadValueNeverNull[M] = (
-    Literal[True]
-    if not IsSub[Literal[True], ColumnInitIsNullable[GetInit[M]]]
-    or IsSub[Literal[True], ColumnInitIsAutoincrement[GetInit[M]]]
+    not Bool[ColumnInitIsNullable[GetInit[M]]]
+    or Bool[ColumnInitIsAutoincrement[GetInit[M]]]
     or (
         IsSub[FieldPyType[GetType[M]], list]
         and IsSub[GetArg[FieldPyType[GetType[M]], list, Literal[0]], Table]
     )
-    else Literal[False]
 )
 
 
@@ -226,14 +223,10 @@ type EntryFieldMembers[T: Table, FieldNames: tuple[Literal[str], ...]] = tuple[
 ]
 
 type EntryIsTable[E: QueryEntry, T: Table] = (
-    Literal[True]
-    if IsSub[EntryTable[E], T] and IsSub[T, EntryTable[E]]
-    else Literal[False]
+    IsSub[EntryTable[E], T] and IsSub[T, EntryTable[E]]
 )
-type EntriesHasTable[Es: tuple[QueryEntry, ...], T: Table] = (
-    Literal[True]
-    if any(IsSub[Literal[True], EntryIsTable[e, T]] for e in Iter[Es])
-    else Literal[False]
+type EntriesHasTable[Es: tuple[QueryEntry, ...], T: Table] = any(
+    Bool[EntryIsTable[e, T]] for e in Iter[Es]
 )
 
 type MakeQueryEntryAllFields[T: Table] = QueryEntry[
@@ -257,16 +250,12 @@ type MakeQueryEntryNamedFields[
 
 type AddTable[Entries, New: Table] = tuple[
     *[  # Existing entries
-        (
-            e
-            if not IsSub[Literal[True], EntryIsTable[e, New]]
-            else MakeQueryEntryAllFields[New]
-        )
+        (e if not Bool[EntryIsTable[e, New]] else MakeQueryEntryAllFields[New])
         for e in Iter[Entries]
     ],
     *(  # Add entries if not present
         []
-        if IsSub[Literal[True], EntriesHasTable[Entries, New]]
+        if Bool[EntriesHasTable[Entries, New]]
         else [MakeQueryEntryAllFields[New]]
     ),
 ]
@@ -274,7 +263,7 @@ type AddField[Entries, New: Field] = tuple[
     *[  # Existing entries
         (
             e  # Non-matching entry
-            if not IsSub[Literal[True], EntryIsTable[e, FieldTable[New]]]
+            if not Bool[EntryIsTable[e, FieldTable[New]]]
             else MakeQueryEntryNamedFields[
                 EntryTable[e],
                 tuple[*[f for f in Iter[EntryFields[e]]], FieldName[New]],
@@ -284,7 +273,7 @@ type AddField[Entries, New: Field] = tuple[
     ],
     *(  # Add entries if not present
         []
-        if IsSub[Literal[True], EntriesHasTable[Entries, FieldTable[New]]]
+        if Bool[EntriesHasTable[Entries, FieldTable[New]]]
         else [QueryEntry[FieldTable[New], tuple[FieldName[New]]]]
     ),
 ]
@@ -318,10 +307,7 @@ type Select[T: Table, FieldNames: tuple[Literal[str], ...]] = NewProtocol[
             GetName[m],
             (
                 FieldPyType[GetType[m]]
-                if IsSub[
-                    Literal[True],
-                    ReadValueNeverNull[m],
-                ]
+                if Bool[ReadValueNeverNull[m]]
                 else FieldPyType[GetType[m]] | None
             ),
         ]
