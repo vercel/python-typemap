@@ -147,7 +147,7 @@ class GetArgs[Tp, Base]:
     pass
 
 
-class TypeName[T: type]:
+class GetSpecialAttr[T: type, Attr: str]:
     pass
 
 

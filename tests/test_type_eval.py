@@ -28,6 +28,7 @@ from typemap.typing import (
     GetMember,
     GetMemberType,
     GetName,
+    GetSpecialAttr,
     GetType,
     GetAnnotations,
     IsSub,
@@ -41,7 +42,6 @@ from typemap.typing import (
     Slice,
     SpecialFormEllipsis,
     StrConcat,
-    TypeName,
     Uppercase,
     _BoolLiteral,
 )
@@ -991,23 +991,82 @@ def test_eval_getarg_custom_08():
     assert eval_typing(GetArg[t, Container, Literal[1]]) == Never
 
 
+class OuterType:
+    class InnerType:
+        pass
+
+
 def test_eval_typename_01():
-    d = eval_typing(TypeName[int])
+    d = eval_typing(GetSpecialAttr[int, Literal["__name__"]])
     assert d == Literal["int"]
-    d = eval_typing(TypeName[str])
+    d = eval_typing(GetSpecialAttr[str, Literal["__name__"]])
     assert d == Literal["str"]
-    d = eval_typing(TypeName[list[int]])
+    d = eval_typing(GetSpecialAttr[list[int], Literal["__name__"]])
     assert d == Literal["list"]
-    d = eval_typing(TypeName[list[str]])
+    d = eval_typing(GetSpecialAttr[list[str], Literal["__name__"]])
     assert d == Literal["list"]
 
     class C:
         pass
 
-    d = eval_typing(TypeName[C])
+    d = eval_typing(GetSpecialAttr[OuterType, Literal["__name__"]])
+    assert d == Literal["OuterType"]
+    d = eval_typing(GetSpecialAttr[OuterType.InnerType, Literal["__name__"]])
+    assert d == Literal["InnerType"]
+    d = eval_typing(GetSpecialAttr[C, Literal["__name__"]])
     assert d == Literal["C"]
 
-    d = eval_typing(TypeName[GetA1[int, str]])
+    d = eval_typing(GetSpecialAttr[GetA1[int, str], Literal["__name__"]])
+    assert d == Literal["int"]
+
+
+def test_eval_typename_02():
+    d = eval_typing(GetSpecialAttr[int, Literal["__module__"]])
+    assert d == Literal["builtins"]
+    d = eval_typing(GetSpecialAttr[str, Literal["__module__"]])
+    assert d == Literal["builtins"]
+    d = eval_typing(GetSpecialAttr[list[int], Literal["__module__"]])
+    assert d == Literal["builtins"]
+    d = eval_typing(GetSpecialAttr[list[str], Literal["__module__"]])
+    assert d == Literal["builtins"]
+
+    class C:
+        pass
+
+    d = eval_typing(GetSpecialAttr[OuterType, Literal["__module__"]])
+    assert d == Literal["tests.test_type_eval"]
+    d = eval_typing(GetSpecialAttr[OuterType.InnerType, Literal["__module__"]])
+    assert d == Literal["tests.test_type_eval"]
+    d = eval_typing(GetSpecialAttr[C, Literal["__module__"]])
+    assert d == Literal["tests.test_type_eval"]
+
+    d = eval_typing(GetSpecialAttr[GetA1[int, str], Literal["__module__"]])
+    assert d == Literal["builtins"]
+
+
+def test_eval_typename_03():
+    d = eval_typing(GetSpecialAttr[int, Literal["__qualname__"]])
+    assert d == Literal["int"]
+    d = eval_typing(GetSpecialAttr[str, Literal["__qualname__"]])
+    assert d == Literal["str"]
+    d = eval_typing(GetSpecialAttr[list[int], Literal["__qualname__"]])
+    assert d == Literal["list"]
+    d = eval_typing(GetSpecialAttr[list[str], Literal["__qualname__"]])
+    assert d == Literal["list"]
+
+    class C:
+        pass
+
+    d = eval_typing(GetSpecialAttr[OuterType, Literal["__qualname__"]])
+    assert d == Literal["OuterType"]
+    d = eval_typing(
+        GetSpecialAttr[OuterType.InnerType, Literal["__qualname__"]]
+    )
+    assert d == Literal["OuterType.InnerType"]
+    d = eval_typing(GetSpecialAttr[C, Literal["__qualname__"]])
+    assert d == Literal["test_eval_typename_03.<locals>.C"]
+
+    d = eval_typing(GetSpecialAttr[GetA1[int, str], Literal["__qualname__"]])
     assert d == Literal["int"]
 
 
