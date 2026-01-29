@@ -291,9 +291,7 @@ type AddEntries[Entries, News: tuple[Table | Field, ...]] = (
 type UniqueEntries[Entries] = AddEntries[tuple[()], Entries]
 
 
-def select[*Es](
-    *entity: Unpack[Es],
-) -> Query[UniqueEntries[tuple[*[e for e in Iter[Es]]]]]: ...
+def select[*Es](*entity: Unpack[Es]) -> Query[UniqueEntries[Es]]: ...
 
 
 class Query[Es: tuple[QueryEntry[Table, tuple[Member]], ...]]:
