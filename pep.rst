@@ -262,12 +262,12 @@ typing. The situation was substantially improved by the introducing of
 unsupported:
 
  * Adding/removing/modifying a keyword parameter
- * Adding/removing/modifying a variable number of parameters. (Though
-   there are potential small extensions to ``TypeVarTuple`` that would
-   allow adding and removing.)
+ * Modifying a variable number of parameters -- XXX: check how well TypeVarTuple does this
 
 This proposal will cover those cases.
 
+XXX: Ehhhhhh the generic situation could be bad for some of it? For
+partial certainly, I think, which otherwise we can almost do.
 
 NumPy-style broadcasting
 ------------------------
