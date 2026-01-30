@@ -261,13 +261,13 @@ typing. The situation was substantially improved by the introducing of
 ``ParamSpec`` in :pep:`PEP 612 <612>`, but a number of patterns remain
 unsupported:
 
- * Adding/removing/modifying a keyword parameter
- * Modifying a variable number of parameters -- XXX: check how well TypeVarTuple does this
+* Adding/removing/modifying a keyword parameter
+* Adding/removing/modifying a variable number of parameters. (Though
+  ``TypeVarTuple`` is close to being able to support adding and
+  removing, if multiple unpackings were to be allowed, and Pyre
+  implemented a ``Map`` operator that allowed modifying multiple.)
 
 This proposal will cover those cases.
-
-XXX: Ehhhhhh the generic situation could be bad for some of it? For
-partial certainly, I think, which otherwise we can almost do.
 
 NumPy-style broadcasting
 ------------------------
