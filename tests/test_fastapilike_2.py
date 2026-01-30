@@ -18,7 +18,7 @@ from typemap.typing import (
     IsSub,
     FromUnion,
     GetArg,
-    GetAttr,
+    GetMemberType,
     GetType,
     GetName,
     GetQuals,
@@ -46,7 +46,7 @@ class Field[T: FieldArgs](InitField[T]):
 ####
 
 # TODO: Should this go into the stdlib?
-type GetFieldItem[T: InitField, K] = GetAttr[
+type GetFieldItem[T: InitField, K] = GetMemberType[
     GetArg[T, InitField, Literal[0]], K
 ]
 

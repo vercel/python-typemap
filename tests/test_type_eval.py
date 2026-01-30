@@ -25,7 +25,8 @@ from typemap.typing import (
     GenericCallable,
     GetArg,
     GetArgs,
-    GetAttr,
+    GetMember,
+    GetMemberType,
     GetName,
     GetType,
     GetAnnotations,
@@ -198,27 +199,27 @@ def test_eval_arg_order():
 
 
 def test_type_getattr_union_1():
-    d = eval_typing(GetAttr[TA | TB, Literal["x"]])
+    d = eval_typing(GetMemberType[TA | TB, Literal["x"]])
     assert d == int | str
 
 
 def test_type_getattr_union_2():
-    d = eval_typing(GetAttr[TA, Literal["x"] | Literal["y"]])
+    d = eval_typing(GetMemberType[TA, Literal["x"] | Literal["y"]])
     assert d == int | list[float]
 
 
 def test_type_getattr_union_3():
-    d = eval_typing(GetAttr[TA | TB, Literal["x"] | Literal["y"]])
+    d = eval_typing(GetMemberType[TA | TB, Literal["x"] | Literal["y"]])
     assert d == int | list[float] | str | list[object]
 
 
 def test_type_getattr_union_4():
-    d = eval_typing(GetAttr[TA, Literal["x", "y"]])
+    d = eval_typing(GetMemberType[TA, Literal["x", "y"]])
     assert d == int | list[float]
 
 
 def test_type_getattr_union_5():
-    d = eval_typing(GetAttr[TA, Literal["x", "y"] | Literal["z"]])
+    d = eval_typing(GetMemberType[TA, Literal["x", "y"] | Literal["z"]])
     assert d == int | list[float] | TB
 
 
@@ -377,6 +378,21 @@ def test_type_from_union_06():
         FromUnion[GetArg[GetArg[d, tuple, Literal[2]], list, Literal[0]]]
     )
     assert _is_generic_permutation(n, tuple[int, list[IntTree]])
+
+
+def test_getmember_01():
+    d = eval_typing(GetMember[TA, Literal["x"]])
+    assert d == Member[Literal["x"], int, Never, Never, TA]
+    d = eval_typing(GetMemberType[TA, Literal["a"]])
+    assert d == Never
+
+    d = eval_typing(GetMember[TA | TB, Literal["x"]])
+    assert d == (
+        Member[Literal["x"], int, Never, Never, TA]
+        | Member[Literal["x"], str, Never, Never, TB]
+    )
+    d = eval_typing(GetMember[TA | TB, Literal[""]])
+    assert d == Never
 
 
 def test_getarg_never():
@@ -1537,15 +1553,15 @@ def test_type_eval_annotated_01():
 
 
 def test_type_eval_annotated_02():
-    res = eval_typing(IsSub[GetAttr[AnnoTest, Literal["a"]], int])
+    res = eval_typing(IsSub[GetMemberType[AnnoTest, Literal["a"]], int])
     assert res == _BoolLiteral[True]
 
 
 def test_type_eval_annotated_03():
-    res = eval_typing(Uppercase[GetAttr[AnnoTest, Literal["b"]]])
+    res = eval_typing(Uppercase[GetMemberType[AnnoTest, Literal["b"]]])
     assert res == Literal["TEST"]
 
 
 def test_type_eval_annotated_04():
-    res = eval_typing(GetAnnotations[GetAttr[AnnoTest, Literal["b"]]])
+    res = eval_typing(GetAnnotations[GetMemberType[AnnoTest, Literal["b"]]])
     assert res == Literal["blah"]
