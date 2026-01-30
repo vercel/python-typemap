@@ -107,6 +107,10 @@ class EvalContext:
     # confused and wants to treat it as a MethodType.
     current_generic_alias: types.GenericAlias | typing.Any | None = None
 
+    # The current class being evaluated, used by Cls to resolve to the
+    # class whose attributes are being accessed
+    current_cls: type | None = None
+
 
 # `eval_types()` calls can be nested, context must be preserved
 _current_context: contextvars.ContextVar[EvalContext | None] = (
@@ -170,6 +174,7 @@ def _child_context() -> typing.Iterator[EvalContext]:
             recursive_type_alias=ctx.recursive_type_alias,
             known_recursive_types=ctx.known_recursive_types.copy(),
             current_generic_alias=ctx.current_generic_alias,
+            current_cls=ctx.current_cls,
         )
         _current_context.set(child_ctx)
         yield child_ctx
@@ -315,6 +320,15 @@ def _get_class_type_hint_namespaces(
 
 @_eval_types_impl.register
 def _eval_type_type(obj: type, ctx: EvalContext):
+    from typemap.typing import Cls
+
+    # Special handling for Cls
+    if obj is Cls:
+        # If we are evaluating Cls, return the current class
+        if ctx.current_cls is not None:
+            return ctx.current_cls
+        return Cls
+
     # Ensure that any string annotations are resolved
     if (
         hasattr(obj, '__annotations__')
