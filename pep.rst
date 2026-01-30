@@ -580,6 +580,13 @@ Basic operators
 * ``GetMemberType[T, S: Literal[str]]``: Extract the type of the
   member named ``S`` from the class ``T``.
 
+
+* ``GetSpecialAttr[T: type, Attr: Literal[str]]``: Extract the value
+  of special attribute named ``Attr`` from the class ``T``. Valid
+  attributes are ``__name__``, ``__module__``, and ``__qualname__``.
+  Returns the value as a ``Literal[str]``.
+
+
 * ``Length[T: tuple]`` - get the length of a tuple as an int literal
   (or ``Literal[None]`` if it is unbounded)
 

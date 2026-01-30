@@ -27,6 +27,7 @@ from typemap.typing import (
     GetArgs,
     GetMember,
     GetMemberType,
+    GetSpecialAttr,
     InitField,
     IsSubSimilar,
     IsSubtype,
@@ -921,6 +922,28 @@ def _eval_GetArgs(tp, base, *, ctx) -> typing.Any:
     if args is None:
         return typing.Never
     return tuple[*args]  # type: ignore[valid-type]
+
+
+@type_eval.register_evaluator(GetSpecialAttr)
+@_lift_over_unions
+def _eval_GetSpecialAttr(tp, attr, *, ctx) -> typing.Any:
+    if not (
+        _typing_inspect.is_generic_alias(attr)
+        and attr.__origin__ is typing.Literal
+        and isinstance(attr.__args__[0], str)
+    ):
+        raise TypeError(
+            f"Invalid type argument to GetSpecialAttr: "
+            f"{attr} is not a string Literal"
+        )
+    if attr.__args__[0] == "__name__":
+        return typing.Literal[tp.__name__]
+    elif attr.__args__[0] == "__module__":
+        return typing.Literal[tp.__module__]
+    elif attr.__args__[0] == "__qualname__":
+        return typing.Literal[tp.__qualname__]
+    else:
+        return typing.Never
 
 
 @type_eval.register_evaluator(GetAnnotations)

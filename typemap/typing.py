@@ -147,6 +147,10 @@ class GetArgs[Tp, Base]:
     pass
 
 
+class GetSpecialAttr[T: type, Attr: str]:
+    pass
+
+
 class Length[S: tuple]:
     pass
 
