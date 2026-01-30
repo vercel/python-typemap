@@ -253,6 +253,68 @@ futher special casing, typechecker plugins, hardcoded support, etc.
 
 (Example code for implementing this :ref:`below <init-impl>`.)
 
+More powerful decorator typing
+------------------------------
+
+The typing of decorator functions has long been a pain point in python
+typing. The situation was substantially improved by the introducing of
+``ParamSpec`` in :pep:`PEP 612 <612>`, but a number of patterns remain
+unsupported:
+
+ * Adding/removing/modifying a keyword parameter
+ * Modifying a variable number of parameters -- XXX: check how well TypeVarTuple does this
+
+This proposal will cover those cases.
+
+XXX: Ehhhhhh the generic situation could be bad for some of it? For
+partial certainly, I think, which otherwise we can almost do.
+
+NumPy-style broadcasting
+------------------------
+
+One of the motivations for the introduction of ``TypeVarTuple`` in
+:pep:`PEP 646 <646>` is to represent the shapes of multi-dimensional
+arrays, such as::
+
+  x: Array[float, L[480], L[640]] = Array()
+
+The example in the that PEP shows how ``TypeVarTuple`` can be used to
+make sure that both sides of an arithmetic operation having matching
+shapes. Most multi-dimensional array libraries, however, also support
+[#broadcasting]_, which allows the mixing of differently shaped data.
+With this PEP, we can define a ``Broadcast[A, B]`` type alias, and
+then use it as a return type::
+
+    class Array[DType, *Shape]:
+        def __add__[*Shape2](
+            self,
+            other: Array[DType, *Shape2]
+        ) -> Array[DType, *Broadcast[tuple[*Shape], tuple[*Shape2]]]:
+            raise BaseException
+
+(The somewhat clunky syntax of wrapping the ``TypeVarTuple`` in
+another ``tuple`` is because typecheckers currently disallow having
+two ``TypeVarTuple`` arguments. A possible improvement would be to
+allow writing the bare (non-starred or ``Unpack``-ed) variable name to
+mean its interpretation as a tuple.)
+
+We can then do::
+
+    a1: Array[float, L[4], L[1]]
+    a2: Array[float, L[3]]
+    a1 + a2  # Array[builtins.float, Literal[4], Literal[3]]
+
+    b1: Array[float, int, int]
+    b2: Array[float, int]
+    b1 + b2  # Array[builtins.float, int, int]
+
+    err1: Array[float, L[4], L[2]]
+    err2: Array[float, L[3]]
+    # err1 + err2  # E: Broadcast mismatch: Literal[2], Literal[3]
+
+
+TODO: Link the implementation
+
 
 Specification of Needed Preliminaries
 =====================================
@@ -495,6 +557,8 @@ Basic operators
   number ``Idx`` to ``T`` when interpreted as ``Base``, or ``Never``
   if it cannot be. (That is, if we have  ``class A(B[C]): ...``, then
   ``GetArg[A, B, 0] == C`` while ``GetArg[A, A, 0] == Never``).
+
+  Negative indexes work in the usual way.
 
   N.B: *Unfortunately* ``Base`` must be a proper class, *not* a
   protocol. So, for example, ``GetArg[Ty, Iterable, 0]]`` to get the
@@ -1162,6 +1226,8 @@ Footnotes
 .. _#prisma: https://www.prisma.io/
 .. _#prisma-example: https://github.com/prisma/prisma-examples/tree/latest/orm/express
 .. _#qb-test: https://github.com/geldata/typemap/blob/main/tests/test_qblike_2.py
+.. [#broadcasting] http://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
+
 
 Copyright
 =========
