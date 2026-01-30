@@ -113,7 +113,7 @@ from a ``default`` argument to a field or specified directly as an
 initializer).
 """
 
-# End PEP section: CRUD
+# End PEP section
 
 
 # Update takes everything but the primary key, but makes them all have
@@ -170,7 +170,7 @@ type AddInit[T] = typing.NewProtocol[
 ]
 
 
-# End PEP section: __init__
+# End PEP section
 
 
 ####

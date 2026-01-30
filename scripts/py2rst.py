@@ -163,7 +163,7 @@ def main():
                     break
 
         if args.end:
-            for idx, line in enumerate(lines):
+            for idx, line in list(enumerate(lines))[start_idx:]:
                 if args.end in line:
                     end_idx = idx
                     break
