@@ -179,6 +179,19 @@ class NewProtocol[*T]:
     pass
 
 
+class RaiseError[S: str, *Ts]:
+    """Raise a type error with the given message when evaluated.
+
+    RaiseError[S: Literal[str], *Ts]: If this type needs to be evaluated
+    to determine some actual type, generate a type error with the
+    provided message.
+
+    Any additional type arguments should be included in the message.
+    """
+
+    pass
+
+
 ##################################################################
 
 # TODO: type better

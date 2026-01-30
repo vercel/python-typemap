@@ -778,9 +778,11 @@ All of the operators in this section are :ref:`lifted over union types
 Raise error
 '''''''''''
 
-* ``RaiseError[S: Literal[str]]``: If this type needs to be evaluated
+* ``RaiseError[S: Literal[str], *Ts]``: If this type needs to be evaluated
   to determine some actual type, generate a type error with the
   provided message.
+
+  Any additional type arguments should be included in the message.
 
 Update class
 ''''''''''''

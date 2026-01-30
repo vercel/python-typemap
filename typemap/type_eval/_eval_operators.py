@@ -38,6 +38,7 @@ from typemap.typing import (
     Members,
     NewProtocol,
     Param,
+    RaiseError,
     Slice,
     SpecialFormEllipsis,
     StrConcat,
@@ -992,6 +993,30 @@ _string_literal_op(Lowercase, op=str.lower)
 _string_literal_op(Capitalize, op=str.capitalize)
 _string_literal_op(Uncapitalize, op=lambda s: s[0:1].lower() + s[1:])
 _string_literal_op(StrConcat, op=lambda s, t: s + t)
+
+
+##################################################################
+
+
+class TypeMapError(TypeError):
+    """Exception raised when RaiseError is evaluated."""
+
+    pass
+
+
+@type_eval.register_evaluator(RaiseError)
+@_lift_evaluated
+def _eval_RaiseError(msg, *extra_types, ctx):
+    """Evaluate RaiseError by raising a TypeMapError.
+
+    RaiseError[S, *Ts] raises a type error with message S,
+    including the string representations of any extra type arguments.
+    """
+    message = _from_literal(msg)
+    if extra_types:
+        type_strs = ", ".join(repr(t) for t in extra_types)
+        message = f"{message}: {type_strs}"
+    raise TypeMapError(message)
 
 
 ##################################################################

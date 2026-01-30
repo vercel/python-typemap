@@ -1565,3 +1565,29 @@ def test_type_eval_annotated_03():
 def test_type_eval_annotated_04():
     res = eval_typing(GetAnnotations[GetMemberType[AnnoTest, Literal["b"]]])
     assert res == Literal["blah"]
+
+
+##############
+# RaiseError tests
+
+from typemap.typing import RaiseError
+from typemap.type_eval import TypeMapError
+
+
+def test_raise_error_basic():
+    with pytest.raises(TypeMapError, match="Test error message"):
+        eval_typing(RaiseError[Literal["Test error message"]])
+
+
+def test_raise_error_with_types():
+    with pytest.raises(TypeMapError, match="Broadcast mismatch.*int.*str"):
+        eval_typing(RaiseError[Literal["Broadcast mismatch"], int, str])
+
+
+def test_raise_error_with_literal_types():
+    with pytest.raises(
+        TypeMapError, match="Shape mismatch.*Literal\\[4\\].*Literal\\[3\\]"
+    ):
+        eval_typing(
+            RaiseError[Literal["Shape mismatch"], Literal[4], Literal[3]]
+        )

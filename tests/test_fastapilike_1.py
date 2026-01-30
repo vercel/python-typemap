@@ -78,7 +78,7 @@ We would really like to instead write:
 
 type AddInit[T] = NewProtocol[
     InitFnType[T],
-    *Members[T]],
+    *Members[T],
 ]
 
 but we struggle here because typing wants to unpack the Members tuple

@@ -14,6 +14,8 @@ from ._subsim import issubsimilar
 # This one is imported for registering handlers
 from . import _eval_operators  # noqa
 
+from ._eval_operators import TypeMapError
+
 
 __all__ = (
     "eval_typing",
@@ -23,6 +25,7 @@ __all__ = (
     "flatten_class",
     "issubtype",
     "issubsimilar",
+    "TypeMapError",
     "_EvalProxy",
     "_get_current_context",
 )
