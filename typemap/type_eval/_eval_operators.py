@@ -943,10 +943,7 @@ def _eval_GetSpecialAttr(tp, attr, *, ctx) -> typing.Any:
     elif attr.__args__[0] == "__qualname__":
         return typing.Literal[tp.__qualname__]
     else:
-        raise TypeError(
-            f"Invalid type argument to GetSpecialAttr: "
-            f"{attr} must be one of __name__, __module__, or __qualname__"
-        )
+        return typing.Never
 
 
 @type_eval.register_evaluator(GetAnnotations)
