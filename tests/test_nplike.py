@@ -14,11 +14,6 @@ class Array[DType, *Shape]:
         raise BaseException
 
 
-type AppendTuple[A, B] = tuple[
-    *[x for x in typing.Iter[A]],
-    B,
-]
-
 type MergeOne[T, S] = (
     T
     if typing.Matches[T, S] or typing.Matches[S, Literal[1]]
@@ -39,8 +34,9 @@ type Broadcast[T, S] = (
     if typing.Bool[Empty[T]]
     else T
     if typing.Bool[Empty[S]]
-    else AppendTuple[
-        Broadcast[DropLast[T], DropLast[S]], MergeOne[Last[T], Last[S]]
+    else tuple[
+        *Broadcast[DropLast[T], DropLast[S]],
+        MergeOne[Last[T], Last[S]],
     ]
 )
 
@@ -49,11 +45,7 @@ type Broadcast[T, S] = (
 type GetElem[T] = typing.GetArg[T, Array, Literal[0]]
 type GetShape[T] = typing.Slice[typing.GetArgs[T, Array], Literal[1], None]
 
-# type Apply[T, S] = Array[GetElem[T], *Broadcast[GetShape[T], GetShape[S]]]
-type Apply[T, S] = Array[
-    GetElem[T],
-    *[x for x in typing.Iter[Broadcast[GetShape[T], GetShape[S]]]],
-]
+type Apply[T, S] = Array[GetElem[T], *Broadcast[GetShape[T], GetShape[S]]]
 
 ######
 from typemap.type_eval import eval_typing, TypeMapError

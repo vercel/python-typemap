@@ -67,39 +67,11 @@ type InitFnType[T] = Member[
     ],
     Literal["ClassVar"],
 ]
-type AddInit[T] = NewProtocol[
-    InitFnType[T],
-    *[x for x in Iter[Members[T]]],
-]
-
-"""TODO:
-
-We would really like to instead write:
 
 type AddInit[T] = NewProtocol[
     InitFnType[T],
     *Members[T],
 ]
-
-but we struggle here because typing wants to unpack the Members tuple
-itself.  I'm not sure if there is a nice way to resolve this. We
-*could* make our consumers (NewProtocol etc) be more flexible about
-these things but I don't think that is right.
-
-The frustrating thing is that it doesn't do much with the unpacked
-version, just some checks!
-
-We could fix typing to allow it, and probably provide a hack around it
-in the mean time.
-
-Lurr! Writing *this* gets past the typing checks (though we don't
-support it yet):
-
-type AddInit[T] = NewProtocol[
-    InitFnType[T],
-    *tuple[*Members[T]],
-]
-"""
 
 # Strip `| None` from a type by iterating over its union components
 # and filtering

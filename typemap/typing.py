@@ -1,9 +1,55 @@
 import contextvars
 import typing
-from typing import Literal
-from typing import _GenericAlias, _LiteralGenericAlias  # type: ignore
+import types
+
+from typing import Literal, Unpack
+from typing import _GenericAlias, _LiteralGenericAlias, _UnpackGenericAlias  # type: ignore
 
 _SpecialForm: typing.Any = typing._SpecialForm
+
+###
+
+# Here is a bunch of annoying internals stuff!
+
+
+class _TupleLikeOperator:
+    @classmethod
+    def __class_getitem__(cls, args):
+        # Return an _IterSafeGenericAlias instead of a _GenericAlias
+        res = super().__class_getitem__(args)
+        return _IterSafeGenericAlias(res.__origin__, res.__args__)
+
+
+# The base _GenericAlias has an __iter__ method that returns
+# Unpack[self], which blows up when it's passed to something and
+# doesn't have a tuple inside (because it hasn't been evaluated yet!).
+# So we make own _GenericAlias that makes our own _UnpackGenericAlias
+# that we make sure works.
+#
+# Probably these exact hacks will need to go into our
+# typing_extensions version of this, but for the typing version they
+# can get merged into real classes.
+class _IterSafeGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
+    def __iter__(self):
+        yield _IterSafeUnpackGenericAlias(origin=Unpack, args=(self,))
+
+
+class _IterSafeUnpackGenericAlias(_UnpackGenericAlias, _root=True):  # type: ignore[call-arg]
+    @property
+    def __typing_unpacked_tuple_args__(self):
+        # This is basically the same as in _UnpackGenericAlias except
+        # we don't blow up if the origin isn't a tuple.
+        assert self.__origin__ is Unpack
+        assert len(self.__args__) == 1
+        (arg,) = self.__args__
+        if isinstance(arg, (_GenericAlias, types.GenericAlias)):
+            if arg.__origin__ is tuple:
+                return arg.__args__
+        return None
+
+
+###
+
 
 # Not type-level computation but related
 
@@ -119,15 +165,15 @@ type GetInit[T: Member] = GetMemberType[T, Literal["init"]]
 type GetDefiner[T: Member] = GetMemberType[T, Literal["definer"]]
 
 
-class Attrs[T]:
+class Attrs[T](_TupleLikeOperator):
     pass
 
 
-class Members[T]:
+class Members[T](_TupleLikeOperator):
     pass
 
 
-class FromUnion[T]:
+class FromUnion[T](_TupleLikeOperator):
     pass
 
 
@@ -143,7 +189,7 @@ class GetArg[Tp, Base, Idx: int]:
     pass
 
 
-class GetArgs[Tp, Base]:
+class GetArgs[Tp, Base](_TupleLikeOperator):
     pass
 
 
@@ -155,7 +201,9 @@ class Length[S: tuple]:
     pass
 
 
-class Slice[S: str | tuple, Start: int | None, End: int | None]:
+class Slice[S: str | tuple, Start: int | None, End: int | None](
+    _TupleLikeOperator
+):
     pass
 
 

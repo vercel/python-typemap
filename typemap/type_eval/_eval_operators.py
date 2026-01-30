@@ -1088,7 +1088,8 @@ def _eval_NewProtocol(*etyps: Member, ctx):
     dct: dict[str, object] = {}
     dct["__annotations__"] = annos = {}
 
-    for tname, typ, quals, init, _ in (typing.get_args(prop) for prop in etyps):
+    members = [typing.get_args(prop) for prop in etyps]
+    for tname, typ, quals, init, _ in members:
         name = _eval_literal(tname, ctx)
         typ = _eval_types(typ, ctx)
         tquals = _eval_types(quals, ctx)

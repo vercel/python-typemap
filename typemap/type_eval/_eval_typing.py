@@ -15,11 +15,12 @@ from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
     _CallableGenericAlias as typing_CallableGenericAlias,
     _LiteralGenericAlias as typing_LiteralGenericAlias,
     _AnnotatedAlias as typing_AnnotatedAlias,
+    _UnpackGenericAlias as typing_UnpackGenericAlias,
 )
 
 
 if typing.TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Sequence
 
 from . import _apply_generic, _typing_inspect
 
@@ -377,14 +378,38 @@ def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
     return _eval_types(unpacked, ctx)
 
 
+def _eval_args(args: Sequence[Any], ctx: EvalContext) -> tuple[Any]:
+    evaled = []
+    for arg in args:
+        ev = _eval_types(arg, ctx)
+        if isinstance(ev, typing_UnpackGenericAlias):
+            if (args := ev.__typing_unpacked_tuple_args__) is not None:
+                evaled.extend(args)
+            else:
+                evaled.append(ev)
+        else:
+            evaled.append(ev)
+    return tuple(evaled)
+
+
 @_eval_types_impl.register
 def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
     """Eval a types.GenericAlias -- typically an applied type alias
 
     This is typically an application of a type alias... except it can
-    also be an application of a built-in type (like list, tuple, dict)
+    also be an application of a built-in type (like list, tuple, dict).
+
+    It can *also* have an Unpack integrated with it, if __unpacked__ is set.
     """
-    new_args = tuple(_eval_types(arg, ctx) for arg in obj.__args__)
+
+    # If __unpacked__ is set, then we reconstruct a version without
+    # __unpacked__ set and evaluate *that*. This centralizes the
+    # unpacked handling and simplifies the cache situation.
+    if obj.__unpacked__:
+        stripped = _apply_type(obj.__origin__, obj.__args__)
+        return typing.Unpack[_eval_types(stripped, ctx)]
+
+    new_args = _eval_args(obj.__args__, ctx)
 
     new_obj = _apply_type(obj.__origin__, new_args)
     if isinstance(obj.__origin__, type):
@@ -433,7 +458,7 @@ def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
     """Eval a typing._GenericAlias -- an applied user-defined class"""
     # generic *classes* are typing._GenericAlias while generic type
     # aliases are types.GenericAlias? Why in the world.
-    new_args = tuple(_eval_types(arg, ctx) for arg in typing.get_args(obj))
+    new_args = _eval_args(typing.get_args(obj), ctx)
 
     if func := _eval_funcs.get(obj.__origin__):
         ret = func(*new_args, ctx=ctx)

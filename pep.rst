@@ -1093,11 +1093,6 @@ NumPy-style broadcasting
         ) -> Array[DType, *Broadcast[tuple[*Shape], tuple[*Shape2]]]:
             raise BaseException
 
-    type AppendTuple[A, B] = tuple[
-        *[x for x in typing.Iter[A]],
-        B,
-    ]
-
     type MergeOne[T, S] = (
         T
         if typing.Matches[T, S] or typing.Matches[S, Literal[1]]
@@ -1118,8 +1113,9 @@ NumPy-style broadcasting
         if typing.Bool[Empty[T]]
         else T
         if typing.Bool[Empty[S]]
-        else AppendTuple[
-            Broadcast[DropLast[T], DropLast[S]], MergeOne[Last[T], Last[S]]
+        else tuple[
+            *Broadcast[DropLast[T], DropLast[S]],
+            MergeOne[Last[T], Last[S]],
         ]
     )
 

@@ -74,10 +74,7 @@ type MapRecursive[A] = NewProtocol[
             if not IsSub[GetType[p], A]
             else Member[GetName[p], OrGotcha[MapRecursive[A]]]
         )
-        # XXX: This next line *ought* to work, but we haven't
-        # implemented it yet.
-        # for p in Iter[*Attrs[A], *Attrs[F_int]]
-        for p in Iter[ConcatTuples[Attrs[A], Attrs[F_int]]]
+        for p in Iter[tuple[*Attrs[A], *Attrs[F_int]]]
     ],
     Member[Literal["control"], float],
 ]
