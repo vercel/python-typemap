@@ -18,8 +18,9 @@ from typemap.typing import (
     Bool,
     Length,
     GetArg,
-    GetAttr,
+    GetMemberType,
     GetName,
+    GetSpecialAttr,
     GetType,
     GetInit,
     InitField,
@@ -107,9 +108,8 @@ For example, `select(User.name, Post.content)` will return a list of:
 
 type ReplaceNever[T, D] = T if not IsSub[T, Never] else D
 type GetInitFieldItem[T: InitField, K, Default] = ReplaceNever[
-    GetAttr[GetArg[T, InitField, Literal[0]], K], Default
+    GetMemberType[GetArg[T, InitField, Literal[0]], K], Default
 ]
-type TypeName[T] = Literal[T.__name__]
 
 
 # Database Types
@@ -322,7 +322,7 @@ type QueryRow[Es: tuple[QueryEntry[Table, tuple[Member]], ...]] = (
     else NewProtocol[
         *[
             Member[
-                TypeName[EntryTable[e]],
+                GetSpecialAttr[EntryTable[e], Literal["__name__"]],
                 Select[EntryTable[e], EntryFields[e]],
             ]
             for e in Iter[Es]
@@ -458,7 +458,7 @@ def test_qblike_3_select_03():
     result_names = eval_typing(AttrNames[result])
     assert result_names == tuple[Literal["User"], Literal["Post"]]
 
-    result_user = eval_typing(GetAttr[result, Literal["User"]])
+    result_user = eval_typing(GetMemberType[result, Literal["User"]])
     fmt = format_helper.format_class(result_user)
     assert fmt == textwrap.dedent("""\
         class Select[tests.test_qblike_3.User, tuple[typing.Literal['id'], typing.Literal['name'], typing.Literal['email'], typing.Literal['age'], typing.Literal['active'], typing.Literal['posts']]]:
@@ -470,7 +470,7 @@ def test_qblike_3_select_03():
             posts: list[tests.test_qblike_3.Post]
     """)
 
-    result_post = eval_typing(GetAttr[result, Literal["Post"]])
+    result_post = eval_typing(GetMemberType[result, Literal["Post"]])
     fmt = format_helper.format_class(result_post)
     assert fmt == textwrap.dedent("""\
         class Select[tests.test_qblike_3.Post, tuple[typing.Literal['id'], typing.Literal['content'], typing.Literal['author'], typing.Literal['comments']]]:
@@ -483,7 +483,7 @@ def test_qblike_3_select_03():
 
 def test_qblike_3_select_04():
     # select(User.name)
-    user_name = eval_typing(GetAttr[User, Literal["name"]])
+    user_name = eval_typing(GetMemberType[User, Literal["name"]])
     query = eval_call_with_types(select, user_name)
 
     fmt = format_helper.format_class(query)
@@ -503,7 +503,7 @@ def test_qblike_3_select_04():
 
 def test_qblike_3_select_05():
     # select(User.name, User.name)
-    user_name = eval_typing(GetAttr[User, Literal["name"]])
+    user_name = eval_typing(GetMemberType[User, Literal["name"]])
     query = eval_call_with_types(select, user_name, user_name)
 
     fmt = format_helper.format_class(query)
@@ -523,8 +523,8 @@ def test_qblike_3_select_05():
 
 def test_qblike_3_select_06():
     # select(User.name, User.email)
-    user_name = eval_typing(GetAttr[User, Literal["name"]])
-    user_email = eval_typing(GetAttr[User, Literal["email"]])
+    user_name = eval_typing(GetMemberType[User, Literal["name"]])
+    user_email = eval_typing(GetMemberType[User, Literal["email"]])
     query = eval_call_with_types(select, user_name, user_email)
 
     fmt = format_helper.format_class(query)
@@ -545,8 +545,8 @@ def test_qblike_3_select_06():
 
 def test_qblike_3_select_07():
     # select(User.name, Post.content)
-    user_name = eval_typing(GetAttr[User, Literal["name"]])
-    post_content = eval_typing(GetAttr[Post, Literal["content"]])
+    user_name = eval_typing(GetMemberType[User, Literal["name"]])
+    post_content = eval_typing(GetMemberType[Post, Literal["content"]])
     query = eval_call_with_types(select, user_name, post_content)
 
     fmt = format_helper.format_class(query)
@@ -560,14 +560,14 @@ def test_qblike_3_select_07():
     result_names = eval_typing(AttrNames[result])
     assert result_names == tuple[Literal["User"], Literal["Post"]]
 
-    result_user = eval_typing(GetAttr[result, Literal["User"]])
+    result_user = eval_typing(GetMemberType[result, Literal["User"]])
     fmt = format_helper.format_class(result_user)
     assert fmt == textwrap.dedent("""\
         class Select[tests.test_qblike_3.User, tuple[typing.Literal['name']]]:
             name: str
     """)
 
-    result_post = eval_typing(GetAttr[result, Literal["Post"]])
+    result_post = eval_typing(GetMemberType[result, Literal["Post"]])
     fmt = format_helper.format_class(result_post)
     assert fmt == textwrap.dedent("""\
         class Select[tests.test_qblike_3.Post, tuple[typing.Literal['content']]]:
