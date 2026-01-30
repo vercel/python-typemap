@@ -11,23 +11,7 @@ from typing import (
 )
 
 from typemap.type_eval import eval_typing
-from typemap.typing import (
-    NewProtocol,
-    Iter,
-    Attrs,
-    IsSub,
-    FromUnion,
-    GetArg,
-    GetMemberType,
-    GetType,
-    GetName,
-    GetQuals,
-    GetInit,
-    InitField,
-    Member,
-    Members,
-    Param,
-)
+from typemap import typing
 
 from . import format_helper
 
@@ -39,15 +23,15 @@ class FieldArgs(TypedDict, total=False):
     default: ReadOnly[object]
 
 
-class Field[T: FieldArgs](InitField[T]):
+class Field[T: FieldArgs](typing.InitField[T]):
     pass
 
 
 ####
 
 # TODO: Should this go into the stdlib?
-type GetFieldItem[T: InitField, K] = GetMemberType[
-    GetArg[T, InitField, Literal[0]], K
+type GetFieldItem[T: typing.InitField, K] = typing.GetMemberType[
+    typing.GetArg[T, typing.InitField, Literal[0]], K
 ]
 
 
@@ -56,59 +40,96 @@ type GetFieldItem[T: InitField, K] = GetMemberType[
 # Strip `| None` from a type by iterating over its union components
 # and filtering
 type NotOptional[T] = Union[
-    *[x for x in Iter[FromUnion[T]] if not IsSub[x, None]]
+    *[x for x in typing.Iter[typing.FromUnion[T]] if not typing.IsSub[x, None]]
 ]
 
 # Adjust an attribute type for use in Public below by dropping | None for
 # primary keys and stripping all annotations.
 type FixPublicType[T, Init] = (
     NotOptional[T]
-    if IsSub[Literal[True], GetFieldItem[Init, Literal["primary_key"]]]
+    if typing.IsSub[Literal[True], GetFieldItem[Init, Literal["primary_key"]]]
     else T
 )
 
 # Strip out everything that is Hidden and also make the primary key required
 # Drop all the annotations, since this is for data getting returned to users
 # from the DB, so we don't need default values.
-type Public[T] = NewProtocol[
+type Public[T] = typing.NewProtocol[
     *[
-        Member[GetName[p], FixPublicType[GetType[p], GetInit[p]], GetQuals[p]]
-        for p in Iter[Attrs[T]]
-        if not IsSub[Literal[True], GetFieldItem[GetInit[p], Literal["hidden"]]]
+        typing.Member[
+            typing.GetName[p],
+            FixPublicType[typing.GetType[p], typing.GetInit[p]],
+            typing.GetQuals[p],
+        ]
+        for p in typing.Iter[typing.Attrs[T]]
+        if not typing.IsSub[
+            Literal[True], GetFieldItem[typing.GetInit[p], Literal["hidden"]]
+        ]
     ]
 ]
+
+# Begin PEP section: Automatically deriving FastAPI CRUD models
+"""
+We have a more `fully-worked example <#fastapi-test_>`_ in our test
+suite, but here is a possible implementation of just ``Public``
+"""
 
 # Extract the default type from an Init field.
 # If it is a Field, then we try pulling out the "default" field,
 # otherwise we return the type itself.
 type GetDefault[Init] = (
-    GetFieldItem[Init, Literal["default"]] if IsSub[Init, Field] else Init
+    GetFieldItem[Init, Literal["default"]]
+    if typing.IsSub[Init, Field]
+    else Init
 )
 
 # Create takes everything but the primary key and preserves defaults
-type Create[T] = NewProtocol[
+type Create[T] = typing.NewProtocol[
     *[
-        Member[GetName[p], GetType[p], GetQuals[p], GetDefault[GetInit[p]]]
-        for p in Iter[Attrs[T]]
-        if not IsSub[
-            Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
+        typing.Member[
+            typing.GetName[p],
+            typing.GetType[p],
+            typing.GetQuals[p],
+            GetDefault[typing.GetInit[p]],
+        ]
+        for p in typing.Iter[typing.Attrs[T]]
+        if not typing.IsSub[
+            Literal[True],
+            GetFieldItem[typing.GetInit[p], Literal["primary_key"]],
         ]
     ]
 ]
 
+"""
+The ``Create`` type alias creates a new type (via ``NewProtocol``) by
+iterating over the attributes of the original type.  It has access to
+names, types, qualifiers, and the literal types of initializers (in
+part through new facilities to handle the extremely common
+``= Field(...)`` like pattern used here.
+
+Here, we filter out attributes that have ``primary_key=True`` in their
+``Field`` as well as extracting default arguments (which may be either
+from a ``default`` argument to a field or specified directly as an
+initializer).
+"""
+
+# End PEP section: CRUD
+
+
 # Update takes everything but the primary key, but makes them all have
 # None defaults
-type Update[T] = NewProtocol[
+type Update[T] = typing.NewProtocol[
     *[
-        Member[
-            GetName[p],
-            GetType[p] | None,
-            GetQuals[p],
+        typing.Member[
+            typing.GetName[p],
+            typing.GetType[p] | None,
+            typing.GetQuals[p],
             Literal[None],
         ]
-        for p in Iter[Attrs[T]]
-        if not IsSub[
-            Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
+        for p in typing.Iter[typing.Attrs[T]]
+        if not typing.IsSub[
+            Literal[True],
+            GetFieldItem[typing.GetInit[p], Literal["primary_key"]],
         ]
     ]
 ]
@@ -117,40 +138,39 @@ type Update[T] = NewProtocol[
 
 # Begin PEP section: dataclass like __init__
 
-
 # Generate the Member field for __init__ for a class
-type InitFnType[T] = Member[
+type InitFnType[T] = typing.Member[
     Literal["__init__"],
     Callable[
         [
-            Param[Literal["self"], Self],
+            typing.Param[Literal["self"], Self],
             *[
-                Param[
-                    GetName[p],
-                    GetType[p],
+                typing.Param[
+                    typing.GetName[p],
+                    typing.GetType[p],
                     # All arguments are keyword-only
                     # It takes a default if a default is specified in the class
                     Literal["keyword"]
-                    if IsSub[
-                        GetDefault[GetInit[p]],
+                    if typing.IsSub[
+                        GetDefault[typing.GetInit[p]],
                         Never,
                     ]
                     else Literal["keyword", "default"],
                 ]
-                for p in Iter[Attrs[T]]
+                for p in typing.Iter[typing.Attrs[T]]
             ],
         ],
         None,
     ],
     Literal["ClassVar"],
 ]
-type AddInit[T] = NewProtocol[
+type AddInit[T] = typing.NewProtocol[
     InitFnType[T],
-    *[x for x in Iter[Members[T]]],
+    *[x for x in typing.Iter[typing.Members[T]]],
 ]
 
 
-# End PEP section
+# End PEP section: __init__
 
 
 ####

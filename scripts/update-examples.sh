@@ -4,5 +4,8 @@ scripts/py2rst.py tests/test_qblike_2.py --start "Begin PEP section" --end "End 
   | scripts/rst_replace_section.py pep.rst qb-impl -i
 
 
-scripts/py2rst.py tests/test_fastapilike_2.py --start "Begin PEP section" --end "End PEP section" \
+scripts/py2rst.py tests/test_fastapilike_2.py --start "Begin PEP section: dataclass like" --end "End PEP section: __init__" \
   | scripts/rst_replace_section.py pep.rst init-impl -i
+
+scripts/py2rst.py tests/test_fastapilike_2.py --start "Begin PEP section: Automatically deriving FastAPI CRUD models" --end "End PEP section: CRUD" \
+  | scripts/rst_replace_section.py pep.rst fastapi-impl -i

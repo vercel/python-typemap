@@ -3,18 +3,7 @@ import textwrap
 from typing import Literal, Unpack
 
 from typemap.type_eval import eval_call, eval_typing
-from typemap.typing import (
-    BaseTypedDict,
-    NewProtocol,
-    Iter,
-    Attrs,
-    IsSub,
-    GetType,
-    Member,
-    GetName,
-    GetMemberType,
-    GetArg,
-)
+from typemap import typing
 
 from . import format_helper
 
@@ -63,18 +52,18 @@ as a literal type--all of these mechanisms lean very heavily on literal types.
 """
 
 
-def select[ModelT, K: BaseTypedDict](
+def select[ModelT, K: typing.BaseTypedDict](
     typ: type[ModelT],
     /,
     **kwargs: Unpack[K],
 ) -> list[
-    NewProtocol[
+    typing.NewProtocol[
         *[
-            Member[
-                GetName[c],
-                ConvertField[GetMemberType[ModelT, GetName[c]]],
+            typing.Member[
+                typing.GetName[c],
+                ConvertField[typing.GetMemberType[ModelT, typing.GetName[c]]],
             ]
-            for c in Iter[Attrs[K]]
+            for c in typing.Iter[typing.Attrs[K]]
         ]
     ]
 ]: ...
@@ -91,7 +80,9 @@ producing a new target type containing only properties and wrapping
 """
 
 type ConvertField[T] = (
-    AdjustLink[PropsOnly[PointerArg[T]], T] if IsSub[T, Link] else PointerArg[T]
+    AdjustLink[PropsOnly[PointerArg[T]], T]
+    if typing.IsSub[T, Link]
+    else PointerArg[T]
 )
 
 """``PointerArg`` gets the type argument to ``Pointer`` or a subclass.
@@ -104,25 +95,27 @@ inherits from ``Base``.
 grabs the argument to a ``Pointer``).
 
 """
-type PointerArg[T: Pointer] = GetArg[T, Pointer, Literal[0]]
+type PointerArg[T: Pointer] = typing.GetArg[T, Pointer, Literal[0]]
 
 """
 ``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
 we've discussed already.
 
 """
-type AdjustLink[Tgt, LinkTy] = list[Tgt] if IsSub[LinkTy, MultiLink] else Tgt
+type AdjustLink[Tgt, LinkTy] = (
+    list[Tgt] if typing.IsSub[LinkTy, MultiLink] else Tgt
+)
 
 """And the final helper, ``PropsOnly[T]``, generates a new type that
 contains all the ``Property`` attributes of ``T``.
 
 """
 type PropsOnly[T] = list[
-    NewProtocol[
+    typing.NewProtocol[
         *[
-            Member[GetName[p], PointerArg[GetType[p]]]
-            for p in Iter[Attrs[T]]
-            if IsSub[GetType[p], Property]
+            typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
+            for p in typing.Iter[typing.Attrs[T]]
+            if typing.IsSub[typing.GetType[p], Property]
         ]
     ]
 ]
@@ -198,7 +191,7 @@ def test_qblike2_2():
             posts: list[tests.test_qblike_2.PropsOnly[tests.test_qblike_2.Post]]
         """)
 
-    res = eval_typing(GetMemberType[ret, Literal["posts"]])
+    res = eval_typing(typing.GetMemberType[ret, Literal["posts"]])
     tgt = res.__args__[0]
     # XXX: this should probably be pre-evaluated already?
     fmt = format_helper.format_class(tgt)

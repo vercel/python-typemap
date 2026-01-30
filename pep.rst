@@ -908,18 +908,18 @@ as a literal type--all of these mechanisms lean very heavily on literal types.
 
 ::
 
-    def select[ModelT, K: BaseTypedDict](
+    def select[ModelT, K: typing.BaseTypedDict](
         typ: type[ModelT],
         /,
         **kwargs: Unpack[K],
     ) -> list[
-        NewProtocol[
+        typing.NewProtocol[
             *[
-                Member[
-                    GetName[c],
-                    ConvertField[GetMemberType[ModelT, GetName[c]]],
+                typing.Member[
+                    typing.GetName[c],
+                    ConvertField[typing.GetMemberType[ModelT, typing.GetName[c]]],
                 ]
-                for c in Iter[Attrs[K]]
+                for c in typing.Iter[typing.Attrs[K]]
             ]
         ]
     ]: ...
@@ -936,7 +936,9 @@ producing a new target type containing only properties and wrapping
 ::
 
     type ConvertField[T] = (
-        AdjustLink[PropsOnly[PointerArg[T]], T] if IsSub[T, Link] else PointerArg[T]
+        AdjustLink[PropsOnly[PointerArg[T]], T]
+        if typing.IsSub[T, Link]
+        else PointerArg[T]
     )
 
 ``PointerArg`` gets the type argument to ``Pointer`` or a subclass.
@@ -950,14 +952,16 @@ grabs the argument to a ``Pointer``).
 
 ::
 
-    type PointerArg[T: Pointer] = GetArg[T, Pointer, Literal[0]]
+    type PointerArg[T: Pointer] = typing.GetArg[T, Pointer, Literal[0]]
 
 ``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
 we've discussed already.
 
 ::
 
-    type AdjustLink[Tgt, LinkTy] = list[Tgt] if IsSub[LinkTy, MultiLink] else Tgt
+    type AdjustLink[Tgt, LinkTy] = (
+        list[Tgt] if typing.IsSub[LinkTy, MultiLink] else Tgt
+    )
 
 And the final helper, ``PropsOnly[T]``, generates a new type that
 contains all the ``Property`` attributes of ``T``.
@@ -965,11 +969,11 @@ contains all the ``Property`` attributes of ``T``.
 ::
 
     type PropsOnly[T] = list[
-        NewProtocol[
+        typing.NewProtocol[
             *[
-                Member[GetName[p], PointerArg[GetType[p]]]
-                for p in Iter[Attrs[T]]
-                if IsSub[GetType[p], Property]
+                typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
+                for p in typing.Iter[typing.Attrs[T]]
+                if typing.IsSub[typing.GetType[p], Property]
             ]
         ]
     ]
@@ -983,22 +987,32 @@ Automatically deriving FastAPI CRUD models
 ------------------------------------------
 
 We have a more `fully-worked example <#fastapi-test_>`_ in our test
-suite, but here is a possible implementation of just ``Public``::
+suite, but here is a possible implementation of just ``Public``
+
+::
 
     # Extract the default type from an Init field.
     # If it is a Field, then we try pulling out the "default" field,
     # otherwise we return the type itself.
     type GetDefault[Init] = (
-        GetFieldItem[Init, Literal["default"]] if IsSub[Init, Field] else Init
+        GetFieldItem[Init, Literal["default"]]
+        if typing.IsSub[Init, Field]
+        else Init
     )
 
     # Create takes everything but the primary key and preserves defaults
-    type Create[T] = NewProtocol[
+    type Create[T] = typing.NewProtocol[
         *[
-            Member[GetName[p], GetType[p], GetQuals[p], GetDefault[GetInit[p]]]
-            for p in Iter[Attrs[T]]
-            if not IsSub[
-                Literal[True], GetFieldItem[GetInit[p], Literal["primary_key"]]
+            typing.Member[
+                typing.GetName[p],
+                typing.GetType[p],
+                typing.GetQuals[p],
+                GetDefault[typing.GetInit[p]],
+            ]
+            for p in typing.Iter[typing.Attrs[T]]
+            if not typing.IsSub[
+                Literal[True],
+                GetFieldItem[typing.GetInit[p], Literal["primary_key"]],
             ]
         ]
     ]
@@ -1023,34 +1037,34 @@ dataclasses-style method generation
 ::
 
     # Generate the Member field for __init__ for a class
-    type InitFnType[T] = Member[
+    type InitFnType[T] = typing.Member[
         Literal["__init__"],
         Callable[
             [
-                Param[Literal["self"], Self],
+                typing.Param[Literal["self"], Self],
                 *[
-                    Param[
-                        GetName[p],
-                        GetType[p],
+                    typing.Param[
+                        typing.GetName[p],
+                        typing.GetType[p],
                         # All arguments are keyword-only
                         # It takes a default if a default is specified in the class
                         Literal["keyword"]
-                        if IsSub[
-                            GetDefault[GetInit[p]],
+                        if typing.IsSub[
+                            GetDefault[typing.GetInit[p]],
                             Never,
                         ]
                         else Literal["keyword", "default"],
                     ]
-                    for p in Iter[Attrs[T]]
+                    for p in typing.Iter[typing.Attrs[T]]
                 ],
             ],
             None,
         ],
         Literal["ClassVar"],
     ]
-    type AddInit[T] = NewProtocol[
+    type AddInit[T] = typing.NewProtocol[
         InitFnType[T],
-        *[x for x in Iter[Members[T]]],
+        *[x for x in typing.Iter[typing.Members[T]]],
     ]
 
 
@@ -1121,11 +1135,7 @@ Renounce all cares of runtime evaluation
 
 This would have a lot of simplifying features.
 
-We wouldn't need to worry about making ``IsSub`` be checkable at
-runtime,
-
-XXX
-
+TODO: Expand
 
 Support TypeScript style pattern matching in subtype checking
 -------------------------------------------------------------
