@@ -534,11 +534,11 @@ proposing to add that as a notion, but we could.
 Boolean operators
 '''''''''''''''''
 
-* ``IsSub[T, S]``: What we would **want** is that it returns a boolean
-  literal type indicating whether ``T`` is a subtype of ``S``.
-  To support runtime checking, we probably need something weaker.
+* ``IsSub[T, S]``: Returns a boolean literal type indicating whether
+  ``T`` is a subtype of ``S``.
 
-  TODO: Discuss this in detail.
+  (Actually, I suppose, whether ``S`` is "assignable to" ``T``. We can
+  certainly bikeshed on this name.)
 
 * ``Matches[T, S]``:
   Equivalent to ``IsSub[T, S] and IsSub[S, T]``.
@@ -560,10 +560,13 @@ Basic operators
 
   Negative indexes work in the usual way.
 
-  N.B: *Unfortunately* ``Base`` must be a proper class, *not* a
-  protocol. So, for example, ``GetArg[Ty, Iterable, 0]]`` to get the
-  type of something iterable *won't* work. This is because we can't do
-  protocol checks at runtime in general.  Special forms unfortunately
+  N.B: Runtime evaluation will only be able to support proper classes
+  as ``Base``, *not* protocols. So, for example, ``GetArg[Ty,
+  Iterable, 0]]`` to get the type of something iterable will need to
+  fail in a runtime evaluator. We should be able to allow it
+  statically though.
+
+  Special forms unfortunately
   require some special handling: the arguments list of a ``Callable``
   will be packed in a tuple, and a ``...`` will become
   ``SpecialFormEllipsis``.
@@ -1121,17 +1124,38 @@ Renounce all cares of runtime evaluation
 
 This would have a lot of simplifying features.
 
-We wouldn't need to worry about making ``IsSub`` be checkable at
-runtime,
-
-XXX
-
+TODO: Expand
 
 Support TypeScript style pattern matching in subtype checking
 -------------------------------------------------------------
 
 This would almost certainly only be possible if we also decide not to
 care about runtime evaluation, as above.
+
+Replace ``IsSub`` with something weaker than "assignable to" checking
+---------------------------------------------------------------------
+
+Full python typing assignability checking is not fully implementable
+at runtime (in particular, even if all the typeshed types for the
+stdlib were made available, checking against protocols will often not
+be possible, because class attributes may be inferred and have no visible
+presence at runtime).
+
+As proposed, a runtime evaluator will need to be "best effort",
+ideally with the contours of that effort well-documented.
+
+An alternative approach would be to have a weaker predicate as the
+core primitive.
+
+One possibility would be a "sub-similarity" check: ``IsSubSimilar``
+would do *simple* checking of the *head* of types, essentially,
+without looking at type parameters. It would not work with protocols.
+It would still lift over unions and would check literals.
+
+We decided it probably was not a good idea to introduce a new notion
+that is similar to but not the same as subtyping, and that would need
+to either have a long and weird name like ``IsSubSimilar`` or a
+misleading short one like ``IsSub``.
 
 .. _less_syntax:
 

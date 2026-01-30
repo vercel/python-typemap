@@ -3,7 +3,7 @@ Big (open?) questions
 
 1.
 Can we actually implement IsSubtype at runtime in a satisfactory way?
-(PROBABLE DECISION: external library *and* restricted checking.)
+(PROBABLE DECISION: external library *and* "full" best effort checking.)
 
  - There is a lot that needs to happen, like protocols and variance
    inference and callable subtyping (which might require matching
