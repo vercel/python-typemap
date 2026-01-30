@@ -1080,6 +1080,50 @@ dataclasses-style method generation
     ]
 
 
+.. _numpy-impl:
+
+NumPy-style broadcasting
+------------------------
+
+::
+
+    class Array[DType, *Shape]:
+        def __add__[*Shape2](
+            self, other: Array[DType, *Shape2]
+        ) -> Array[DType, *Broadcast[tuple[*Shape], tuple[*Shape2]]]:
+            raise BaseException
+
+    type AppendTuple[A, B] = tuple[
+        *[x for x in typing.Iter[A]],
+        B,
+    ]
+
+    type MergeOne[T, S] = (
+        T
+        if typing.Matches[T, S] or typing.Matches[S, Literal[1]]
+        else S
+        if typing.Matches[T, Literal[1]]
+        else typing.RaiseError[Literal["Broadcast mismatch"], T, S]
+    )
+
+    type DropLast[T] = typing.Slice[T, Literal[0], Literal[-1]]
+    type Last[T] = typing.GetArg[T, tuple, Literal[-1]]
+
+    # Matching on Never here is intentional; it prevents infinite
+    # recursions when T is not a tuple.
+    type Empty[T] = typing.IsSub[typing.Length[T], Literal[0]]
+
+    type Broadcast[T, S] = (
+        S
+        if typing.Bool[Empty[T]]
+        else T
+        if typing.Bool[Empty[S]]
+        else AppendTuple[
+            Broadcast[DropLast[T], DropLast[S]], MergeOne[Last[T], Last[S]]
+        ]
+    )
+
+
 Rationale
 =========
 
