@@ -12,6 +12,7 @@ from typing_extensions import _AnnotatedAlias as typing_AnnotatedAlias
 from typemap import type_eval
 from typemap.type_eval import _apply_generic, _typing_inspect
 from typemap.type_eval._eval_typing import (
+    _child_context,
     _eval_types,
     _get_class_type_hint_namespaces,
 )
@@ -680,18 +681,22 @@ def _hints_to_members(hints, ctx):
 @type_eval.register_evaluator(Attrs)
 @_lift_over_unions
 def _eval_Attrs(tp, *, ctx):
-    hints = get_annotated_type_hints(tp, include_extras=True)
-    return _hints_to_members(hints, ctx)
+    with _child_context() as child_ctx:
+        child_ctx.current_cls = tp
+        hints = get_annotated_type_hints(tp, include_extras=True)
+        return _hints_to_members(hints, child_ctx)
 
 
 @type_eval.register_evaluator(Members)
 @_lift_over_unions
 def _eval_Members(tp, *, ctx):
-    hints = {
-        **get_annotated_type_hints(tp, include_extras=True),
-        **get_annotated_method_hints(tp),
-    }
-    return _hints_to_members(hints, ctx)
+    with _child_context() as child_ctx:
+        child_ctx.current_cls = tp
+        hints = {
+            **get_annotated_type_hints(tp, include_extras=True),
+            **get_annotated_method_hints(tp),
+        }
+        return _hints_to_members(hints, child_ctx)
 
 
 @type_eval.register_evaluator(GetMember)
@@ -699,14 +704,17 @@ def _eval_Members(tp, *, ctx):
 def _eval_GetMember(tp, prop, *, ctx):
     # XXX: extras?
     name = _from_literal(prop)
-    hints = {
-        **get_annotated_type_hints(tp, include_extras=True),
-        **get_annotated_method_hints(tp),
-    }
-    if name in hints:
-        return _hint_to_member(name, *hints[name], ctx=ctx)
-    else:
-        return typing.Never
+
+    with _child_context() as child_ctx:
+        child_ctx.current_cls = tp
+        hints = {
+            **get_annotated_type_hints(tp, include_extras=True),
+            **get_annotated_method_hints(tp),
+        }
+        if name in hints:
+            return _hint_to_member(name, *hints[name], ctx=ctx)
+        else:
+            return typing.Never
 
 
 ##################################################################
@@ -729,14 +737,17 @@ def _eval_FromUnion(tp, *, ctx):
 def _eval_GetMemberType(tp, prop, *, ctx):
     # XXX: extras?
     name = _from_literal(prop)
-    hints = {
-        **get_annotated_type_hints(tp, include_extras=True),
-        **get_annotated_method_hints(tp),
-    }
-    if name in hints:
-        return hints[name][0]
-    else:
-        return typing.Never
+
+    with _child_context() as child_ctx:
+        child_ctx.current_cls = tp
+        hints = {
+            **get_annotated_type_hints(tp, include_extras=True),
+            **get_annotated_method_hints(tp),
+        }
+        if name in hints:
+            return _eval_types(hints[name][0], child_ctx)
+        else:
+            return typing.Never
 
 
 def _fix_callable_args(base, args):
