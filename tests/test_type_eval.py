@@ -40,6 +40,7 @@ from typemap.typing import (
     Members,
     NewProtocol,
     Param,
+    PropName,
     Slice,
     SpecialFormEllipsis,
     StrConcat,
@@ -1867,6 +1868,109 @@ def test_type_eval_cls_08():
 
     assert eval_typing(AttrSetOfOnlyInt[A[int], Literal["value"]]) == set[int]
     assert eval_typing(AttrSetOfOnlyInt[A[str], Literal["value"]]) is str
+
+
+def test_type_eval_propname_01():
+    t = eval_typing(PropName)
+    assert t == PropName
+
+
+def test_type_eval_propname_02():
+    class A:
+        x: int | PropName
+        y: str | PropName
+        z: list[int] | PropName
+
+    t = eval_typing(GetMemberType[A, Literal["x"]])
+    assert t == int | Literal["x"]
+    t = eval_typing(GetMemberType[A, Literal["y"]])
+    assert t == str | Literal["y"]
+    t = eval_typing(GetMemberType[A, Literal["z"]])
+    assert t == list[int] | Literal["z"]
+
+
+type TheNameAsInt = int if Matches[PropName, Literal["the"]] else str
+
+
+def test_type_eval_propname_03():
+    class A:
+        the: TheNameAsInt
+        foo: TheNameAsInt
+
+    class B(A):
+        bar: TheNameAsInt
+
+    fmt = format_helper.format_class(A)
+    assert fmt == textwrap.dedent("""\
+        class A:
+            the: int
+            foo: str
+    """)
+
+    fmt = format_helper.format_class(B)
+    assert fmt == textwrap.dedent("""\
+        class B:
+            the: int
+            foo: str
+            bar: str
+    """)
+
+
+def test_type_eval_propname_04():
+    class A:
+        the: TheNameAsInt
+        foo: TheNameAsInt
+
+    class B:
+        the: GetMemberType[A, Literal["the"]]
+        foo: GetMemberType[A, Literal["foo"]]
+
+    fmt = format_helper.format_class(B)
+    assert fmt == textwrap.dedent("""\
+        class B:
+            the: int
+            foo: str
+    """)
+
+
+def test_type_eval_propname_05():
+    class A:
+        x: list[PropName]
+        y: dict[str, PropName]
+
+    t1 = eval_typing(GetMemberType[A, Literal["x"]])
+    assert t1 == list[Literal["x"]]
+    t2 = eval_typing(GetMemberType[A, Literal["y"]])
+    assert t2 == dict[str, Literal["y"]]
+
+    fmt = format_helper.format_class(A)
+    assert fmt == textwrap.dedent("""\
+        class A:
+            x: list[typing.Literal['x']]
+            y: dict[str, typing.Literal['y']]
+    """)
+
+
+def test_type_eval_propname_06():
+    class A:
+        foo: list[PropName]
+        bar: GetMemberType[A, Literal["foo"]]
+        baz: GetType[GetMember[A, Literal["foo"]]]
+
+    t1 = eval_typing(GetMemberType[A, Literal["foo"]])
+    assert t1 == list[Literal["foo"]]
+    t2 = eval_typing(GetMemberType[A, Literal["bar"]])
+    assert t2 == list[Literal["foo"]]
+    t3 = eval_typing(GetMemberType[A, Literal["baz"]])
+    assert t3 == list[Literal["foo"]]
+
+    fmt = format_helper.format_class(A)
+    assert fmt == textwrap.dedent("""\
+        class A:
+            foo: list[typing.Literal['foo']]
+            bar: list[typing.Literal['foo']]
+            baz: list[typing.Literal['foo']]
+    """)
 
 
 ##############
