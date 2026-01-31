@@ -111,6 +111,10 @@ class EvalContext:
     # class whose attributes are being accessed
     current_cls: type | None = None
 
+    # The current property name being evaluated, used by PropName to resolve
+    # to the name of the current property
+    current_propname: str | None = None
+
 
 # `eval_types()` calls can be nested, context must be preserved
 _current_context: contextvars.ContextVar[EvalContext | None] = (
@@ -129,7 +133,8 @@ def _ensure_context() -> typing.Iterator[EvalContext]:
         _current_context.set(ctx)
         ctx_set = True
     evaluator_token = nt.special_form_evaluator.set(
-        lambda t: _eval_types(t, ctx)
+        # Ensure that special evaluators always use the latest context
+        lambda t: _eval_types(t, _current_context.get() or ctx)
     )
 
     try:
@@ -175,6 +180,7 @@ def _child_context() -> typing.Iterator[EvalContext]:
             known_recursive_types=ctx.known_recursive_types.copy(),
             current_generic_alias=ctx.current_generic_alias,
             current_cls=ctx.current_cls,
+            current_propname=ctx.current_propname,
         )
         _current_context.set(child_ctx)
         yield child_ctx
@@ -215,9 +221,12 @@ def _eval_types(obj: typing.Any, ctx: EvalContext):
         return obj
 
     # Already resolved or seen, return the result
-    if obj in ctx.resolved:
+    if ctx.current_propname is not None and _is_type_alias_type(obj):
+        # For now, just re-evaluate type aliases in property context
+        pass
+    elif obj in ctx.resolved:
         return ctx.resolved[obj]
-    if obj in ctx.seen:
+    elif obj in ctx.seen:
         return ctx.seen[obj]
 
     if _is_type_alias_type(obj):
@@ -320,14 +329,20 @@ def _get_class_type_hint_namespaces(
 
 @_eval_types_impl.register
 def _eval_type_type(obj: type, ctx: EvalContext):
-    from typemap.typing import Cls
+    from typemap.typing import Cls, PropName
 
-    # Special handling for Cls
+    # Special handling for Cls and PropName
     if obj is Cls:
-        # If we are evaluating Cls, return the current class
+        # Cls returns the current class
         if ctx.current_cls is not None:
             return ctx.current_cls
         return Cls
+
+    elif obj is PropName:
+        # PropName returns the name of the current property
+        if ctx.current_propname is not None:
+            return typing.Literal[ctx.current_propname]
+        return PropName
 
     # Ensure that any string annotations are resolved
     if (

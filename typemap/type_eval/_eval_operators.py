@@ -662,9 +662,15 @@ def _get_function_hint_namespaces(func, receiver_type=None):
 
 
 def _hint_to_member(n, t, qs, init, d, *, ctx):
+    # Set current_propname so PropName can resolve to the property name
+    with _child_context() as child_ctx:
+        child_ctx.current_cls = ctx.current_cls
+        child_ctx.current_propname = n
+        evaluated_type = _eval_types(t, child_ctx)
+
     return Member[
         typing.Literal[n],
-        _eval_types(t, ctx),
+        evaluated_type,
         _mk_literal_union(*qs),
         init,
         d,
@@ -683,6 +689,7 @@ def _hints_to_members(hints, ctx):
 def _eval_Attrs(tp, *, ctx):
     with _child_context() as child_ctx:
         child_ctx.current_cls = tp
+        child_ctx.current_propname = None
         hints = get_annotated_type_hints(tp, include_extras=True)
         return _hints_to_members(hints, child_ctx)
 
@@ -692,6 +699,7 @@ def _eval_Attrs(tp, *, ctx):
 def _eval_Members(tp, *, ctx):
     with _child_context() as child_ctx:
         child_ctx.current_cls = tp
+        child_ctx.current_propname = None
         hints = {
             **get_annotated_type_hints(tp, include_extras=True),
             **get_annotated_method_hints(tp),
@@ -707,6 +715,7 @@ def _eval_GetMember(tp, prop, *, ctx):
 
     with _child_context() as child_ctx:
         child_ctx.current_cls = tp
+        child_ctx.current_propname = None
         hints = {
             **get_annotated_type_hints(tp, include_extras=True),
             **get_annotated_method_hints(tp),
@@ -740,11 +749,13 @@ def _eval_GetMemberType(tp, prop, *, ctx):
 
     with _child_context() as child_ctx:
         child_ctx.current_cls = tp
+        child_ctx.current_propname = None
         hints = {
             **get_annotated_type_hints(tp, include_extras=True),
             **get_annotated_method_hints(tp),
         }
         if name in hints:
+            child_ctx.current_propname = name
             return _eval_types(hints[name][0], child_ctx)
         else:
             return typing.Never
