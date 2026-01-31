@@ -187,6 +187,10 @@ class Cls:
     pass
 
 
+class PropName:
+    pass
+
+
 class RaiseError[S: str, *Ts]:
     """Raise a type error with the given message when evaluated.
 
