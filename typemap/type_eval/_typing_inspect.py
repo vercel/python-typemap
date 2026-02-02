@@ -132,9 +132,7 @@ def is_optional_type(t: Any) -> TypeGuard[UnionType]:
 
 
 def is_literal(t: Any) -> bool:
-    from typemap.typing import _BoolLiteral
-
-    return is_generic_alias(t) and get_origin(t) in (Literal, _BoolLiteral)
+    return is_generic_alias(t) and get_origin(t) is Literal  # type: ignore [comparison-overlap]
 
 
 def get_head(t: Any) -> type | None:

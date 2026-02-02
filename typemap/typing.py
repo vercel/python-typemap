@@ -307,4 +307,11 @@ class _BoolLiteralGenericAlias(_LiteralGenericAlias, _root=True):  # type: ignor
 
 @_SpecialForm
 def _BoolLiteral(self, tp):
-    return _BoolLiteralGenericAlias(self, tp)
+    if isinstance(tp, type):
+        raise TypeError(f"Expected literal type, got '{tp.__name__}'")
+
+    # If already wrapped, just return it
+    if isinstance(tp, _BoolLiteralGenericAlias):
+        return tp
+
+    return _BoolLiteralGenericAlias(Literal, tp)
