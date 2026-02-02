@@ -451,6 +451,8 @@ imported qualified or with some other name)
         # *[... for t in ...] arguments
         | <ident>[<variadic-type-arg> +]
 
+        | GenericCallable[<type>, lambda <args>: <type>]
+
    # Type conditional checks are boolean compositions of
    # boolean type operators
    <type-bool> =
@@ -479,6 +481,9 @@ result type is a ``<type-bool>`` instead of a ``<type>``.)
 
 There are three core syntactic features introduced: type booleans,
 conditional types and unpacked comprehension types.
+
+:ref:`"Generic callables" <generic-callable>` are also technically a
+syntactic feature, but are discussed as an operator.
 
 Type booleans
 '''''''''''''
@@ -672,6 +677,10 @@ Object creation
   similarly to ``NewProtocol`` but has different flags
 
 
+N.B: Currently we aren't proposing any way to create nominal classes
+or any way to make new *generic* types.
+
+
 .. _init-field:
 
 InitField
@@ -746,17 +755,30 @@ The names, type, and qualifiers share getter operations with
 TODO: Should we make ``GetInit`` be literal types of default parameter
 values too?
 
+.. _generic-callable:
+
 Generic Callable
 ''''''''''''''''
 
-* ``GenericCallable[Vs, Ty]``: A generic callable. ``Vs`` are a tuple
+* ``GenericCallable[Vs, lambda <vs>: Ty]``: A generic callable. ``Vs`` are a tuple
   type of unbound type variables and ``Ty`` should be a ``Callable``,
   ``staticmethod``, or ``classmethod`` that has access to the
-  variables in ``Vs``
+  variables in ``Vs`` via the bound variables in ``<vs>``.
+
+(LAMBDA PART NOT IMPLEMENTED YET)
 
 This is kind of unsatisfying but we at least need some way to return
-existing generic methods and put them back into a new protocol.
+existing generic methods and put them back into a new protocol and we
+need to be able to delay evaluation of conditionals/iteration at
+runtime.
 
+The unbound type variable tuple is so that bounds and defaults and
+``TypeVarTuple``-ness can be specified, though maybe we want to come
+up with a new approach.
+
+TODO: Decide if we have any mechanisms to inspect/destruct
+``GenericCallable``. Maybe can fetch the variable information and
+maybe can apply it to concrete types?
 
 String manipulation
 '''''''''''''''''''
