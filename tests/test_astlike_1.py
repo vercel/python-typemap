@@ -1,6 +1,7 @@
+import pytest
 import typing
 
-from typemap.type_eval import eval_call_with_types, eval_typing
+from typemap.type_eval import eval_call_with_types, eval_typing, TypeMapError
 from typemap.typing import (
     Attrs,
     BaseTypedDict,
@@ -13,6 +14,7 @@ from typemap.typing import (
     Matches,
     Member,
     NewProtocol,
+    RaiseError,
     _BoolLiteral,
 )
 
@@ -59,7 +61,14 @@ type CombineVarArgs[Ls: tuple[VarArg], Rs: tuple[VarArg]] = tuple[
                                 if IsSub[VarArgType[x], VarArgType[y]]
                                 else VarArgType[y]
                                 if IsSub[VarArgType[y], VarArgType[x]]
-                                else typing.Never
+                                else RaiseError[
+                                    typing.Literal[
+                                        "Type mismatch for variable"
+                                    ],
+                                    VarArgName[x],
+                                    VarArgType[x],
+                                    VarArgType[y],
+                                ]
                             )
                             for y in Iter[Rs]
                             if Matches[VarArgName[x], VarArgName[y]]
@@ -87,14 +96,12 @@ def test_astlike_1_combine_varargs_01():
         CombineVarArgs[
             tuple[
                 VarArg[typing.Literal["same"], int],
-                VarArg[typing.Literal["different"], int],
                 VarArg[typing.Literal["left_sub"], bool],
                 VarArg[typing.Literal["right_sub"], int],
                 VarArg[typing.Literal["unique_left"], int],
             ],
             tuple[
                 VarArg[typing.Literal["same"], int],
-                VarArg[typing.Literal["different"], float],
                 VarArg[typing.Literal["left_sub"], int],
                 VarArg[typing.Literal["right_sub"], bool],
                 VarArg[typing.Literal["unique_right"], int],
@@ -105,13 +112,24 @@ def test_astlike_1_combine_varargs_01():
         t
         == tuple[
             tuple[typing.Literal["same"], int],
-            tuple[typing.Literal["different"], typing.Never],
             tuple[typing.Literal["left_sub"], bool],
             tuple[typing.Literal["right_sub"], bool],
             tuple[typing.Literal["unique_left"], int],
             tuple[typing.Literal["unique_right"], int],
         ]
     )
+
+
+def test_astlike_1_combine_varargs_02():
+    with pytest.raises(
+        TypeMapError, match="Type mismatch for variable.*different.*int.*float"
+    ):
+        eval_typing(
+            CombineVarArgs[
+                tuple[VarArg[typing.Literal["different"], int],],
+                tuple[VarArg[typing.Literal["different"], float],],
+            ]
+        )
 
 
 type IsAssignable[L, R] = (
@@ -186,50 +204,94 @@ type IsIntegral[T] = IsSub[T, int]
 type IsFloat[T] = Bool[IsIntegral[T]] or IsSub[T, float]
 type IsComplex[T] = Bool[IsFloat[T]] or IsSub[T, complex]
 
-type SimpleNumericOp[L, R] = (
+type SimpleNumericOp[L, R, OpName: str] = (
     int
     if Bool[IsIntegral[L]] and Bool[IsIntegral[R]]
     else float
     if Bool[IsFloat[L]] and Bool[IsFloat[R]]
-    else typing.Never
+    else RaiseError[
+        typing.Literal["Operation only supports int or float"], OpName
+    ]
 )
-type ComplexNumericOp[L, R] = (
-    SimpleNumericOp[L, R]
+type ComplexNumericOp[L, R, OpName] = (
+    SimpleNumericOp[L, R, OpName]
     if Bool[IsFloat[L]] and Bool[IsFloat[R]]
     else complex
     if Bool[IsComplex[L]] and Bool[IsComplex[R]]
-    else typing.Never
+    else RaiseError[
+        typing.Literal["Operation only supports int, float, or complex"], OpName
+    ]
 )
 
-type Add[L, R] = (
-    ComplexNumericOp[L, R]
-    if Bool[IsComplex[L]] and Bool[IsComplex[R]]
-    else typing.Never
-)
-type Sub[L, R] = (
-    ComplexNumericOp[L, R]
-    if Bool[IsComplex[L]] and Bool[IsComplex[R]]
-    else typing.Never
-)
-type Mul[L, R] = (
-    ComplexNumericOp[L, R]
-    if Bool[IsComplex[L]] and Bool[IsComplex[R]]
-    else typing.Never
-)
+type Add[L, R] = ComplexNumericOp[L, R, typing.Literal["+"]]
+type Sub[L, R] = ComplexNumericOp[L, R, typing.Literal["-"]]
+type Mul[L, R] = ComplexNumericOp[L, R, typing.Literal["*"]]
 type TrueDiv[L, R] = (
     float
     if IsSub[L, int] and IsSub[R, int]
-    else ComplexNumericOp[L, R]
-    if Bool[IsComplex[L]] and Bool[IsComplex[R]]
-    else typing.Never
+    else ComplexNumericOp[L, R, typing.Literal["/"]]
 )
-type FloorDiv[L, R] = ComplexNumericOp[L, R]
-type Pow[L, R] = ComplexNumericOp[L, R]
-type Mod[L, R] = (
-    SimpleNumericOp[L, R]
-    if Bool[IsFloat[L]] and Bool[IsFloat[R]]
-    else typing.Never
-)
+type FloorDiv[L, R] = SimpleNumericOp[L, R, typing.Literal["//"]]
+type Pow[L, R] = ComplexNumericOp[L, R, typing.Literal["**"]]
+type Mod[L, R] = SimpleNumericOp[L, R, typing.Literal["%"]]
+
+
+def test_astlike_1_numeric_op_01():
+    complex_ops = (
+        (Add, r"\+"),
+        (Sub, r"\-"),
+        (Mul, r"\*"),
+        (TrueDiv, r"/"),
+        (Pow, r"\*\*"),
+    )
+    ts = (int, float, complex)
+
+    for op, op_name in complex_ops:
+        for lhs in range(len(ts)):
+            for rhs in range(len(ts)):
+                t = eval_typing(op[ts[lhs], ts[rhs]])
+
+                expected = ts[max(lhs, rhs)]
+                if op is TrueDiv and ts[lhs] is int and ts[rhs] is int:
+                    expected = float
+
+                assert t is expected
+
+        for arg in range(len(ts)):
+            with pytest.raises(
+                TypeMapError,
+                match=f"Operation only supports int, float, or complex:.*{op_name}",
+            ):
+                eval_typing(op[ts[arg], str])
+            with pytest.raises(
+                TypeMapError,
+                match=f"Operation only supports int, float, or complex:.*{op_name}",
+            ):
+                eval_typing(op[str, ts[arg]])
+
+
+def test_astlike_1_numeric_op_02():
+    simple_ops = ((FloorDiv, r"//"), (Mod, r"%"))
+    ts = (int, float)
+
+    for op, op_name in simple_ops:
+        for lhs in range(len(ts)):
+            for rhs in range(len(ts)):
+                t = eval_typing(op[ts[lhs], ts[rhs]])
+                expected = ts[max(lhs, rhs)]
+                assert t is expected
+
+        for arg in range(len(ts)):
+            with pytest.raises(
+                TypeMapError,
+                match=f"Operation only supports int or float: .*{op_name}",
+            ):
+                eval_typing(op[ts[arg], str])
+            with pytest.raises(
+                TypeMapError,
+                match=f"Operation only supports int or float: .*{op_name}",
+            ):
+                eval_typing(op[str, ts[arg]])
 
 
 class NodeMeta(type): ...
