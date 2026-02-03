@@ -444,6 +444,10 @@ or, using the type abbreviations we provide::
 
 (Rationale discussed :ref:`below <callable-rationale>`.)
 
+TODO: Should the extended argument list be wrapped in a
+``typing.Parameters[*Params]`` type (that will also kind of serve as a
+bound for ``ParamSpec``)?
+
 
 Specification
 =============
@@ -632,6 +636,8 @@ Union processing
 * ``FromUnion[T]``: returns a tuple containing all of the union
   elements, or a 1-ary tuple containing T if it is not a union.
 
+* ``Union[*Ts]``: ``Union`` will become able to take variadic
+  arguments, so that it can take unpacked comprehension arguments.
 
 
 Object inspection
@@ -1285,7 +1291,8 @@ Reference Implementation
 
 There is an in-progress proof-of-concept implementation in mypy [#ref-impl]_.
 
-It can type check the ORM and NumPy-style broadcasting examples.
+It can type check the ORM, FastAPI-style model derivation, and
+NumPy-style broadcasting examples.
 
 It is missing support for callables, ``UpdateClass``, annotation
 processing, and various smaller things.

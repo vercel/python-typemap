@@ -1,5 +1,3 @@
-import textwrap
-
 from typing import (
     Callable,
     Literal,
@@ -10,10 +8,7 @@ from typing import (
     Self,
 )
 
-from typemap.type_eval import eval_typing
 from typemap import typing
-
-from . import format_helper
 
 
 class FieldArgs(TypedDict, total=False):
@@ -213,6 +208,11 @@ class Hero:
 
 
 #######
+
+import textwrap
+
+from typemap.type_eval import eval_typing
+from . import format_helper
 
 
 def test_fastapi_like_0():
