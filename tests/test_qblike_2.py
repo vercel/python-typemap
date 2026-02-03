@@ -110,13 +110,11 @@ type AdjustLink[Tgt, LinkTy] = (
 contains all the ``Property`` attributes of ``T``.
 
 """
-type PropsOnly[T] = list[
-    typing.NewProtocol[
-        *[
-            typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
-            for p in typing.Iter[typing.Attrs[T]]
-            if typing.IsSub[typing.GetType[p], Property]
-        ]
+type PropsOnly[T] = typing.NewProtocol[
+    *[
+        typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
+        for p in typing.Iter[typing.Attrs[T]]
+        if typing.IsSub[typing.GetType[p], Property]
     ]
 ]
 
@@ -150,7 +148,7 @@ class User:
 
     name: Property[str]
     email: Property[str]
-    posts: Link[Post]
+    posts: MultiLink[Post]
 
 
 def test_qblike2_1():
@@ -202,3 +200,24 @@ def test_qblike2_2():
             title: str
             content: str
     """)
+
+
+def test_qblike2_3():
+    ret = eval_call(
+        select,
+        Post,
+        title=True,
+        comments=True,
+        author=True,
+    )
+
+    assert ret.__origin__ is list
+    ret = ret.__args__[0]
+    fmt = format_helper.format_class(ret)
+
+    assert fmt == textwrap.dedent("""\
+        class select[...]:
+            title: str
+            comments: list[tests.test_qblike_2.PropsOnly[tests.test_qblike_2.Comment]]
+            author: tests.test_qblike_2.PropsOnly[tests.test_qblike_2.Comment]
+        """)

@@ -36,7 +36,7 @@ system, some libraries come with custom mypy plugins (though then
 other typecheckers suffer). The case of dataclass-like transformations
 was considered common enough that a special-case
 ``@dataclass_transform`` decorator was added specifically to cover
-that case (:pep:`PEP 681 <681>`).
+that case (:pep:`681`).
 
 We are proposing to add to the type system type manipulation
 facilities that are more capable of keeping up with dynamic Python
@@ -247,7 +247,7 @@ This kind of pattern is widespread enough that :pep:`PEP 681 <681>`
 was created to represent a lowest-common denominator subset of what
 existing libraries do.
 
-Make it possible for libraries to implement more of these patterns
+Making it possible for libraries to implement more of these patterns
 directly in the type system will give better typing without needing
 further special casing, typechecker plugins, hardcoded support, etc.
 
@@ -258,7 +258,7 @@ More powerful decorator typing
 
 The typing of decorator functions has long been a pain point in Python
 typing. The situation was substantially improved by the introducing of
-``ParamSpec`` in :pep:`PEP 612 <612>`, but a number of patterns remain
+``ParamSpec`` in :pep:`612`, but a number of patterns remain
 unsupported:
 
 * Adding/removing/modifying a keyword parameter
@@ -273,7 +273,7 @@ NumPy-style broadcasting
 ------------------------
 
 One of the motivations for the introduction of ``TypeVarTuple`` in
-:pep:`PEP 646 <646>` is to represent the shapes of multi-dimensional
+:pep:`646` is to represent the shapes of multi-dimensional
 arrays, such as::
 
   x: Array[float, L[480], L[640]] = Array()
@@ -351,7 +351,7 @@ Then, if we had a call like::
 
 the type inferred for ``K`` would be something like::
 
-    TypedDict({'x': int, y: list[str]})
+    TypedDict({'x': int, 'y': list[str]})
 
 This is basically a combination of
 "PEP 692 – Using TypedDict for more precise ``**kwargs`` typing"
@@ -1043,13 +1043,11 @@ contains all the ``Property`` attributes of ``T``.
 
 ::
 
-    type PropsOnly[T] = list[
-        typing.NewProtocol[
-            *[
-                typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
-                for p in typing.Iter[typing.Attrs[T]]
-                if typing.IsSub[typing.GetType[p], Property]
-            ]
+    type PropsOnly[T] = typing.NewProtocol[
+        *[
+            typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
+            for p in typing.Iter[typing.Attrs[T]]
+            if typing.IsSub[typing.GetType[p], Property]
         ]
     ]
 
