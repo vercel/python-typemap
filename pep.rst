@@ -33,7 +33,7 @@ frameworks. The type system typically cannot model metaprogramming.
 
 To bridge the gap between metaprogramming and the type
 system, some libraries come with custom mypy plugins (though then
-other typechecker suffer). The case of dataclass-like transformations
+other typecheckers suffer). The case of dataclass-like transformations
 was considered common enough that a special-case
 ``@dataclass_transform`` decorator was added specifically to cover
 that case (:pep:`PEP 681 <681>`).
@@ -125,7 +125,7 @@ which would have return type ``list[<User>]`` where::
         email: str
         posts: list[<Post>]
 
-    class <Post>
+    class <Post>:
         id: int
         title: str
         content: str
@@ -172,7 +172,7 @@ fields stripped), while ``HeroCreate`` and ``HeroUpdate`` serve as
 input types (automatically converted from JSON and validated based on
 the types, using `Pydantic <#pydantic_>`_).
 
-Despite all multiple types and duplication here, mechanical rules
+Despite the multiple types and duplication here, mechanical rules
 could be written for deriving these types:
 
 * Public should include all non-"hidden" fields, and the primary key
@@ -249,14 +249,14 @@ existing libraries do.
 
 Make it possible for libraries to implement more of these patterns
 directly in the type system will give better typing without needing
-futher special casing, typechecker plugins, hardcoded support, etc.
+further special casing, typechecker plugins, hardcoded support, etc.
 
 (Example code for implementing this :ref:`below <init-impl>`.)
 
 More powerful decorator typing
 ------------------------------
 
-The typing of decorator functions has long been a pain point in python
+The typing of decorator functions has long been a pain point in Python
 typing. The situation was substantially improved by the introducing of
 ``ParamSpec`` in :pep:`PEP 612 <612>`, but a number of patterns remain
 unsupported:
@@ -278,7 +278,7 @@ arrays, such as::
 
   x: Array[float, L[480], L[640]] = Array()
 
-The example in the that PEP shows how ``TypeVarTuple`` can be used to
+The example in that PEP shows how ``TypeVarTuple`` can be used to
 make sure that both sides of an arithmetic operation having matching
 shapes. Most multi-dimensional array libraries, however, also support
 broadcasting [#broadcasting]_, which allows the mixing of differently
@@ -350,7 +350,7 @@ from "PEP 646 – Variadic Generics".
 
 When inferring types here, the type checker should be **aggressive in
 inferring literal types when possible**.  (TODO: Or maybe we need to
-make that configurable in the ``TypedDict`` erving as the bound?)
+make that configurable in the ``TypedDict`` serving as the bound?)
 
 This is potentially moderately useful on its own but is being done to
 support processing ``**kwargs`` with type level computation.
@@ -389,7 +389,7 @@ And then, we can represent the type of a function like::
     ) -> int:
         ...
 
-as (we are omiting the ``Literal`` in places)::
+as (we are omitting the ``Literal`` in places)::
 
     Callable[
         [
@@ -411,8 +411,8 @@ or, using the type abbreviations we provide::
         [
             PosParam["a", int],
             Param["b", int],
-            DefaultParam["c", int,
-            ArgsParam[int, "*"],
+            DefaultParam["c", int],
+            ArgsParam[int],
             NamedParam["d", int],
             NamedDefaultParam["e", int],
             KwargsParam[int],
@@ -498,10 +498,10 @@ used in the body of conditionals.  They consist of the :ref:`Boolean
 Operators <boolean-ops>`, defined below, potentially combined with
 ``and``, ``or``, ``not``, ``all``, and ``any``. For ``all`` and
 ``any``, the argument is a comprehension of type booleans, evaluated
-in the same was as the :ref:`unpacked comprehensions <unpacked>`.
+in the same way as the :ref:`unpacked comprehensions <unpacked>`.
 
 When evaluated, they will evaluate to ``Literal[True]`` or
-``Literal[False]]``.
+``Literal[False]``.
 
 (We want to restrict what operators may be used in a conditional
 so that at runtime, we can have those operators produce "type" values
@@ -514,7 +514,7 @@ Conditional types
 
 The type ``true_typ if bool_typ else false_typ`` is a conditional
 type, which resolves to ``true_typ`` if ``bool_typ`` is equivalent to
-``Literal[True]`` and to ``true_typ`` otherwise.
+``Literal[True]`` and to ``false_typ`` otherwise.
 
 ``bool_typ`` is a type, but it needs syntactically be a type boolean,
 defined above.
@@ -535,7 +535,7 @@ usual way.
 Type operators
 --------------
 
-In some sections below we write things like ``Literal[int]]`` to mean
+In some sections below we write things like ``Literal[int]`` to mean
 "a literal that is of type ``int``". I don't think I'm really
 proposing to add that as a notion, but we could.
 
@@ -572,7 +572,7 @@ Basic operators
 
   N.B: Runtime evaluation will only be able to support proper classes
   as ``Base``, *not* protocols. So, for example, ``GetArg[Ty,
-  Iterable, 0]]`` to get the type of something iterable will need to
+  Iterable, 0]`` to get the type of something iterable will need to
   fail in a runtime evaluator. We should be able to allow it
   statically though.
 
@@ -640,7 +640,7 @@ Object inspection
   * ``D`` is the defining class of the member. (That is, which class
     the member is inherited from. Always ``Never``, for a ``TypedDict``)
 
-* ``MemberQuals = Literal['ClassVar', 'Final', 'NotRequired, 'ReadOnly']`` -
+* ``MemberQuals = Literal['ClassVar', 'Final', 'NotRequired', 'ReadOnly']`` -
   ``MemberQuals`` is the type of "qualifiers" that can apply to a
   member; currently ``ClassVar`` and ``Final`` apply to classes and
   ``NotRequired``, and ``ReadOnly`` to typed dicts
@@ -1209,7 +1209,7 @@ unbound type variables and let them be generalized::
 
 The problem is that this is basically incompatible with runtime
 evaluation support, since evaluating the alias ``Foo`` will need to
-evalaute the ``IsSub``, and so we will lose one side of the
+evaluate the ``IsSub``, and so we will lose one side of the
 conditional at least.  Similar problems will happen when evaluating
 ``Members`` on a class with generic functions.  By wrapping the body
 in a lambda, we can delay evaluation in both of these cases.  (The
@@ -1350,7 +1350,7 @@ This proposal is less "strictly-typed" than typescript
 Typescript has better typechecking at the alias definition site:
 For ``P[K]``, ``K`` needs to have ``keyof P``...
 
-We could do potentially better but it would require more meachinery.
+We could do potentially better but it would require more machinery.
 
 * ``KeyOf[T]`` - literal keys of ``T``
 * ``Member[T]``, when statically checking a type alias, could be
