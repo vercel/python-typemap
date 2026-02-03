@@ -343,14 +343,36 @@ Here ``BaseTypedDict`` is defined as::
 But any typeddict would be allowed there. (TODO: Or maybe we should
 allow ``dict``?)
 
+Then, if we had a call like::
+
+    x: int
+    y: list[str]
+    f(x=x, y=y)
+
+the type inferred for ``K`` would be something like::
+
+    TypedDict({'x': int, y: list[str]})
+
 This is basically a combination of
 "PEP 692 – Using TypedDict for more precise ``**kwargs`` typing"
 and the behavior of ``Unpack`` for ``*args``
 from "PEP 646 – Variadic Generics".
 
-When inferring types here, the type checker should be **aggressive in
-inferring literal types when possible**.  (TODO: Or maybe we need to
-make that configurable in the ``TypedDict`` serving as the bound?)
+When inferring types here, the type checker should **infer literal
+types when possible**.  This means inferring literal types for
+arguments that **do not** appear in the bound, as well as
+for arguments that **do** appear in the bound as read-only (TODO: Or
+maybe we should make whether to do it for extra arguments
+configurable in the ``TypedDict`` serving as the bound somehow? If
+``readonly`` had been added as a parameter to ``TypedDict`` we would
+use that.)
+
+For each non-required item in the bound that does **not** have a
+matching argument provided, then if the item is read-only, it will
+have its type inferred as ``Never``, to indicate that it was not
+provided.  (This can only be done for read-only items, since non
+read-only items are invariant.)
+
 
 This is potentially moderately useful on its own but is being done to
 support processing ``**kwargs`` with type level computation.
@@ -708,16 +730,18 @@ Our strategy for this is to introduce a new type
 
 When ``InitField`` or (more likely) a subtype of it is instantiated
 inside a class body, we infer a *more specific* type for it, based on
-``Literal`` types for all the arguments passed.
+``Literal`` types where possible. (Though actually, this is just an
+application of the rule that typevar unpacking in ``**kwargs`` should
+use ``Literal`` types.)
 
 So if we write::
 
   class A:
-      foo: int = InitField(default=0)
+      foo: int = InitField(default=0, kw_only=True)
 
 then we would infer the type ``InitField[TypedDict('...', {'default':
-Literal[0]})]`` for the initializer, and that would be made available
-as the ``Init`` field of the ``Member``.
+Literal[0], 'kw_only': Literal[True]})]`` for the initializer, and
+that would be made available as the ``Init`` field of the ``Member``.
 
 
 Annotated
@@ -1259,8 +1283,14 @@ like mapped types are unmentioned in current documentation
 Reference Implementation
 ========================
 
-[Link to any existing implementation and details about its state, e.g. proof-of-concept.]
+There is an in-progress proof-of-concept implementation in mypy [#ref-impl]_.
 
+It can type check the ORM and NumPy-style broadcasting examples.
+
+It is missing support for callables, ``UpdateClass``, annotation
+processing, and various smaller things.
+
+There is a demo of a runtime evaluator as well [#runtime]_.
 
 Rejected Ideas
 ==============
@@ -1396,11 +1426,15 @@ Footnotes
 .. _#fastapi: https://fastapi.tiangolo.com/
 .. _#pydantic: https://docs.pydantic.dev/latest/
 .. _#fastapi-tutorial: https://fastapi.tiangolo.com/tutorial/sql-databases/#heroupdate-the-data-model-to-update-a-hero
-.. _#fastapi-test: https://github.com/geldata/typemap/blob/main/tests/test_fastapilike_2.py
+.. _#fastapi-test: https://github.com/vercel/python-typemap/blob/main/tests/test_fastapilike_2.py
 .. _#prisma: https://www.prisma.io/
 .. _#prisma-example: https://github.com/prisma/prisma-examples/tree/latest/orm/express
-.. _#qb-test: https://github.com/geldata/typemap/blob/main/tests/test_qblike_2.py
+.. _#qb-test: https://github.com/vercel/python-typemap/blob/main/tests/test_qblike_2.py
+
 .. [#broadcasting] http://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
+.. [#ref-impl] https://github.com/msullivan/mypy/tree/typemap
+.. [#runtime] https://github.com/vercel/python-typemap/
+
 
 
 Copyright
