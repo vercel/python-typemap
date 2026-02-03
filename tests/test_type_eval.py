@@ -1458,14 +1458,87 @@ def test_eval_lambda_01():
     assert eval_typing(t(str)) is str
 
 
+LambdaInt1 = _Lambda[lambda: int]
+LambdaInt2 = _Lambda[lambda: int]
+LambdaStr = _Lambda[lambda: str]
+
+
 def test_eval_lambda_02():
+    # nested lambdas
+    a = _Lambda[lambda: _Lambda[lambda: int]]
+    assert a == _Lambda[lambda: _Lambda[lambda: int]]
+    assert eval_typing(a()) == _Lambda[lambda: int]
+
+    assert a != _Lambda[lambda: _Lambda[lambda: str]]
+
+    # lambda closure
+    b = _Lambda[lambda: int]
+    c = _Lambda[lambda: b]
+    d = _Lambda[lambda: int]
+    e = _Lambda[lambda: str]
+    assert c == _Lambda[lambda: d]
+    assert eval_typing(c()) == _Lambda[lambda: int]
+
+    assert c != _Lambda[lambda: e]
+
+    # lambda global
+    f = _Lambda[lambda: LambdaInt1]
+    assert f == _Lambda[lambda: LambdaInt2]
+    assert eval_typing(f()) == _Lambda[lambda: int]
+
+    assert f != _Lambda[lambda: LambdaStr]
+
+
+def test_eval_lambda_03():
     # different lambdas with same bytecode are treated as the same
+
+    assert eval_typing(_Lambda[lambda: int]) == eval_typing(
+        _Lambda[lambda: int]
+    )
+    assert eval_typing(_Lambda[lambda: list[int]]) == eval_typing(
+        _Lambda[lambda: list[int]]
+    )
+
     a1 = lambda: int
     a2 = lambda: int
 
-    t1 = eval_typing(_Lambda[a1])
-    t2 = eval_typing(_Lambda[a2])
-    assert t1 == t2
+    assert _Lambda[a1] == _Lambda[a2]
+    assert eval_typing(_Lambda[a1]) == eval_typing(_Lambda[a2])
+
+    l1 = Literal[1]
+    l2 = Literal[1]
+
+    assert _Lambda[lambda: l1] == _Lambda[lambda: l2]
+    assert eval_typing(_Lambda[lambda: l1]) == eval_typing(_Lambda[lambda: l2])
+
+
+def test_eval_lambda_04():
+    # different lambdas with different bytecode are treated as different
+
+    assert eval_typing(_Lambda[lambda: int]) != eval_typing(
+        _Lambda[lambda: str]
+    )
+
+    def _f1():
+        X = str
+        return lambda: X
+
+    f1 = _f1()
+
+    def _f2():
+        X = int
+        return lambda: X
+
+    f2 = _f2()
+
+    assert _Lambda[f1] != _Lambda[f2]
+    assert eval_typing(_Lambda[f1]) != eval_typing(_Lambda[f2])
+
+
+def test_eval_lambda_05():
+    # comparison operators
+    a1 = lambda: int
+    a2 = lambda: int
 
     t = eval_typing(IsSubtype[_Lambda[a1], _Lambda[a2]])
     assert t == _BoolLiteral[True]
@@ -1482,30 +1555,22 @@ def test_eval_lambda_02():
     assert t == _BoolLiteral[True]
 
 
-def test_eval_lambda_03():
-    # different lambdas with different bytecode are treated as different
-    a1 = lambda: int
-    a2 = lambda: str
+def test_eval_lambda_06():
+    # lambda captures non-hashable
 
-    t1 = eval_typing(_Lambda[a1])
-    t2 = eval_typing(_Lambda[a2])
-    assert t1 != t2
-
-    t = eval_typing(IsSubtype[_Lambda[a1], _Lambda[a2]])
-    assert t == _BoolLiteral[False]
-    t = eval_typing(IsSubSimilar[_Lambda[a1], _Lambda[a2]])
-    assert t == _BoolLiteral[False]
-    t = eval_typing(Matches[_Lambda[a1], _Lambda[a2]])
-    assert t == _BoolLiteral[False]
-
-    t = eval_typing(IsSubtype[_Lambda[lambda T: T], _Lambda[lambda T: list[T]]])
-    assert t == _BoolLiteral[False]
-    t = eval_typing(
-        IsSubSimilar[_Lambda[lambda T: T], _Lambda[lambda T: list[T]]]
+    # list is specially converted to tuple
+    a = [int, str, float]
+    b = [int, str, float]
+    assert (
+        _Lambda[lambda: Callable[a, int]] == _Lambda[lambda: Callable[b, int]]
     )
-    assert t == _BoolLiteral[False]
-    t = eval_typing(Matches[_Lambda[lambda T: T], _Lambda[lambda T: list[T]]])
-    assert t == _BoolLiteral[False]
+    assert eval_typing(_Lambda[lambda: a]) == eval_typing(_Lambda[lambda: a])
+
+    # other non-hashables are only compared by id
+    c = {1, 2, 3}
+    d = {1, 2, 3}
+    assert _Lambda[lambda: c] != _Lambda[lambda: d]
+    assert eval_typing(_Lambda[lambda: c]) != eval_typing(_Lambda[lambda: d])
 
 
 def test_eval_length_01():

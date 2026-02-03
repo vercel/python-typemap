@@ -320,18 +320,81 @@ def _BoolLiteral(self, tp):
 class _LambdaGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
     def __eq__(self, other: typing.Any) -> bool:
         return (
-            isinstance(other, _LambdaGenericAlias)
-            and self._func().__code__.co_code == other._func().__code__.co_code
+            isinstance(other, _LambdaGenericAlias) and self.key() == other.key()
         )
 
     def __hash__(self) -> int:
-        return hash(self._func().__code__.co_code)
+        return hash(self.key())
 
     def __call__(self, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
         return self._func()(*args, **kwargs)
 
     def _func(self) -> typing.Callable:
         return typing.get_args(self)[0]
+
+    def key(
+        self,
+    ) -> tuple[
+        tuple[bytes, tuple[typing.Any, ...], tuple[typing.Any, ...]],
+        tuple[typing.Any, ...],
+    ]:
+        return self._key(self._func())
+
+    @staticmethod
+    def _key(
+        func: typing.Callable,
+    ) -> tuple[
+        tuple[bytes, tuple[typing.Any, ...], tuple[typing.Any, ...]],
+        tuple[typing.Any, ...],
+    ]:
+        import builtins
+
+        def _encode_code(
+            code: types.CodeType,
+        ) -> tuple[bytes, tuple[typing.Any, ...], tuple[typing.Any, ...]]:
+            bytecode = code.co_code
+            consts = tuple(
+                _encode_code(c) if isinstance(c, types.CodeType) else c
+                for c in code.co_consts
+            )
+
+            globals = tuple(
+                func.__globals__.get(name, None)
+                or getattr(builtins, name, None)
+                for name in code.co_names
+            )
+
+            return (bytecode, consts, globals)
+
+        if func.__closure__ is None:
+            closures: tuple[typing.Any, ...] = ()
+        else:
+            closures = tuple(
+                # list is specially converted to tuple
+                tuple(cell.cell_contents)
+                if isinstance(cell.cell_contents, list)
+                else cell.cell_contents
+                if bool(
+                    isinstance(
+                        cell.cell_contents,
+                        (
+                            type,
+                            typing.TypeVar,
+                            typing.ParamSpec,
+                            typing.TypeVarTuple,
+                            typing.TypeAliasType,
+                            typing._SpecialForm,
+                        ),
+                    )
+                    or typing.get_origin(cell.cell_contents) is not None
+                )
+                else cell.cell_contents.key()
+                if isinstance(cell.cell_contents, _LambdaGenericAlias)
+                else id(cell.cell_contents)
+                for cell in func.__closure__
+            )
+
+        return (_encode_code(func.__code__), closures)
 
 
 @_SpecialForm
