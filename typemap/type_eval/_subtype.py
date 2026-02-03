@@ -42,6 +42,10 @@ def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
     ):
         return issubclass(lhs, rhs)
 
+    # lambda <:? lambda
+    elif _typing_inspect.is_lambda(lhs) or _typing_inspect.is_lambda(rhs):
+        return lhs == rhs
+
     # literal <:? literal
     elif bool(
         _typing_inspect.is_literal(lhs) and _typing_inspect.is_literal(rhs)

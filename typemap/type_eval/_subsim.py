@@ -40,6 +40,10 @@ def issubsimilar(lhs: typing.Any, rhs: typing.Any) -> bool:
     ):
         return issubclass(lhs, rhs)
 
+    # lambda <:? lambda
+    elif _typing_inspect.is_lambda(lhs) or _typing_inspect.is_lambda(rhs):
+        return lhs == rhs
+
     # literal <:? literal
     elif _typing_inspect.is_literal(lhs) and _typing_inspect.is_literal(rhs):
         # We need to check both value and type, since True == 1 but

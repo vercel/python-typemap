@@ -170,7 +170,7 @@ def make_func(
         func.__globals__,
         "__call__",
         func.__defaults__,
-        (),
+        func.__closure__,
         func.__kwdefaults__,
     )
 

@@ -31,8 +31,9 @@ from typemap.typing import (
     GetSpecialAttr,
     GetType,
     GetAnnotations,
-    IsSubtype,
     IsSub,
+    IsSubSimilar,
+    IsSubtype,
     Iter,
     Length,
     Matches,
@@ -45,6 +46,7 @@ from typemap.typing import (
     StrConcat,
     Uppercase,
     _BoolLiteral,
+    _Lambda,
 )
 
 from . import format_helper
@@ -1426,6 +1428,84 @@ def test_eval_bool_literal_07():
 def test_eval_bool_literal_error_01():
     with pytest.raises(TypeError, match="Expected literal type, got 'int'"):
         eval_typing(_BoolLiteral[int])
+
+
+def test_eval_lambda_01():
+    type OnlyIntToSet[T] = set[T] if IsSub[T, int] else T
+
+    a = lambda: int
+    b = lambda T: T
+    c = lambda T: list[T]
+    d = lambda T: OnlyIntToSet[T]
+
+    t = eval_typing(_Lambda[a])
+    assert t == _Lambda[a]
+    assert eval_typing(t()) is int
+
+    t = eval_typing(_Lambda[b])
+    assert t == _Lambda[b]
+    assert eval_typing(t(int)) is int
+    assert eval_typing(t(str)) is str
+
+    t = eval_typing(_Lambda[c])
+    assert t == _Lambda[c]
+    assert eval_typing(t(int)) == list[int]
+    assert eval_typing(t(str)) == list[str]
+
+    t = eval_typing(_Lambda[d])
+    assert t == _Lambda[d]
+    assert eval_typing(t(int)) == set[int]
+    assert eval_typing(t(str)) is str
+
+
+def test_eval_lambda_02():
+    # different lambdas with same bytecode are treated as the same
+    a1 = lambda: int
+    a2 = lambda: int
+
+    t1 = eval_typing(_Lambda[a1])
+    t2 = eval_typing(_Lambda[a2])
+    assert t1 == t2
+
+    t = eval_typing(IsSubtype[_Lambda[a1], _Lambda[a2]])
+    assert t == _BoolLiteral[True]
+    t = eval_typing(IsSubSimilar[_Lambda[a1], _Lambda[a2]])
+    assert t == _BoolLiteral[True]
+    t = eval_typing(Matches[_Lambda[a1], _Lambda[a2]])
+    assert t == _BoolLiteral[True]
+
+    t = eval_typing(IsSubtype[_Lambda[lambda T: T], _Lambda[lambda U: U]])
+    assert t == _BoolLiteral[True]
+    t = eval_typing(IsSubSimilar[_Lambda[lambda T: T], _Lambda[lambda U: U]])
+    assert t == _BoolLiteral[True]
+    t = eval_typing(Matches[_Lambda[lambda T: T], _Lambda[lambda U: U]])
+    assert t == _BoolLiteral[True]
+
+
+def test_eval_lambda_03():
+    # different lambdas with different bytecode are treated as different
+    a1 = lambda: int
+    a2 = lambda: str
+
+    t1 = eval_typing(_Lambda[a1])
+    t2 = eval_typing(_Lambda[a2])
+    assert t1 != t2
+
+    t = eval_typing(IsSubtype[_Lambda[a1], _Lambda[a2]])
+    assert t == _BoolLiteral[False]
+    t = eval_typing(IsSubSimilar[_Lambda[a1], _Lambda[a2]])
+    assert t == _BoolLiteral[False]
+    t = eval_typing(Matches[_Lambda[a1], _Lambda[a2]])
+    assert t == _BoolLiteral[False]
+
+    t = eval_typing(IsSubtype[_Lambda[lambda T: T], _Lambda[lambda T: list[T]]])
+    assert t == _BoolLiteral[False]
+    t = eval_typing(
+        IsSubSimilar[_Lambda[lambda T: T], _Lambda[lambda T: list[T]]]
+    )
+    assert t == _BoolLiteral[False]
+    t = eval_typing(Matches[_Lambda[lambda T: T], _Lambda[lambda T: list[T]]])
+    assert t == _BoolLiteral[False]
 
 
 def test_eval_length_01():

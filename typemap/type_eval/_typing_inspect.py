@@ -135,6 +135,12 @@ def is_literal(t: Any) -> bool:
     return is_generic_alias(t) and get_origin(t) is Literal  # type: ignore [comparison-overlap]
 
 
+def is_lambda(t: Any) -> bool:
+    from typemap.typing import _Lambda
+
+    return is_generic_alias(t) and get_origin(t) is _Lambda
+
+
 def get_head(t: Any) -> type | None:
     if is_generic_alias(t):
         return get_head(get_origin(t))

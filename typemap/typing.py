@@ -315,3 +315,25 @@ def _BoolLiteral(self, tp):
         return tp
 
     return _BoolLiteralGenericAlias(Literal, tp)
+
+
+class _LambdaGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
+    def __eq__(self, other: typing.Any) -> bool:
+        return (
+            isinstance(other, _LambdaGenericAlias)
+            and self._func().__code__.co_code == other._func().__code__.co_code
+        )
+
+    def __hash__(self) -> int:
+        return hash(self._func().__code__.co_code)
+
+    def __call__(self, *args: typing.Any, **kwargs: typing.Any) -> typing.Any:
+        return self._func()(*args, **kwargs)
+
+    def _func(self) -> typing.Callable:
+        return typing.get_args(self)[0]
+
+
+@_SpecialForm
+def _Lambda(self, tp):
+    return _LambdaGenericAlias(self, tp)
