@@ -340,12 +340,17 @@ Here ``BaseTypedDict`` is defined as::
     class BaseTypedDict(typing.TypedDict):
         pass
 
-But any typeddict would be allowed there. (Or, maybe we should allow ``dict``?)
+But any typeddict would be allowed there. (TODO: Or maybe we should
+allow ``dict``?)
 
 This is basically a combination of
 "PEP 692 – Using TypedDict for more precise ``**kwargs`` typing"
 and the behavior of ``Unpack`` for ``*args``
 from "PEP 646 – Variadic Generics".
+
+When inferring types here, the type checker should be **aggressive in
+inferring literal types when possible**.  (TODO: Or maybe we need to
+make that configurable in the ``TypedDict`` erving as the bound?)
 
 This is potentially moderately useful on its own but is being done to
 support processing ``**kwargs`` with type level computation.
@@ -718,7 +723,7 @@ as the ``Init`` field of the ``Member``.
 Annotated
 '''''''''
 
-This could maybe be dropped?
+TODO: This could maybe be dropped if it doesn't seem implementable?
 
 Libraries like FastAPI use annotations heavily, and we would like to
 be able to use annotations to drive type-level computation decision
@@ -758,27 +763,33 @@ values too?
 .. _generic-callable:
 
 Generic Callable
-''''''''''''''''
+""""""""""""""""
 
 * ``GenericCallable[Vs, lambda <vs>: Ty]``: A generic callable. ``Vs`` are a tuple
   type of unbound type variables and ``Ty`` should be a ``Callable``,
   ``staticmethod``, or ``classmethod`` that has access to the
   variables in ``Vs`` via the bound variables in ``<vs>``.
 
+For now, we restrict the use of ``GenericCallable`` to
+the type argument of ``Member`` (that is, to disallow its use for
+locals, parameter types, return types, nested inside other types,
+etc).
+
+(This is a little unsatisfying. Rationale discussed :ref:`below
+<generic-callable-rationale>`.)
+
+
 (LAMBDA PART NOT IMPLEMENTED YET)
-
-This is kind of unsatisfying but we at least need some way to return
-existing generic methods and put them back into a new protocol and we
-need to be able to delay evaluation of conditionals/iteration at
-runtime.
-
-The unbound type variable tuple is so that bounds and defaults and
-``TypeVarTuple``-ness can be specified, though maybe we want to come
-up with a new approach.
 
 TODO: Decide if we have any mechanisms to inspect/destruct
 ``GenericCallable``. Maybe can fetch the variable information and
 maybe can apply it to concrete types?
+
+Overloaded function types
+"""""""""""""""""""""""""
+
+* ``Overloaded[*Callables]`` - An overloaded function type, with the
+  underlying types in order.
 
 String manipulation
 '''''''''''''''''''
@@ -1170,6 +1181,56 @@ I am proposing a fully new extended callable syntax because:
     do for inspecting members (We could introduce extended callables that
     closely mimic the ``mypy_extensions`` version though, if something new
     is a non starter)
+
+
+.. _generic-callable-rationale:
+
+Generic Callable
+----------------
+
+Consider a method with the following signature::
+
+    def process[T](self, x: T) -> T if IsSub[T, list] else list[T]:
+        ...
+
+The type of the method is generic, and the generic is bound at the
+**method**, not the class. We need a way to represent such a generic
+function both as a programmer might write it for a ``NewProtocol``.
+
+One option that is somewhat appealing but doesn't work would be to use
+unbound type variables and let them be generalized::
+
+    type Foo = NewProtocol[
+        Member[
+            Literal["process"],
+            Callable[[T], set[T] if IsSub[T, int] else T]
+        ]
+    ]
+
+The problem is that this is basically incompatible with runtime
+evaluation support, since evaluating the alias ``Foo`` will need to
+evalaute the ``IsSub``, and so we will lose one side of the
+conditional at least.  Similar problems will happen when evaluating
+``Members`` on a class with generic functions.  By wrapping the body
+in a lambda, we can delay evaluation in both of these cases.  (The
+``Members`` case of delaying evaluation works quite nicely for
+functions with explicit generic annotations. For old-style generics,
+we'll probably have to try to evaluate it and then raise an error when
+we encounter a variable.)
+
+
+The reason we suggest restricting the use of ``GenericCallable`` to
+the type argument of ``Member`` is because full impredicative
+polymorphism (where you can have generic type binding nested inside
+types and you can instantiate type variables with other generic types)
+is an big can of worms when combined with type inference (TODO: CITE).
+While it would be nice to support, we don't want to
+open that can of worms now.
+
+
+The unbound type variable tuple is so that bounds and defaults and
+``TypeVarTuple``-ness can be specified, though maybe we want to come
+up with a new approach.
 
 
 Backwards Compatibility
