@@ -42,6 +42,16 @@ We are proposing to add to the type system type manipulation
 facilities that are more capable of keeping up with dynamic Python
 code.
 
+There does seem to be demand for this. In the analysis of the
+responses to Meta's 2025 Typed Python Survey [#survey]_, the first
+entry on the list of "Most Requested Features" was:
+
+  **Missing Features From TypeScript and Other Languages**: Many respondents
+  requested features inspired by TypeScript, such as **Intersection types**
+  (like the & operator), **Mapped and Conditional types**, **Utility types**
+  (like Pick, Omit, keyof, and typeof), and better **Structural typing** for
+  dictionaries/dicts (e.g., more flexible TypedDict or anonymous types).
+
 We will present a few examples of problems that could be solved with
 more powerful type manipulation.
 
@@ -1439,6 +1449,7 @@ Footnotes
 .. [#broadcasting] http://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
 .. [#ref-impl] https://github.com/msullivan/mypy/tree/typemap
 .. [#runtime] https://github.com/vercel/python-typemap/
+.. [#survey] https://engineering.fb.com/2025/12/22/developer-tools/python-typing-survey-2025-code-quality-flexibility-typing-adoption/
 
 
 
