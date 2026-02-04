@@ -895,7 +895,13 @@ def _eval_GetArg(tp, base, idx, *, ctx) -> typing.Any:
         return typing.Never
 
     try:
-        return _fix_type(args[_eval_literal(idx, ctx)])
+        idx_val = _eval_literal(idx, ctx)
+
+        if base_head is GenericCallable and idx_val >= 1:
+            # Disallow access to callable lambda
+            return typing.Never
+
+        return _fix_type(args[idx_val])
     except IndexError:
         return typing.Never
 
@@ -907,6 +913,11 @@ def _eval_GetArgs(tp, base, *, ctx) -> typing.Any:
     args = _get_args(tp, base_head, ctx)
     if args is None:
         return typing.Never
+
+    if base_head is GenericCallable:
+        # Disallow access to callable lambda
+        return tuple[args[0]]  # type: ignore[valid-type]
+
     return tuple[*args]  # type: ignore[valid-type]
 
 

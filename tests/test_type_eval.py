@@ -480,11 +480,7 @@ def test_eval_getarg_callable_02():
     t = eval_typing(GetArg[gc, GenericCallable, Literal[0]])
     assert t == tuple[T]
     gc_f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    assert gc_f == f
-    t = eval_typing(GetArg[gc_f, Callable, Literal[0]])
-    assert t == tuple[Param[Literal[None], T, Never]]
-    t = eval_typing(GetArg[gc_f, Callable, Literal[1]])
-    assert t is T
+    assert gc_f == Never
 
     # Params wrapped
     f = Callable[
@@ -502,7 +498,7 @@ def test_eval_getarg_callable_02():
     t = eval_typing(GetArg[gc, GenericCallable, Literal[0]])
     assert t == tuple[T]
     gc_f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    assert gc_f == f
+    assert gc_f == Never
 
 
 type IndirectProtocol[T] = NewProtocol[*[m for m in Iter[Members[T]]],]
@@ -650,18 +646,7 @@ def test_eval_getarg_callable_07():
         GetArg[GetArg[gc, GenericCallable, Literal[0]], tuple, Literal[0]]
     )
     f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    t = eval_typing(GetArg[f, Callable, Literal[0]])
-    assert (
-        t
-        == tuple[
-            Param[Literal["self"], C, Literal["positional"]],
-            Param[Literal["x"], _T, Literal["positional"]],
-            Param[Literal["y"], _T],
-            Param[Literal["z"], _T, Literal["keyword"]],
-        ]
-    )
-    t = eval_typing(GetArg[f, Callable, Literal[1]])
-    assert t is _T
+    assert f is Never
 
 
 def test_eval_getarg_callable_08():
@@ -675,19 +660,7 @@ def test_eval_getarg_callable_08():
         GetArg[GetArg[gc, GenericCallable, Literal[0]], tuple, Literal[0]]
     )
     f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    t = eval_typing(GetArg[f, classmethod, Literal[0]])
-    assert t is C
-    t = eval_typing(GetArg[f, classmethod, Literal[1]])
-    assert (
-        t
-        == tuple[
-            Param[Literal["x"], _T, Literal["positional"]],
-            Param[Literal["y"], _T],
-            Param[Literal["z"], _T, Literal["keyword"]],
-        ]
-    )
-    t = eval_typing(GetArg[f, classmethod, Literal[2]])
-    assert t is _T
+    assert f is Never
 
 
 def test_eval_getarg_callable_09():
@@ -701,17 +674,7 @@ def test_eval_getarg_callable_09():
         GetArg[GetArg[gc, GenericCallable, Literal[0]], tuple, Literal[0]]
     )
     f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    t = eval_typing(GetArg[f, staticmethod, Literal[0]])
-    assert (
-        t
-        == tuple[
-            Param[Literal["x"], _T, Literal["positional"]],
-            Param[Literal["y"], _T],
-            Param[Literal["z"], _T, Literal["keyword"]],
-        ]
-    )
-    t = eval_typing(GetArg[f, staticmethod, Literal[1]])
-    assert t is _T
+    assert f is Never
 
 
 def test_eval_getarg_tuple():
@@ -987,6 +950,15 @@ def test_eval_getarg_custom_08():
     assert eval_typing(GetArg[t, Container, Literal[0]]) is Any
     assert eval_typing(GetArg[t, Container, Literal[-1]]) is Any
     assert eval_typing(GetArg[t, Container, Literal[1]]) == Never
+
+
+def test_eval_getargs_generic_callable_01():
+    T = TypeVar("T")
+    t = GenericCallable[
+        tuple[T], lambda T: Callable[[Param[Literal["x"], T]], int]
+    ]
+    args = eval_typing(GetArgs[t, GenericCallable])
+    assert args == tuple[tuple[T]]
 
 
 class OuterType:
