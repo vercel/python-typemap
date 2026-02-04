@@ -410,10 +410,15 @@ def test_type_members_func_3():
 
     assert (
         str(typ)
-        #          == "\
-        # staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
-        == "\
-typemap.typing.GenericCallable[tuple[Z], staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]]"
+        == "typemap.typing.GenericCallable[tuple[Z], typemap.type_eval._eval_operators._create_generic_callable_lambda.<locals>.<lambda>]"
+    )
+
+    evaled = eval_typing(
+        typing.get_args(typ)[1](*typing.get_args(typing.get_args(typ)[0]))
+    )
+    assert (
+        str(evaled)
+        == "staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
     )
 
 

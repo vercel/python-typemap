@@ -162,7 +162,11 @@ def eval_call_with_types(
             _typing_inspect.is_generic_alias(resolved_callable)
             and resolved_callable.__origin__ is GenericCallable
         ):
-            _, resolved_callable = typing.get_args(resolved_callable)
+            typevars_tuple, callable_lambda = typing.get_args(resolved_callable)
+            type_vars = typing.get_args(typevars_tuple)
+            resolved_callable = callable_lambda(*type_vars)
+            # Evaluate the result to expand type aliases
+            resolved_callable = _eval_typing.eval_typing(resolved_callable)
 
         sig = _callable_type_to_signature(resolved_callable)
         bound = sig.bind(*arg_types, **kwarg_types)
