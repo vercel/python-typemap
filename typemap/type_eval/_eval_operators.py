@@ -486,8 +486,6 @@ def _callable_type_to_method(name, typ, ctx):
         ttparams, ttfunc = typing.get_args(typ)
         type_params = typing.get_args(ttparams)
         typ = ttfunc(*type_params)
-        # Evaluate the result to expand type aliases
-        typ = _eval_types(typ, ctx)
         head = typing.get_origin(typ)
 
     if head is classmethod:

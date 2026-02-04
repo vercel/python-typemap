@@ -13,6 +13,7 @@ from typing import (
     Tuple,
     TypeVar,
     Union,
+    get_args,
 )
 
 import pytest
@@ -25,9 +26,11 @@ from typemap.typing import (
     GenericCallable,
     GetArg,
     GetArgs,
+    GetDefiner,
     GetMember,
     GetMemberType,
     GetName,
+    GetQuals,
     GetSpecialAttr,
     GetType,
     GetAnnotations,
@@ -392,6 +395,56 @@ def test_getmember_01():
     )
     d = eval_typing(GetMember[TA | TB, Literal[""]])
     assert d == Never
+
+
+def test_getmember_02():
+    type OnlyIntToSet[T] = set[T] if IsSub[T, int] else T
+
+    class C:
+        def f[T](self, x: T) -> OnlyIntToSet[T]: ...
+
+    m = eval_typing(GetMember[C, Literal["f"]])
+    assert eval_typing(GetName[m]) == Literal["f"]
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C
+
+    t = eval_typing(GetType[m])
+    Vs = get_args(get_args(t)[0])
+    L = get_args(t)[1]
+    f = L(*Vs)
+    assert (
+        f
+        == Callable[
+            [Param[Literal["self"], C], Param[Literal["x"], Vs[0]]],
+            OnlyIntToSet[Vs[0]],
+        ]
+    )
+
+
+def test_getmember_03():
+    type OnlyIntToSet[T] = set[T] if IsSub[T, int] else T
+
+    class C:
+        def f[T](self, x: T) -> OnlyIntToSet[T]: ...
+
+    type P = IndirectProtocol[C]
+
+    m = eval_typing(GetMember[P, Literal["f"]])
+    assert eval_typing(GetName[m]) == Literal["f"]
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) != C  # eval typing generates a new class
+
+    t = eval_typing(GetType[m])
+    Vs = get_args(get_args(t)[0])
+    L = get_args(t)[1]
+    f = L(*Vs)
+    assert (
+        f
+        == Callable[
+            [Param[Literal["self"], Self], Param[Literal["x"], Vs[0]]],
+            OnlyIntToSet[Vs[0]],
+        ]
+    )
 
 
 def test_getarg_never():
