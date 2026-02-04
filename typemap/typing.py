@@ -5,7 +5,12 @@ import typing
 import types
 
 from typing import Literal, Unpack
-from typing import _GenericAlias, _LiteralGenericAlias, _UnpackGenericAlias
+from typing import (
+    _GenericAlias,
+    _SpecialGenericAlias,
+    _LiteralGenericAlias,
+    _UnpackGenericAlias,
+)
 
 _SpecialForm: typing.Any = typing._SpecialForm
 
@@ -67,14 +72,13 @@ class SpecialFormEllipsis:
 ###
 
 
-# We really need to be able to represent generic function types but it
-# is a problem for all kinds of reasons...
-# Can we bang it into Callable??
-class GenericCallable[
-    TVs: tuple[typing.TypeVar, ...],
-    C: typing.Callable | staticmethod | classmethod,
-]:
+class _GenericCallableGenericAlias(_SpecialGenericAlias, _root=True):
     pass
+
+
+@_SpecialForm
+def GenericCallable(self, tps):
+    return _GenericCallableGenericAlias(self, tps)
 
 
 ###
