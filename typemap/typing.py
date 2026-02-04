@@ -7,7 +7,6 @@ import types
 from typing import Literal, Unpack
 from typing import (
     _GenericAlias,
-    _SpecialGenericAlias,
     _LiteralGenericAlias,
     _UnpackGenericAlias,
 )
@@ -72,13 +71,24 @@ class SpecialFormEllipsis:
 ###
 
 
-class _GenericCallableGenericAlias(_SpecialGenericAlias, _root=True):
+class _GenericCallableGenericAlias(_GenericAlias, _root=True):
     pass
 
 
-@_SpecialForm
-def GenericCallable(self, tps):
-    return _GenericCallableGenericAlias(self, tps)
+class GenericCallable:
+    def __class_getitem__(cls, params):
+        message = (
+            "GenericCallable must be used as "
+            "GenericCallable[tuple[TypeVar, ...], lambda <vs>: callable]."
+        )
+        if not isinstance(params, tuple) or len(params) != 2:
+            raise TypeError(message)
+
+        typevars, func = params
+        if not callable(func):
+            raise TypeError(message)
+
+        return _GenericCallableGenericAlias(cls, (typevars, func))
 
 
 ###

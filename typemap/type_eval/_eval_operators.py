@@ -46,7 +46,6 @@ from typemap.typing import (
     Uncapitalize,
     Uppercase,
     _BoolLiteral,
-    _GenericCallableGenericAlias,
 )
 
 ##################################################################
@@ -212,12 +211,6 @@ def _lift_over_unions(func):
 
 
 ##################################################################
-
-
-@type_eval.register_evaluator(GenericCallable)
-@_lift_evaluated
-def _eval_GenericCallable(tvs, c, *, ctx):
-    return _GenericCallableGenericAlias(tvs, c)
 
 
 @type_eval.register_evaluator(Iter)
