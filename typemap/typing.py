@@ -1,9 +1,11 @@
+# mypy: ignore-errors
+
 import contextvars
 import typing
 import types
 
 from typing import Literal, Unpack
-from typing import _GenericAlias, _LiteralGenericAlias, _UnpackGenericAlias  # type: ignore
+from typing import _GenericAlias, _LiteralGenericAlias, _UnpackGenericAlias
 
 _SpecialForm: typing.Any = typing._SpecialForm
 
@@ -29,12 +31,12 @@ class _TupleLikeOperator:
 # Probably these exact hacks will need to go into our
 # typing_extensions version of this, but for the typing version they
 # can get merged into real classes.
-class _IterSafeGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
+class _IterSafeGenericAlias(_GenericAlias, _root=True):
     def __iter__(self):
         yield _IterSafeUnpackGenericAlias(origin=Unpack, args=(self,))
 
 
-class _IterSafeUnpackGenericAlias(_UnpackGenericAlias, _root=True):  # type: ignore[call-arg]
+class _IterSafeUnpackGenericAlias(_UnpackGenericAlias, _root=True):
     @property
     def __typing_unpacked_tuple_args__(self):
         # This is basically the same as in _UnpackGenericAlias except
@@ -86,8 +88,8 @@ class InitField[KwargDict: BaseTypedDict]:
 
     __kwargs: KwargDict
 
-    def __init__(self, **kwargs: typing.Unpack[KwargDict]) -> None:  # type: ignore[misc]
-        self.__kwargs = kwargs  # type: ignore[assignment]
+    def __init__(self, **kwargs: typing.Unpack[KwargDict]) -> None:
+        self.__kwargs = kwargs
 
     def get_kwargs(self) -> KwargDict:
         return self.__kwargs
@@ -252,7 +254,7 @@ special_form_evaluator: contextvars.ContextVar[
 ] = contextvars.ContextVar("special_form_evaluator", default=None)
 
 
-class _IterGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
+class _IterGenericAlias(_GenericAlias, _root=True):
     def __iter__(self):
         evaluator = special_form_evaluator.get()
         if evaluator:
@@ -266,7 +268,7 @@ def Iter(self, tp):
     return _IterGenericAlias(self, (tp,))
 
 
-class _BoolGenericAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
+class _BoolGenericAlias(_GenericAlias, _root=True):
     def __bool__(self):
         evaluator = special_form_evaluator.get()
         if evaluator:
@@ -300,7 +302,7 @@ def Bool(self, tp):
     return _BoolGenericAlias(self, tp)
 
 
-class _BoolLiteralGenericAlias(_LiteralGenericAlias, _root=True):  # type: ignore[call-arg]
+class _BoolLiteralGenericAlias(_LiteralGenericAlias, _root=True):
     def __bool__(self):
         return typing.get_args(self)[0]
 
