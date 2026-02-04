@@ -1321,6 +1321,40 @@ Support TypeScript style pattern matching in subtype checking
 This would almost certainly only be possible if we also decide not to
 care about runtime evaluation, as above.
 
+Support dot notation to access ``Members`` components
+-----------------------------------------------------
+
+Code would read quite a bit nicer if we could write ``m.name`` instead
+of ``GetName[m]``. A general mechanism to support that might look
+like::
+
+    class Member[N: str, T, Q: MemberQuals = typing.Never, D = typing.Never]:
+        type name = N
+        type tp = T
+        type quals = Q
+        type definer = D
+
+We considered this but rejected it due to runtime implementation
+concerns: an expression like ``Member[Literal["x", int]].name`` would
+need to return an object that captures both the content of the type
+alias while maintaining the ``_GenericAlias`` of the applied class so
+that type variables may be substituted for.
+
+We may have been mistaken about the runtime evaluation difficulty,
+though: if we required a special base class in order for a type to use
+this feature, it should work without too much trouble, and without
+causing any backporting or compatibility problems.
+
+We wouldn't be able to have the operation lift over unions or the like
+(unless we were willing to modify ``__getattr__`` for
+``types.UnionType`` and ``typing._UnionGenericAlias`` to do so!)
+
+That just leave semantic and philosophical concerns: it arguably makes
+the model more complicated, but a lot of code will read much nicer.
+
+TODO: Should we do this?
+
+
 Replace ``IsSub`` with something weaker than "assignable to" checking
 ---------------------------------------------------------------------
 
