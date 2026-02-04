@@ -57,6 +57,29 @@ class _IterSafeUnpackGenericAlias(_UnpackGenericAlias, _root=True):
 ###
 
 
+class SupportAliases:
+    @classmethod
+    def __class_getitem__(cls, args):
+        # Return an _AliasSupportingGenericAlias instead of a _GenericAlias
+        res = super().__class_getitem__(args)
+        return _AliasSupportingGenericAlias(res.__origin__, res.__args__)
+
+
+class _NestedGenericAlias(_GenericAlias, _root=True):
+    pass
+
+
+class _AliasSupportingGenericAlias(_GenericAlias, _root=True):
+    def __getattr__(self, attr):
+        res = super().__getattr__(attr)
+        if isinstance(res, typing.TypeAliasType):
+            res = _NestedGenericAlias(NestedAlias, (self, res))
+        return res
+
+
+###
+
+
 # Not type-level computation but related
 
 
@@ -160,21 +183,21 @@ class Member[
     Q: MemberQuals = typing.Never,
     I = typing.Never,
     D = typing.Never,
-]:
-    name: N
-    typ: T
-    quals: Q
-    init: I
-    definer: D
+](SupportAliases):
+    type name = N
+    type type = T
+    type quals = Q
+    type init = I
+    type definer = D
 
 
 ParamQuals = Literal["*", "**", "keyword", "positional", "default"]
 
 
-class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
-    name: N
-    typ: T
-    quals: Q
+class Param[N: str | None, T, Q: ParamQuals = typing.Never](SupportAliases):
+    type name = N
+    type type = T
+    type quals = Q
 
 
 type PosParam[N: str | None, T] = Param[N, T, Literal["positional"]]
@@ -188,11 +211,15 @@ type ArgsParam[T] = Param[Literal[None], T, Literal["*"]]
 type KwargsParam[T] = Param[Literal[None], T, Literal["**"]]
 
 
-type GetName[T: Member | Param] = GetMemberType[T, Literal["name"]]
-type GetType[T: Member | Param] = GetMemberType[T, Literal["typ"]]
-type GetQuals[T: Member | Param] = GetMemberType[T, Literal["quals"]]
-type GetInit[T: Member] = GetMemberType[T, Literal["init"]]
-type GetDefiner[T: Member] = GetMemberType[T, Literal["definer"]]
+type GetName[T: Member | Param] = T.name
+type GetType[T: Member | Param] = T.type
+type GetQuals[T: Member | Param] = T.quals
+type GetInit[T: Member] = T.init
+type GetDefiner[T: Member] = T.definer
+
+
+class NestedAlias[Obj, Alias]:
+    pass
 
 
 class Attrs[T](_TupleLikeOperator):

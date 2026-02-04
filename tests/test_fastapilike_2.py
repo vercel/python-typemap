@@ -59,13 +59,13 @@ type FixPublicType[T, Init] = (
 type Public[T] = typing.NewProtocol[
     *[
         typing.Member[
-            typing.GetName[p],
-            FixPublicType[typing.GetType[p], typing.GetInit[p]],
-            typing.GetQuals[p],
+            p.name,
+            FixPublicType[p.type, p.init],
+            p.quals,
         ]
         for p in typing.Iter[typing.Attrs[T]]
         if not typing.IsAssignable[
-            Literal[True], GetFieldItem[typing.GetInit[p], Literal["hidden"]]
+            Literal[True], GetFieldItem[p.init, Literal["hidden"]]
         ]
     ]
 ]
@@ -89,15 +89,15 @@ type GetDefault[Init] = (
 type Create[T] = typing.NewProtocol[
     *[
         typing.Member[
-            typing.GetName[p],
-            typing.GetType[p],
-            typing.GetQuals[p],
-            GetDefault[typing.GetInit[p]],
+            p.name,
+            p.type,
+            p.quals,
+            GetDefault[p.init],
         ]
         for p in typing.Iter[typing.Attrs[T]]
         if not typing.IsAssignable[
             Literal[True],
-            GetFieldItem[typing.GetInit[p], Literal["primary_key"]],
+            GetFieldItem[p.init, Literal["primary_key"]],
         ]
     ]
 ]
@@ -123,15 +123,15 @@ initializer).
 type Update[T] = typing.NewProtocol[
     *[
         typing.Member[
-            typing.GetName[p],
-            typing.GetType[p] | None,
-            typing.GetQuals[p],
+            p.name,
+            p.type | None,
+            p.quals,
             Literal[None],
         ]
         for p in typing.Iter[typing.Attrs[T]]
         if not typing.IsAssignable[
             Literal[True],
-            GetFieldItem[typing.GetInit[p], Literal["primary_key"]],
+            GetFieldItem[p.init, Literal["primary_key"]],
         ]
     ]
 ]
@@ -148,13 +148,13 @@ type InitFnType[T] = typing.Member[
             typing.Param[Literal["self"], Self],
             *[
                 typing.Param[
-                    typing.GetName[p],
-                    typing.GetType[p],
+                    p.name,
+                    p.type,
                     # All arguments are keyword-only
                     # It takes a default if a default is specified in the class
                     Literal["keyword"]
                     if typing.IsAssignable[
-                        GetDefault[typing.GetInit[p]],
+                        GetDefault[p.init],
                         Never,
                     ]
                     else Literal["keyword", "default"],

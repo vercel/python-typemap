@@ -15,6 +15,8 @@ from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
     _UnpackGenericAlias as typing_UnpackGenericAlias,
 )
 
+from typemap.typing import _NestedGenericAlias
+
 
 if typing.TYPE_CHECKING:
     from typing import Any, Sequence
@@ -395,6 +397,27 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
     ctx.recursive_type_alias = child_ctx.recursive_type_alias
 
     return evaled
+
+
+@_eval_types_impl.register
+def _eval_nested_generic_alias(obj: _NestedGenericAlias, ctx: EvalContext):
+    base, alias = obj.__args__
+
+    # TODO: what if it has parameters of its own
+
+    named_args = dict(
+        zip(
+            (p.__name__ for p in base.__origin__.__type_params__),
+            base.__args__,
+            strict=False,
+        )
+    )
+
+    unpacked = _apply_generic.get_annotations(
+        alias, named_args, key='evaluate_value'
+    )
+
+    return _eval_types(unpacked, ctx)
 
 
 @_eval_types_impl.register
