@@ -393,18 +393,32 @@ Extended Callables, take 2
 
 We introduce a ``Param`` type the contains all the information about a function param::
 
-    class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
+    class ParamKind(enum.IntEnum):
+        """Parameter kind qualifiers, modeled on inspect._ParameterKind."""
+        POSITIONAL_ONLY = 0
+        POSITIONAL_OR_KEYWORD = 1
+        VAR_POSITIONAL = 2
+        KEYWORD_ONLY = 3
+        VAR_KEYWORD = 4
+
+    class Param[N: str | None, T, Q: ParamKind = typing.Never, D = typing.Never]:
         pass
 
-    ParamQuals = typing.Literal["*", "**", "default", "keyword"]
-
-    type PosParam[N: str | None, T] = Param[N, T, Literal["positional"]]
-    type PosDefaultParam[N: str | None, T] = Param[N, T, Literal["positional", "default"]]
-    type DefaultParam[N: str, T] = Param[N, T, Literal["default"]]
-    type NamedParam[N: str, T] = Param[N, T, Literal["keyword"]]
-    type NamedDefaultParam[N: str, T] = Param[N, T, Literal["keyword", "default"]]
-    type ArgsParam[T] = Param[Literal[None], T, Literal["*"]]
-    type KwargsParam[T] = Param[Literal[None], T, Literal["**"]]
+    type PosParam[N: str | None, T] = Param[
+        N, T, Literal[ParamKind.POSITIONAL_ONLY]
+    ]
+    type PosDefaultParam[N: str | None, T] = Param[
+        N, T, Literal[ParamKind.POSITIONAL_ONLY], T
+    ]
+    type DefaultParam[N: str, T] = Param[
+        N, T, Literal[ParamKind.POSITIONAL_OR_KEYWORD], T
+    ]
+    type NamedParam[N: str, T] = Param[N, T, Literal[ParamKind.KEYWORD_ONLY]]
+    type NamedDefaultParam[N: str, T] = Param[
+        N, T, Literal[ParamKind.KEYWORD_ONLY], T
+    ]
+    type ArgsParam[T] = Param[Literal[None], T, Literal[ParamKind.VAR_POSITIONAL]]
+    type KwargsParam[T] = Param[Literal[None], T, Literal[ParamKind.VAR_KEYWORD]]
 
 And then, we can represent the type of a function like::
 
@@ -424,13 +438,13 @@ as (we are omitting the ``Literal`` in places)::
 
     Callable[
         [
-            Param["a", int, "positional"],
+            Param["a", int, ParamKind.POSITIONAL_ONLY],
             Param["b", int],
-            Param["c", int, "default"],
-            Param[None, int, "*"],
-            Param["d", int, "keyword"],
-            Param["e", int, Literal["default", "keyword"]],
-            Param[None, int, "**"],
+            Param["c", int, ParamKind.POSITIONAL_OR_KEYWORD, int],
+            Param[None, int, ParamKind.VAR_POSITIONAL],
+            Param["d", int, ParamKind.KEYWORD_ONLY],
+            Param["e", int, ParamKind.KEYWORD_ONLY, int],
+            Param[None, int, ParamKind.VAR_KEYWORD],
         ],
         int,
     ]
@@ -442,10 +456,10 @@ or, using the type abbreviations we provide::
         [
             PosParam["a", int],
             Param["b", int],
-            DefaultParam["c", int],
+            DefaultParam["c", int],  # D=int
             ArgsParam[int],
             NamedParam["d", int],
-            NamedDefaultParam["e", int],
+            NamedDefaultParam["e", int],  # D=int
             KwargsParam[int],
         ],
         int,
@@ -1129,13 +1143,14 @@ dataclasses-style method generation
                         typing.GetName[p],
                         typing.GetType[p],
                         # All arguments are keyword-only
+                        Literal[typing.ParamKind.KEYWORD_ONLY],
                         # It takes a default if a default is specified in the class
-                        Literal["keyword"]
-                        if typing.IsAssignable[
+                        typing.GetType[p]
+                        if not typing.IsAssignable[
                             GetDefault[typing.GetInit[p]],
                             Never,
                         ]
-                        else Literal["keyword", "default"],
+                        else Never,
                     ]
                     for p in typing.Iter[typing.Attrs[T]]
                 ],

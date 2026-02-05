@@ -1,6 +1,7 @@
 # mypy: ignore-errors
 
 import contextvars
+import enum
 import typing
 import types
 
@@ -154,29 +155,49 @@ class Member[
     definer: D
 
 
-ParamQuals = Literal["*", "**", "keyword", "positional", "default"]
+class ParamKind(enum.IntEnum):
+    """Parameter kind qualifiers, modeled on inspect._ParameterKind."""
+
+    POSITIONAL_ONLY = 0
+    POSITIONAL_OR_KEYWORD = 1
+    VAR_POSITIONAL = 2
+    KEYWORD_ONLY = 3
+    VAR_KEYWORD = 4
 
 
-class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
+class Param[
+    N: str | None,
+    T,
+    Q: ParamKind = Literal[ParamKind.POSITIONAL_OR_KEYWORD],
+    D = typing.Never,
+]:
     name: N
     typ: T
     quals: Q
+    default: D
 
 
-type PosParam[N: str | None, T] = Param[N, T, Literal["positional"]]
-type PosDefaultParam[N: str | None, T] = Param[
-    N, T, Literal["positional", "default"]
+type PosParam[N: str | None, T] = Param[
+    N, T, Literal[ParamKind.POSITIONAL_ONLY]
 ]
-type DefaultParam[N: str, T] = Param[N, T, Literal["default"]]
-type NamedParam[N: str, T] = Param[N, T, Literal["keyword"]]
-type NamedDefaultParam[N: str, T] = Param[N, T, Literal["keyword", "default"]]
-type ArgsParam[T] = Param[Literal[None], T, Literal["*"]]
-type KwargsParam[T] = Param[Literal[None], T, Literal["**"]]
+type PosDefaultParam[N: str | None, T] = Param[
+    N, T, Literal[ParamKind.POSITIONAL_ONLY], T
+]
+type DefaultParam[N: str, T] = Param[
+    N, T, Literal[ParamKind.POSITIONAL_OR_KEYWORD], T
+]
+type NamedParam[N: str, T] = Param[N, T, Literal[ParamKind.KEYWORD_ONLY]]
+type NamedDefaultParam[N: str, T] = Param[
+    N, T, Literal[ParamKind.KEYWORD_ONLY], T
+]
+type ArgsParam[T] = Param[Literal[None], T, Literal[ParamKind.VAR_POSITIONAL]]
+type KwargsParam[T] = Param[Literal[None], T, Literal[ParamKind.VAR_KEYWORD]]
 
 
 type GetName[T: Member | Param] = GetMemberType[T, Literal["name"]]
 type GetType[T: Member | Param] = GetMemberType[T, Literal["typ"]]
 type GetQuals[T: Member | Param] = GetMemberType[T, Literal["quals"]]
+type GetDefault[T: Param] = GetMemberType[T, Literal["default"]]
 type GetInit[T: Member] = GetMemberType[T, Literal["init"]]
 type GetDefiner[T: Member] = GetMemberType[T, Literal["definer"]]
 

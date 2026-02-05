@@ -151,13 +151,14 @@ type InitFnType[T] = typing.Member[
                     typing.GetName[p],
                     typing.GetType[p],
                     # All arguments are keyword-only
+                    Literal[typing.ParamKind.KEYWORD_ONLY],
                     # It takes a default if a default is specified in the class
-                    Literal["keyword"]
-                    if typing.IsAssignable[
+                    typing.GetType[p]
+                    if not typing.IsAssignable[
                         GetDefault[typing.GetInit[p]],
                         Never,
                     ]
-                    else Literal["keyword", "default"],
+                    else Never,
                 ]
                 for p in typing.Iter[typing.Attrs[T]]
             ],

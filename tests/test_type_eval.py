@@ -44,6 +44,7 @@ from typemap_extensions import (
     Members,
     NewProtocol,
     Param,
+    ParamKind,
     Slice,
     SpecialFormEllipsis,
     StrConcat,
@@ -150,13 +151,23 @@ def test_eval_types_4():
     d = eval_typing(
         Callable[
             [
-                Param[Literal["a"], int, Literal["positional"]],
+                Param[Literal["a"], int, Literal[ParamKind.POSITIONAL_ONLY]],
                 Param[Literal["b"], int],
-                Param[Literal["c"], int, Literal["default"]],
-                Param[None, int, Literal["*"]],
-                Param[Literal["d"], int, Literal["keyword"]],
-                Param[Literal["e"], int, Literal["default", "keyword"]],
-                Param[None, int, Literal["**"]],
+                Param[
+                    Literal["c"],
+                    int,
+                    Literal[ParamKind.POSITIONAL_OR_KEYWORD],
+                    int,
+                ],
+                Param[None, int, Literal[ParamKind.VAR_POSITIONAL]],
+                Param[Literal["d"], int, Literal[ParamKind.KEYWORD_ONLY]],
+                Param[
+                    Literal["e"],
+                    int,
+                    Literal[ParamKind.KEYWORD_ONLY],
+                    int,
+                ],
+                Param[None, int, Literal[ParamKind.VAR_KEYWORD]],
             ],
             int,
         ]
@@ -165,13 +176,23 @@ def test_eval_types_4():
         d
         == Callable[
             [
-                Param[Literal["a"], int, Literal["positional"]],
+                Param[Literal["a"], int, Literal[ParamKind.POSITIONAL_ONLY]],
                 Param[Literal["b"], int],
-                Param[Literal["c"], int, Literal["default"]],
-                Param[None, int, Literal["*"]],
-                Param[Literal["d"], int, Literal["keyword"]],
-                Param[Literal["e"], int, Literal["default", "keyword"]],
-                Param[None, int, Literal["**"]],
+                Param[
+                    Literal["c"],
+                    int,
+                    Literal[ParamKind.POSITIONAL_OR_KEYWORD],
+                    int,
+                ],
+                Param[None, int, Literal[ParamKind.VAR_POSITIONAL]],
+                Param[Literal["d"], int, Literal[ParamKind.KEYWORD_ONLY]],
+                Param[
+                    Literal["e"],
+                    int,
+                    Literal[ParamKind.KEYWORD_ONLY],
+                    int,
+                ],
+                Param[None, int, Literal[ParamKind.VAR_KEYWORD]],
             ],
             int,
         ]
@@ -494,16 +515,11 @@ def test_eval_getarg_callable_old():
 def test_eval_getarg_callable_01():
     t = Callable[[int, str], str]
     args = eval_typing(GetArg[t, Callable, Literal[0]])
-    assert (
-        args
-        == tuple[
-            Param[Literal[None], int, Never], Param[Literal[None], str, Never]
-        ]
-    )
+    assert args == tuple[Param[Literal[None], int], Param[Literal[None], str]]
 
     t = Callable[int, str]
     args = eval_typing(GetArg[t, Callable, Literal[0]])
-    assert args == tuple[Param[Literal[None], int, Never]]
+    assert args == tuple[Param[Literal[None], int]]
 
     t = Callable[[], str]
     args = eval_typing(GetArg[t, Callable, Literal[0]])
@@ -538,9 +554,9 @@ def test_eval_getarg_callable_02():
     # Params wrapped
     f = Callable[
         [
-            Param[Literal[None], T, Literal["positional"]],
+            Param[Literal[None], T, Literal[ParamKind.POSITIONAL_ONLY]],
             Param[Literal["y"], T],
-            Param[Literal["z"], T, Literal["keyword"]],
+            Param[Literal["z"], T, Literal[ParamKind.KEYWORD_ONLY]],
         ],
         T,
     ]
@@ -584,10 +600,10 @@ def test_eval_getarg_callable_03():
     assert (
         t
         == tuple[
-            Param[Literal["self"], C, Literal["positional"]],
-            Param[Literal["x"], int, Literal["positional"]],
+            Param[Literal["self"], C, Literal[ParamKind.POSITIONAL_ONLY]],
+            Param[Literal["x"], int, Literal[ParamKind.POSITIONAL_ONLY]],
             Param[Literal["y"], int],
-            Param[Literal["z"], int, Literal["keyword"]],
+            Param[Literal["z"], int, Literal[ParamKind.KEYWORD_ONLY]],
         ]
     )
     t = eval_typing(GetArg[f, Callable, Literal[1]])
@@ -598,10 +614,10 @@ def test_eval_getarg_callable_03():
     assert (
         t
         == tuple[
-            Param[Literal["self"], Self, Literal["positional"]],
-            Param[Literal["x"], int, Literal["positional"]],
+            Param[Literal["self"], Self, Literal[ParamKind.POSITIONAL_ONLY]],
+            Param[Literal["x"], int, Literal[ParamKind.POSITIONAL_ONLY]],
             Param[Literal["y"], int],
-            Param[Literal["z"], int, Literal["keyword"]],
+            Param[Literal["z"], int, Literal[ParamKind.KEYWORD_ONLY]],
         ]
     )
     t = eval_typing(GetArg[f, Callable, Literal[1]])
@@ -621,9 +637,9 @@ def test_eval_getarg_callable_04():
     assert (
         t
         == tuple[
-            Param[Literal["x"], int, Literal["positional"]],
+            Param[Literal["x"], int, Literal[ParamKind.POSITIONAL_ONLY]],
             Param[Literal["y"], int],
-            Param[Literal["z"], int, Literal["keyword"]],
+            Param[Literal["z"], int, Literal[ParamKind.KEYWORD_ONLY]],
         ]
     )
     t = eval_typing(GetArg[f, classmethod, Literal[2]])
@@ -635,9 +651,9 @@ def test_eval_getarg_callable_04():
     assert (
         t
         == tuple[
-            Param[Literal["x"], int, Literal["positional"]],
+            Param[Literal["x"], int, Literal[ParamKind.POSITIONAL_ONLY]],
             Param[Literal["y"], int],
-            Param[Literal["z"], int, Literal["keyword"]],
+            Param[Literal["z"], int, Literal[ParamKind.KEYWORD_ONLY]],
         ]
     )
     t = eval_typing(GetArg[f, classmethod, Literal[2]])
@@ -655,9 +671,9 @@ def test_eval_getarg_callable_05():
     assert (
         t
         == tuple[
-            Param[Literal["x"], int, Literal["positional"]],
+            Param[Literal["x"], int, Literal[ParamKind.POSITIONAL_ONLY]],
             Param[Literal["y"], int],
-            Param[Literal["z"], int, Literal["keyword"]],
+            Param[Literal["z"], int, Literal[ParamKind.KEYWORD_ONLY]],
         ]
     )
     t = eval_typing(GetArg[f, staticmethod, Literal[1]])
@@ -668,9 +684,9 @@ def test_eval_getarg_callable_05():
     assert (
         t
         == tuple[
-            Param[Literal["x"], int, Literal["positional"]],
+            Param[Literal["x"], int, Literal[ParamKind.POSITIONAL_ONLY]],
             Param[Literal["y"], int],
-            Param[Literal["z"], int, Literal["keyword"]],
+            Param[Literal["z"], int, Literal[ParamKind.KEYWORD_ONLY]],
         ]
     )
     t = eval_typing(GetArg[f, staticmethod, Literal[1]])
@@ -684,7 +700,7 @@ def test_eval_getarg_callable_06():
 
     f = eval_typing(GetMethodLike[IndirectProtocol[C], Literal["f"]])
     t = eval_typing(GetArg[f, Callable, Literal[0]])
-    assert t == tuple[Param[Literal[None], int, Never],]
+    assert t == tuple[Param[Literal[None], int],]
     t = eval_typing(GetArg[f, Callable, Literal[1]])
     assert t is int
 
@@ -1530,11 +1546,18 @@ def test_callable_to_signature_01():
         [
             Param[None, int],
             Param[Literal["b"], int],
-            Param[Literal["c"], int, Literal["default"]],
-            Param[None, int, Literal["*"]],
-            Param[Literal["d"], int, Literal["keyword"]],
-            Param[Literal["e"], int, Literal["default", "keyword"]],
-            Param[None, int, Literal["**"]],
+            Param[
+                Literal["c"], int, Literal[ParamKind.POSITIONAL_OR_KEYWORD], int
+            ],
+            Param[None, int, Literal[ParamKind.VAR_POSITIONAL]],
+            Param[Literal["d"], int, Literal[ParamKind.KEYWORD_ONLY]],
+            Param[
+                Literal["e"],
+                int,
+                Literal[ParamKind.KEYWORD_ONLY],
+                int,
+            ],
+            Param[None, int, Literal[ParamKind.VAR_KEYWORD]],
         ],
         int,
     ]
@@ -1561,11 +1584,18 @@ def test_callable_to_signature_02():
         tuple[
             Param[None, int],
             Param[Literal["b"], int],
-            Param[Literal["c"], int, Literal["default"]],
-            Param[None, int, Literal["*"]],
-            Param[Literal["d"], int, Literal["keyword"]],
-            Param[Literal["e"], int, Literal["default", "keyword"]],
-            Param[None, int, Literal["**"]],
+            Param[
+                Literal["c"], int, Literal[ParamKind.POSITIONAL_OR_KEYWORD], int
+            ],
+            Param[None, int, Literal[ParamKind.VAR_POSITIONAL]],
+            Param[Literal["d"], int, Literal[ParamKind.KEYWORD_ONLY]],
+            Param[
+                Literal["e"],
+                int,
+                Literal[ParamKind.KEYWORD_ONLY],
+                int,
+            ],
+            Param[None, int, Literal[ParamKind.VAR_KEYWORD]],
         ],
         int,
     ]
@@ -1587,11 +1617,18 @@ def test_callable_to_signature_03():
         tuple[
             Param[None, int],
             Param[Literal["b"], int],
-            Param[Literal["c"], int, Literal["default"]],
-            Param[None, int, Literal["*"]],
-            Param[Literal["d"], int, Literal["keyword"]],
-            Param[Literal["e"], int, Literal["default", "keyword"]],
-            Param[None, int, Literal["**"]],
+            Param[
+                Literal["c"], int, Literal[ParamKind.POSITIONAL_OR_KEYWORD], int
+            ],
+            Param[None, int, Literal[ParamKind.VAR_POSITIONAL]],
+            Param[Literal["d"], int, Literal[ParamKind.KEYWORD_ONLY]],
+            Param[
+                Literal["e"],
+                int,
+                Literal[ParamKind.KEYWORD_ONLY],
+                int,
+            ],
+            Param[None, int, Literal[ParamKind.VAR_KEYWORD]],
         ],
         int,
     ]

@@ -12,6 +12,7 @@ from typemap_extensions import (
     Iter,
     Members,
     Param,
+    ParamKind,
 )
 
 
@@ -27,7 +28,10 @@ def test_eval_call_with_types_callable_02():
 
 def test_eval_call_with_types_callable_03():
     res = eval_call_with_types(
-        Callable[[Param[Literal["x"], int, Literal["keyword"]]], int], x=int
+        Callable[
+            [Param[Literal["x"], int, Literal[ParamKind.KEYWORD_ONLY]]], int
+        ],
+        x=int,
     )
     assert res is int
 
@@ -64,7 +68,7 @@ def test_eval_call_with_types_callable_07():
         Callable[
             [
                 Param[Literal["self"], Self],
-                Param[Literal["x"], int, Literal["keyword"]],
+                Param[Literal["x"], int, Literal[ParamKind.KEYWORD_ONLY]],
             ],
             int,
         ],

@@ -373,14 +373,15 @@ def test_type_members_func_1():
     assert name == typing.Literal["foo"]
     assert quals == typing.Literal["ClassVar"]
 
+    PK = "typing.Literal[<ParamKind.POSITIONAL_OR_KEYWORD: 1>]"
     assert (
         str(typ)
-        == "\
+        == f"\
 typing.Callable[[\
-typemap.typing.Param[typing.Literal['self'], tests.test_type_dir.Base[int], typing.Never], \
-typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], \
-typemap.typing.Param[typing.Literal['b'], int, typing.Literal['keyword', \
-'default']]], \
+typemap.typing.Param[typing.Literal['self'], tests.test_type_dir.Base[int], {PK}, typing.Never], \
+typemap.typing.Param[typing.Literal['a'], int | None, {PK}, typing.Never], \
+typemap.typing.Param[typing.Literal['b'], int, typing.Literal[\
+<ParamKind.KEYWORD_ONLY: 3>], int]], \
 dict[str, int]]"
     )
 
@@ -395,10 +396,11 @@ def test_type_members_func_2():
     assert name == typing.Literal["cbase"]
     assert quals == typing.Literal["ClassVar"]
 
+    PK = "typing.Literal[<ParamKind.POSITIONAL_OR_KEYWORD: 1>]"
     assert (
         str(typ)
-        == "\
-classmethod[tests.test_type_dir.Base[int], tuple[typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int]]"
+        == f"\
+classmethod[tests.test_type_dir.Base[int], tuple[typemap.typing.Param[typing.Literal['a'], int | None, {PK}, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, {PK}, typing.Never]], dict[str, int]]"
     )
 
 
@@ -420,7 +422,7 @@ def test_type_members_func_3():
     )
     assert (
         str(evaled)
-        == "staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
+        == "staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Literal[<ParamKind.POSITIONAL_OR_KEYWORD: 1>], typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Literal[<ParamKind.POSITIONAL_OR_KEYWORD: 1>], typing.Never]], dict[str, int | Z]]"
     )
 
 
