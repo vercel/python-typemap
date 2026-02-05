@@ -1354,7 +1354,7 @@ TODO: Should we do this?
 
 
 Replace ``IsAssignable`` with something weaker than "assignable to" checking
----------------------------------------------------------------------
+----------------------------------------------------------------------------
 
 Full python typing assignability checking is not fully implementable
 at runtime (in particular, even if all the typeshed types for the
