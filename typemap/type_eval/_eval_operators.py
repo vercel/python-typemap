@@ -29,8 +29,7 @@ from typemap.typing import (
     GetMemberType,
     GetSpecialAttr,
     InitField,
-    IsSubSimilar,
-    IsSubtype,
+    IsSub,
     Iter,
     Length,
     Lowercase,
@@ -236,23 +235,17 @@ def _eval_Iter(tp, *, ctx):
 # N.B: These handle unions on their own
 
 
-@type_eval.register_evaluator(IsSubtype)
+@type_eval.register_evaluator(IsSub)
 @_lift_evaluated
-def _eval_IsSubtype(lhs, rhs, *, ctx):
+def _eval_IsSub(lhs, rhs, *, ctx):
     return _BoolLiteral[type_eval.issubtype(lhs, rhs)]
-
-
-@type_eval.register_evaluator(IsSubSimilar)
-@_lift_evaluated
-def _eval_IsSubSimilar(lhs, rhs, *, ctx):
-    return _BoolLiteral[type_eval.issubsimilar(lhs, rhs)]
 
 
 @type_eval.register_evaluator(Matches)
 @_lift_evaluated
 def _eval_Matches(lhs, rhs, *, ctx):
     return _BoolLiteral[
-        type_eval.issubsimilar(lhs, rhs) and type_eval.issubsimilar(rhs, lhs)
+        type_eval.issubtype(lhs, rhs) and type_eval.issubtype(rhs, lhs)
     ]
 
 
@@ -262,8 +255,8 @@ def _eval_bool_tp(tp, ctx):
     else:
         return _BoolLiteral[
             any(
-                type_eval.issubsimilar(arg, typing.Literal[True])
-                and not type_eval.issubsimilar(arg, typing.Never)
+                type_eval.issubtype(arg, typing.Literal[True])
+                and not type_eval.issubtype(arg, typing.Never)
                 for arg in _union_elems(tp, ctx)
             )
         ]
@@ -1032,7 +1025,7 @@ def _eval_RaiseError(msg, *extra_types, ctx):
 
 def _add_quals(typ, quals):
     for qual in (typing.ClassVar, typing.Final):
-        if type_eval.issubsimilar(typing.Literal[qual.__name__], quals):
+        if type_eval.issubtype(typing.Literal[qual.__name__], quals):
             typ = qual[typ]
     return typ
 
@@ -1079,7 +1072,7 @@ def _eval_NewProtocol(*etyps: Member, ctx):
         typ = _eval_types(typ, ctx)
         tquals = _eval_types(quals, ctx)
 
-        if type_eval.issubsimilar(
+        if type_eval.issubtype(
             typing.Literal["ClassVar"], tquals
         ) and _is_method_like(typ):
             dct[name] = _callable_type_to_method(name, typ)

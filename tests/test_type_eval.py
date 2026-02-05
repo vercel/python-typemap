@@ -33,7 +33,6 @@ from typemap_extensions import (
     GetSpecialAttr,
     GetType,
     GetAnnotations,
-    IsSubtype,
     IsSub,
     Iter,
     Length,
@@ -1406,16 +1405,6 @@ def test_eval_bool_literal_07():
     d = eval_typing(IsSub[Literal[True], _BoolLiteral[True]])
     assert d == _BoolLiteral[True]
     d = eval_typing(IsSub[Literal[False], _BoolLiteral[False]])
-    assert d == _BoolLiteral[True]
-
-    d = eval_typing(IsSubtype[_BoolLiteral[True], Literal[True]])
-    assert d == _BoolLiteral[True]
-    d = eval_typing(IsSubtype[_BoolLiteral[False], Literal[False]])
-    assert d == _BoolLiteral[True]
-
-    d = eval_typing(IsSubtype[Literal[True], _BoolLiteral[True]])
-    assert d == _BoolLiteral[True]
-    d = eval_typing(IsSubtype[Literal[False], _BoolLiteral[False]])
     assert d == _BoolLiteral[True]
 
     d = eval_typing(Matches[_BoolLiteral[True], Literal[True]])

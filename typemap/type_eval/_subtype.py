@@ -1,9 +1,3 @@
-# XXX: This is the start of an implementation of issubtype, but
-# honestly it is still mostly the same as issubsimilar. I'm preserving
-# it for now and might still expand it some.
-# Largely the value of it is in the TODO comments I guess.
-
-
 import typing
 
 
@@ -15,6 +9,7 @@ __all__ = ("issubtype",)
 
 def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
     # TODO: Need to handle a lot of cases!
+    # This is explicitly "best-effort", though.
 
     # TODO: We will probably need to carry a context around,
     # and maybe recursively invoke eval_typing?
@@ -22,7 +17,16 @@ def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
     # N.B: All of the 'bool's in these are because black otherwise
     # formats the two-conditional chains in an unconscionably bad way.
 
+    if lhs is None:
+        lhs = type(None)
+    if rhs is None:
+        rhs = type(None)
+
     # Unions first
+    if lhs is typing.Never:
+        return True
+    elif rhs is typing.Never:
+        return False
     if _typing_inspect.is_union_type(rhs):
         return any(issubtype(lhs, r) for r in typing.get_args(rhs))
     elif _typing_inspect.is_union_type(lhs):
@@ -43,11 +47,11 @@ def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
         return issubclass(lhs, rhs)
 
     # literal <:? literal
-    elif bool(
-        _typing_inspect.is_literal(lhs) and _typing_inspect.is_literal(rhs)
-    ):
-        rhs_args = set(typing.get_args(rhs))
-        return all(lv in rhs_args for lv in typing.get_args(lhs))
+    elif _typing_inspect.is_literal(lhs) and _typing_inspect.is_literal(rhs):
+        # We need to check both value and type, since True == 1 but
+        # Literal[True] should not be a subtype of Literal[1]
+        rhs_args = {(t, type(t)) for t in typing.get_args(rhs)}
+        return all((lv, type(lv)) in rhs_args for lv in typing.get_args(lhs))
 
     # XXX: This case is kind of a hack, to support NoLiterals.
     elif rhs is typing.Literal:
@@ -71,13 +75,22 @@ def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
     ):
         return issubtype(lhs, _typing_inspect.get_origin(rhs))
 
+    # C[A] <:? D[B] -- just match the heads!
+    # Super wrong!
+    # TODO: What to do about C[A] <:? D[B]???
+    # TODO: and we will we need to infer variance ourselves with the new syntax
+    elif bool(
+        _typing_inspect.is_generic_alias(lhs)
+        and _typing_inspect.is_generic_alias(rhs)
+    ):
+        return issubtype(
+            _typing_inspect.get_origin(lhs), _typing_inspect.get_origin(rhs)
+        )
+
     # XXX: I think this is probably wrong, but a test currently has
     # an unbound type variable...
     elif _typing_inspect.is_type_var(lhs):
         return lhs is rhs
-
-    # TODO: What to do about C[A] <:? D[B]???
-    # TODO: and we will we need to infer variance ourselves with the new syntax
 
     # TODO: Protocols???
 
@@ -97,4 +110,7 @@ def issubtype(lhs: typing.Any, rhs: typing.Any) -> bool:
     # We could have restrictions if we are willing to document them.
 
     # This will probably fail
-    return issubclass(lhs, rhs)
+    try:
+        return issubclass(lhs, rhs)
+    except TypeError as e:
+        raise TypeError(*e.args, lhs, rhs)

@@ -280,21 +280,13 @@ class _BoolGenericAlias(_GenericAlias, _root=True):
 
 
 @_SpecialForm
-def IsSubtype(self, tps):
-    return _BoolGenericAlias(self, tps)
-
-
-@_SpecialForm
-def IsSubSimilar(self, tps):
+def IsSub(self, tps):
     return _BoolGenericAlias(self, tps)
 
 
 @_SpecialForm
 def Matches(self, tps):
     return _BoolGenericAlias(self, tps)
-
-
-IsSub = IsSubSimilar
 
 
 @_SpecialForm
