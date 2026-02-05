@@ -1303,6 +1303,147 @@ processing, and various smaller things.
 
 There is a demo of a runtime evaluator as well [#runtime]_.
 
+"Rejected" Ideas That Maybe We Should Actually Do?
+==================================================
+
+Very interested in feedback about these!
+
+The first one in particular I think has a lot of upside.
+
+Support dot notation to access ``Member`` components
+----------------------------------------------------
+
+Code would read quite a bit nicer if we could write ``m.name`` instead
+of ``GetName[m]``. A general mechanism to support that might look
+like::
+
+    class Member[N: str, T, Q: MemberQuals = typing.Never, I = typing.Never, D = typing.Never]:
+        type name = N
+        type tp = T
+        type quals = Q
+        type init = I
+        type definer = D
+
+We considered this but rejected it due to runtime implementation
+concerns: an expression like ``Member[Literal["x", int]].name`` would
+need to return an object that captures both the content of the type
+alias while maintaining the ``_GenericAlias`` of the applied class so
+that type variables may be substituted for.
+
+We were mistaken about the runtime evaluation difficulty,
+though: if we required a special base class in order for a type to use
+this feature, it should work without too much trouble, and without
+causing any backporting or compatibility problems.
+
+We wouldn't be able to have the operation lift over unions or the like
+(unless we were willing to modify ``__getattr__`` for
+``types.UnionType`` and ``typing._UnionGenericAlias`` to do so!)
+
+That just leave semantic and philosophical concerns: it arguably makes
+the model more complicated, but a lot of code will read much nicer.
+
+Another option would be to skip introducing a general mechanism (for
+now, at least), but at least make dot notation work on ``Member``,
+which will be extremely common.
+
+With dot notation,  ``PropsOnly`` (from
+:ref:`the query builder example <qb-impl>`) would look like::
+
+    type PropsOnly[T] = typing.NewProtocol[
+        *[
+            typing.Member[p.name, PointerArg[p.type]]
+            for p in typing.Iter[typing.Attrs[T]]
+            if typing.IsAssignable[p.type, Property]
+        ]
+    ]
+
+
+Dictionary comprehension based syntax for creating typed dicts and protocols
+----------------------------------------------------------------------------
+
+This is in some ways an extension of the :pep:`764` (still draft)
+proposal for inline typed dictionaries.
+
+Combined with the above proposal, using it for ``NewProtocol`` might
+look (using something from :ref:`the query builder example <qb-impl>`)
+something like:
+
+::
+
+    type PropsOnly[T] = typing.NewProtocol[
+        {
+            p.name: PointerArg[p.type]
+            for p in typing.Iter[typing.Attrs[T]]
+            if typing.IsAssignable[p.type, Property]
+        }
+    ]
+
+Then we would probably also want to allow specifying a ``Member`` (but
+reordered so that ``Name`` is last and has a default), for if we want
+to specify qualifiers and/or an initializer type.
+
+We could also potentially allow qualifiers to be written in the type,
+though it is a little odd, since that is an annotation expression, not
+a type expression, and you probably *wouldn't* be allowed to have an
+annotation expression in an arm of a conditional type?
+
+The main downside of this proposal is just complexity: it requires
+introducing another kind of weird type form.
+
+Destructuring?
+''''''''''''''
+
+The other potential downside is that it suggests that we might want to
+be able to iterate over ``Attrs`` and ``Members`` with an ``items()``
+style iterator, and that raises more complicated questions.
+
+First, the syntax would be something like::
+
+    type PropsOnly[T] = typing.NewProtocol[
+        {
+            k: PointerArg[ty]
+            for k, ty in typing.IterItems[typing.Attrs[T]]
+            if typing.IsAssignable[ty, Property]
+        }
+    ]
+
+This is looking pretty nice, but we only have access to the name and
+the type, not the qualifiers or the initializers.
+
+Potential options for dealing with this:
+
+* It is fine, programmers can use this ``.items()`` style
+  iterator for common cases and operate on full ``Member`` objects
+  when they need to.
+* We can put the qualifiers/initializer in the ``key``? Actually using
+  the name would then require doing ``key.name`` or similar.
+
+(We'd also need to figure out exactly what the rules are for what can
+be iterated over this way.)
+
+Call type operators using parens
+--------------------------------
+
+If people are having a bad time in Bracket City, we could also
+consider making the builtin type operators use parens instead of
+brackets.
+
+Obviously this has some consistency issues but also maybe signals a
+difference? Combined with dictionary-comprehensions and dot notation
+(but not dictionary destructuring), it could look like::
+
+    type PropsOnly[T] = typing.NewProtocol(
+        {
+            p.name: PointerArg[p.type]
+            for p in typing.Iter(typing.Attrs(T))
+            if typing.IsAssignable(p.type, Property)
+        }
+    ]
+
+(The user-defined type alias ``PointerArg`` still must be called with
+brackets, despite being basically a helper operator.)
+
+
 Rejected Ideas
 ==============
 
@@ -1318,39 +1459,6 @@ Support TypeScript style pattern matching in subtype checking
 
 This would almost certainly only be possible if we also decide not to
 care about runtime evaluation, as above.
-
-Support dot notation to access ``Members`` components
------------------------------------------------------
-
-Code would read quite a bit nicer if we could write ``m.name`` instead
-of ``GetName[m]``. A general mechanism to support that might look
-like::
-
-    class Member[N: str, T, Q: MemberQuals = typing.Never, D = typing.Never]:
-        type name = N
-        type tp = T
-        type quals = Q
-        type definer = D
-
-We considered this but rejected it due to runtime implementation
-concerns: an expression like ``Member[Literal["x", int]].name`` would
-need to return an object that captures both the content of the type
-alias while maintaining the ``_GenericAlias`` of the applied class so
-that type variables may be substituted for.
-
-We may have been mistaken about the runtime evaluation difficulty,
-though: if we required a special base class in order for a type to use
-this feature, it should work without too much trouble, and without
-causing any backporting or compatibility problems.
-
-We wouldn't be able to have the operation lift over unions or the like
-(unless we were willing to modify ``__getattr__`` for
-``types.UnionType`` and ``typing._UnionGenericAlias`` to do so!)
-
-That just leave semantic and philosophical concerns: it arguably makes
-the model more complicated, but a lot of code will read much nicer.
-
-TODO: Should we do this?
 
 
 Replace ``IsAssignable`` with something weaker than "assignable to" checking
