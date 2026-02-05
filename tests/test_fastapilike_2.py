@@ -208,6 +208,7 @@ class Hero:
     secret_name: str = Field(hidden=True)
 
 
+# Quick reveal_type test for running mypy against this
 if TYPE_CHECKING:
     pubhero: Public[Hero]
     reveal_type(pubhero)  # noqa

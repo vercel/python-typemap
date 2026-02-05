@@ -153,6 +153,7 @@ class User:
 
 
 def test_qblike_typing_only_1() -> None:
+    # Quick reveal_type test for running mypy against this
     if TYPE_CHECKING:
         _test_select = select(
             Post,
