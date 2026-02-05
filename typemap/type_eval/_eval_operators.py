@@ -29,11 +29,11 @@ from typemap.typing import (
     GetMemberType,
     GetSpecialAttr,
     InitField,
-    IsSub,
+    IsAssignable,
+    IsEquivalent,
     Iter,
     Length,
     Lowercase,
-    Matches,
     Member,
     Members,
     NewProtocol,
@@ -235,15 +235,15 @@ def _eval_Iter(tp, *, ctx):
 # N.B: These handle unions on their own
 
 
-@type_eval.register_evaluator(IsSub)
+@type_eval.register_evaluator(IsAssignable)
 @_lift_evaluated
-def _eval_IsSub(lhs, rhs, *, ctx):
+def _eval_IsAssignable(lhs, rhs, *, ctx):
     return _BoolLiteral[type_eval.issubtype(lhs, rhs)]
 
 
-@type_eval.register_evaluator(Matches)
+@type_eval.register_evaluator(IsEquivalent)
 @_lift_evaluated
-def _eval_Matches(lhs, rhs, *, ctx):
+def _eval_IsEquivalent(lhs, rhs, *, ctx):
     return _BoolLiteral[
         type_eval.issubtype(lhs, rhs) and type_eval.issubtype(rhs, lhs)
     ]

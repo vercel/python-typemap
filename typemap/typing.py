@@ -280,12 +280,12 @@ class _BoolGenericAlias(_GenericAlias, _root=True):
 
 
 @_SpecialForm
-def IsSub(self, tps):
+def IsAssignable(self, tps):
     return _BoolGenericAlias(self, tps)
 
 
 @_SpecialForm
-def Matches(self, tps):
+def IsEquivalent(self, tps):
     return _BoolGenericAlias(self, tps)
 
 

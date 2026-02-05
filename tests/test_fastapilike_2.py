@@ -36,14 +36,20 @@ type GetFieldItem[T, K] = typing.GetMemberType[
 # Strip `| None` from a type by iterating over its union components
 # and filtering
 type NotOptional[T] = Union[
-    *[x for x in typing.Iter[typing.FromUnion[T]] if not typing.IsSub[x, None]]
+    *[
+        x
+        for x in typing.Iter[typing.FromUnion[T]]
+        if not typing.IsAssignable[x, None]
+    ]
 ]
 
 # Adjust an attribute type for use in Public below by dropping | None for
 # primary keys and stripping all annotations.
 type FixPublicType[T, Init] = (
     NotOptional[T]
-    if typing.IsSub[Literal[True], GetFieldItem[Init, Literal["primary_key"]]]
+    if typing.IsAssignable[
+        Literal[True], GetFieldItem[Init, Literal["primary_key"]]
+    ]
     else T
 )
 
@@ -58,7 +64,7 @@ type Public[T] = typing.NewProtocol[
             typing.GetQuals[p],
         ]
         for p in typing.Iter[typing.Attrs[T]]
-        if not typing.IsSub[
+        if not typing.IsAssignable[
             Literal[True], GetFieldItem[typing.GetInit[p], Literal["hidden"]]
         ]
     ]
@@ -75,7 +81,7 @@ suite, but here is a possible implementation of just ``Public``
 # otherwise we return the type itself.
 type GetDefault[Init] = (
     GetFieldItem[Init, Literal["default"]]
-    if typing.IsSub[Init, Field]
+    if typing.IsAssignable[Init, Field]
     else Init
 )
 
@@ -89,7 +95,7 @@ type Create[T] = typing.NewProtocol[
             GetDefault[typing.GetInit[p]],
         ]
         for p in typing.Iter[typing.Attrs[T]]
-        if not typing.IsSub[
+        if not typing.IsAssignable[
             Literal[True],
             GetFieldItem[typing.GetInit[p], Literal["primary_key"]],
         ]
@@ -123,7 +129,7 @@ type Update[T] = typing.NewProtocol[
             Literal[None],
         ]
         for p in typing.Iter[typing.Attrs[T]]
-        if not typing.IsSub[
+        if not typing.IsAssignable[
             Literal[True],
             GetFieldItem[typing.GetInit[p], Literal["primary_key"]],
         ]
@@ -147,7 +153,7 @@ type InitFnType[T] = typing.Member[
                     # All arguments are keyword-only
                     # It takes a default if a default is specified in the class
                     Literal["keyword"]
-                    if typing.IsSub[
+                    if typing.IsAssignable[
                         GetDefault[typing.GetInit[p]],
                         Never,
                     ]

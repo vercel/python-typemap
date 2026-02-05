@@ -11,9 +11,9 @@ from typemap_extensions import (
     GetArg,
     GetName,
     GetType,
-    IsSub,
+    IsAssignable,
     Iter,
-    Matches,
+    IsEquivalent,
     Member,
     NewProtocol,
     RaiseError,
@@ -52,16 +52,16 @@ type CombineVarArgs[Ls: tuple[VarArg], Rs: tuple[VarArg]] = tuple[
             (
                 VarArgType[x]
                 if not any(  # Unique to Ls
-                    Matches[VarArgName[x], VarArgName[y]] for y in Iter[Rs]
+                    IsEquivalent[VarArgName[x], VarArgName[y]] for y in Iter[Rs]
                 )
                 else GetArg[  # Common to both Ls and Rs
                     tuple[
                         *[
                             (
                                 VarArgType[x]
-                                if IsSub[VarArgType[x], VarArgType[y]]
+                                if IsAssignable[VarArgType[x], VarArgType[y]]
                                 else VarArgType[y]
-                                if IsSub[VarArgType[y], VarArgType[x]]
+                                if IsAssignable[VarArgType[y], VarArgType[x]]
                                 else RaiseError[
                                     typing.Literal[
                                         "Type mismatch for variable"
@@ -72,7 +72,7 @@ type CombineVarArgs[Ls: tuple[VarArg], Rs: tuple[VarArg]] = tuple[
                                 ]
                             )
                             for y in Iter[Rs]
-                            if Matches[VarArgName[x], VarArgName[y]]
+                            if IsEquivalent[VarArgName[x], VarArgName[y]]
                         ]
                     ],
                     tuple,
@@ -86,7 +86,7 @@ type CombineVarArgs[Ls: tuple[VarArg], Rs: tuple[VarArg]] = tuple[
         x
         for x in Iter[Rs]
         if not any(  # Unique to Rs
-            Matches[VarArgName[x], VarArgName[y]] for y in Iter[Ls]
+            IsEquivalent[VarArgName[x], VarArgName[y]] for y in Iter[Ls]
         )
     ],
 ]
@@ -133,14 +133,14 @@ def test_astlike_1_combine_varargs_02():
         )
 
 
-type IsAssignable[L, R] = (
-    IsSub[R, L]
-    or Bool[Matches[L, float] and Bool[IsFloat[R]]]
-    or Bool[Matches[L, complex] and Bool[IsComplex[R]]]
+type IsNumericAssignable[L, R] = (
+    IsAssignable[R, L]
+    or Bool[IsEquivalent[L, float] and Bool[IsFloat[R]]]
+    or Bool[IsEquivalent[L, complex] and Bool[IsComplex[R]]]
 )
 type VarIsPresent[V: VarArg, K: BaseTypedDict] = any(
-    Matches[VarArgName[V], GetName[x]]
-    and Bool[IsAssignable[VarArgType[V], GetType[x]]]
+    IsEquivalent[VarArgName[V], GetName[x]]
+    and Bool[IsNumericAssignable[VarArgType[V], GetType[x]]]
     for x in Iter[Attrs[K]]
 )
 type AllVarsPresent[Vs: tuple[VarArg, ...], K: BaseTypedDict] = all(
@@ -201,9 +201,9 @@ def test_astlike_1_all_vars_present_05():
     assert t == _BoolLiteral[False]
 
 
-type IsIntegral[T] = IsSub[T, int]
-type IsFloat[T] = Bool[IsIntegral[T]] or IsSub[T, float]
-type IsComplex[T] = Bool[IsFloat[T]] or IsSub[T, complex]
+type IsIntegral[T] = IsAssignable[T, int]
+type IsFloat[T] = Bool[IsIntegral[T]] or IsAssignable[T, float]
+type IsComplex[T] = Bool[IsFloat[T]] or IsAssignable[T, complex]
 
 type SimpleNumericOp[L, R, OpName: str] = (
     int
@@ -229,7 +229,7 @@ type Sub[L, R] = ComplexNumericOp[L, R, typing.Literal["-"]]
 type Mul[L, R] = ComplexNumericOp[L, R, typing.Literal["*"]]
 type TrueDiv[L, R] = (
     float
-    if IsSub[L, int] and IsSub[R, int]
+    if IsAssignable[L, int] and IsAssignable[R, int]
     else ComplexNumericOp[L, R, typing.Literal["/"]]
 )
 type FloorDiv[L, R] = SimpleNumericOp[L, R, typing.Literal["//"]]

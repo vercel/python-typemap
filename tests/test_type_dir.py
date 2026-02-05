@@ -11,7 +11,7 @@ from typemap_extensions import (
     GetQuals,
     GetType,
     InitField,
-    IsSub,
+    IsAssignable,
     Iter,
     Member,
     Members,
@@ -80,7 +80,9 @@ class Final(Mine, Ordinary, Wrapper[float], AnotherBase[float], Last[int]):
     pass
 
 
-type BaseArg[T] = GetArg[T, Base, Literal[0]] if IsSub[T, Base] else Never
+type BaseArg[T] = (
+    GetArg[T, Base, Literal[0]] if IsAssignable[T, Base] else Never
+)
 
 
 type AllOptional[T] = NewProtocol[
@@ -101,7 +103,7 @@ type Capitalize[T] = NewProtocol[
 ]
 
 type Prims[T] = NewProtocol[
-    *[p for p in Iter[Attrs[T]] if IsSub[GetType[p], int | str]]
+    *[p for p in Iter[Attrs[T]] if IsAssignable[GetType[p], int | str]]
 ]
 
 type NoLiterals1[T] = NewProtocol[
@@ -114,7 +116,7 @@ type NoLiterals1[T] = NewProtocol[
                     for t in Iter[FromUnion[GetType[p]]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
-                    if not IsSub[t, Literal]
+                    if not IsAssignable[t, Literal]
                 ]
             ],
             GetQuals[p],
@@ -130,10 +132,10 @@ type NoLiterals1[T] = NewProtocol[
 type IsLiteral[T] = (
     Literal[True]
     if (
-        (IsSub[T, str] and not IsSub[str, T])
-        or (IsSub[T, bytes] and not IsSub[bytes, T])
-        or (IsSub[T, bool] and not IsSub[bool, T])
-        or (IsSub[T, int] and not IsSub[int, T])
+        (IsAssignable[T, str] and not IsAssignable[str, T])
+        or (IsAssignable[T, bytes] and not IsAssignable[bytes, T])
+        or (IsAssignable[T, bool] and not IsAssignable[bool, T])
+        or (IsAssignable[T, int] and not IsAssignable[int, T])
         # XXX: enum, None
     )
     else Literal[False]
@@ -149,8 +151,8 @@ type NoLiterals2[T] = NewProtocol[
                     for t in Iter[FromUnion[GetType[p]]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
-                    # if not IsSubtype[t, Literal]
-                    if not IsSub[IsLiteral[t], Literal[True]]
+                    # if not IsAssignabletype[t, Literal]
+                    if not IsAssignable[IsLiteral[t], Literal[True]]
                 ]
             ],
             GetQuals[p],

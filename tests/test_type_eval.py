@@ -33,10 +33,10 @@ from typemap_extensions import (
     GetSpecialAttr,
     GetType,
     GetAnnotations,
-    IsSub,
+    IsAssignable,
     Iter,
     Length,
-    Matches,
+    IsEquivalent,
     Member,
     Members,
     NewProtocol,
@@ -72,7 +72,7 @@ type MapRecursive[A] = NewProtocol[
     *[
         (
             Member[GetName[p], OrGotcha[GetType[p]]]
-            if not IsSub[GetType[p], A]
+            if not IsAssignable[GetType[p], A]
             else Member[GetName[p], OrGotcha[MapRecursive[A]]]
         )
         for p in Iter[tuple[*Attrs[A], *Attrs[F_int]]]
@@ -512,12 +512,12 @@ type GetMethodLike[T, Name] = GetArg[
             GetType[p]
             for p in Iter[Members[T]]
             if (
-                IsSub[GetType[p], Callable]
-                or IsSub[GetType[p], staticmethod]
-                or IsSub[GetType[p], classmethod]
-                or IsSub[GetType[p], GenericCallable]
+                IsAssignable[GetType[p], Callable]
+                or IsAssignable[GetType[p], staticmethod]
+                or IsAssignable[GetType[p], classmethod]
+                or IsAssignable[GetType[p], GenericCallable]
             )
-            and IsSub[Name, GetName[p]]
+            and IsAssignable[Name, GetName[p]]
         ],
     ],
     tuple,
@@ -1089,25 +1089,25 @@ def test_uppercase_never():
 
 
 def test_never_is():
-    d = eval_typing(IsSub[Never, Never])
+    d = eval_typing(IsAssignable[Never, Never])
     assert d == _BoolLiteral[True]
 
 
 def test_eval_list_is_sub_01():
-    d = eval_typing(list[IsSub[int, str]])
+    d = eval_typing(list[IsAssignable[int, str]])
     assert d == list[_BoolLiteral[False]]
-    d = eval_typing(list[not IsSub[int, str]])
+    d = eval_typing(list[not IsAssignable[int, str]])
     assert d == list[_BoolLiteral[True]]
 
 
 def test_matches_01():
-    d = eval_typing(Matches[int, int])
+    d = eval_typing(IsEquivalent[int, int])
     assert d == _BoolLiteral[True]
 
-    d = eval_typing(Matches[int, str])
+    d = eval_typing(IsEquivalent[int, str])
     assert d == _BoolLiteral[False]
 
-    d = eval_typing(Matches[str, int])
+    d = eval_typing(IsEquivalent[str, int])
     assert d == _BoolLiteral[False]
 
 
@@ -1127,23 +1127,23 @@ def test_matches_02():
     class X:
         pass
 
-    d = eval_typing(Matches[A, A])
+    d = eval_typing(IsEquivalent[A, A])
     assert d == _BoolLiteral[True]
 
-    d = eval_typing(Matches[A, B])
+    d = eval_typing(IsEquivalent[A, B])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[B, A])
+    d = eval_typing(IsEquivalent[B, A])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[B, C])
+    d = eval_typing(IsEquivalent[B, C])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[C, B])
+    d = eval_typing(IsEquivalent[C, B])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[C, D])
+    d = eval_typing(IsEquivalent[C, D])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[D, C])
+    d = eval_typing(IsEquivalent[D, C])
     assert d == _BoolLiteral[False]
 
-    d = eval_typing(Matches[A, X])
+    d = eval_typing(IsEquivalent[A, X])
     assert d == _BoolLiteral[False]
 
 
@@ -1163,33 +1163,33 @@ def test_matches_03():
     class X:
         pass
 
-    d = eval_typing(Matches[A[int], A[int]])
+    d = eval_typing(IsEquivalent[A[int], A[int]])
     assert d == _BoolLiteral[True]
-    d = eval_typing(Matches[A[int], A[str]])
+    d = eval_typing(IsEquivalent[A[int], A[str]])
     assert d == _BoolLiteral[True]
 
-    d = eval_typing(Matches[A[int], B[int]])
+    d = eval_typing(IsEquivalent[A[int], B[int]])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[B[int], A[int]])
+    d = eval_typing(IsEquivalent[B[int], A[int]])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[A[int], B[str]])
+    d = eval_typing(IsEquivalent[A[int], B[str]])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[B[str], A[int]])
+    d = eval_typing(IsEquivalent[B[str], A[int]])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[B[int], C])
+    d = eval_typing(IsEquivalent[B[int], C])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[C, B[int]])
+    d = eval_typing(IsEquivalent[C, B[int]])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[B[str], C])
+    d = eval_typing(IsEquivalent[B[str], C])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[C, B[str]])
+    d = eval_typing(IsEquivalent[C, B[str]])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[C, D])
+    d = eval_typing(IsEquivalent[C, D])
     assert d == _BoolLiteral[False]
-    d = eval_typing(Matches[D, C])
+    d = eval_typing(IsEquivalent[D, C])
     assert d == _BoolLiteral[False]
 
-    d = eval_typing(Matches[A[int], X])
+    d = eval_typing(IsEquivalent[A[int], X])
     assert d == _BoolLiteral[False]
 
 
@@ -1323,7 +1323,7 @@ def test_eval_bool_04():
     assert d == _BoolLiteral[False]
 
 
-type IsIntBool[T] = Bool[IsSub[T, int]]
+type IsIntBool[T] = Bool[IsAssignable[T, int]]
 type IsIntLiteral[T] = Literal[True] if Bool[IsIntBool[T]] else Literal[False]
 
 
@@ -1397,19 +1397,19 @@ def test_eval_bool_literal_06():
 
 
 def test_eval_bool_literal_07():
-    d = eval_typing(IsSub[_BoolLiteral[True], Literal[True]])
+    d = eval_typing(IsAssignable[_BoolLiteral[True], Literal[True]])
     assert d == _BoolLiteral[True]
-    d = eval_typing(IsSub[_BoolLiteral[False], Literal[False]])
-    assert d == _BoolLiteral[True]
-
-    d = eval_typing(IsSub[Literal[True], _BoolLiteral[True]])
-    assert d == _BoolLiteral[True]
-    d = eval_typing(IsSub[Literal[False], _BoolLiteral[False]])
+    d = eval_typing(IsAssignable[_BoolLiteral[False], Literal[False]])
     assert d == _BoolLiteral[True]
 
-    d = eval_typing(Matches[_BoolLiteral[True], Literal[True]])
+    d = eval_typing(IsAssignable[Literal[True], _BoolLiteral[True]])
     assert d == _BoolLiteral[True]
-    d = eval_typing(Matches[_BoolLiteral[False], Literal[False]])
+    d = eval_typing(IsAssignable[Literal[False], _BoolLiteral[False]])
+    assert d == _BoolLiteral[True]
+
+    d = eval_typing(IsEquivalent[_BoolLiteral[True], Literal[True]])
+    assert d == _BoolLiteral[True]
+    d = eval_typing(IsEquivalent[_BoolLiteral[False], Literal[False]])
     assert d == _BoolLiteral[True]
 
 
@@ -1481,7 +1481,10 @@ def test_eval_literal_idempotent_01():
 
 
 def test_is_literal_true_vs_one():
-    assert eval_typing(IsSub[Literal[True], Literal[1]]) == _BoolLiteral[False]
+    assert (
+        eval_typing(IsAssignable[Literal[True], Literal[1]])
+        == _BoolLiteral[False]
+    )
 
 
 def test_callable_to_signature_01():
@@ -1648,7 +1651,7 @@ def test_type_eval_annotated_01():
 
 
 def test_type_eval_annotated_02():
-    res = eval_typing(IsSub[GetMemberType[AnnoTest, Literal["a"]], int])
+    res = eval_typing(IsAssignable[GetMemberType[AnnoTest, Literal["a"]], int])
     assert res == _BoolLiteral[True]
 
 

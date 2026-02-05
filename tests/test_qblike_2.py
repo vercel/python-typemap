@@ -82,7 +82,7 @@ producing a new target type containing only properties and wrapping
 
 type ConvertField[T] = (
     AdjustLink[PropsOnly[PointerArg[T]], T]
-    if typing.IsSub[T, Link]
+    if typing.IsAssignable[T, Link]
     else PointerArg[T]
 )
 
@@ -104,7 +104,7 @@ we've discussed already.
 
 """
 type AdjustLink[Tgt, LinkTy] = (
-    list[Tgt] if typing.IsSub[LinkTy, MultiLink] else Tgt
+    list[Tgt] if typing.IsAssignable[LinkTy, MultiLink] else Tgt
 )
 
 """And the final helper, ``PropsOnly[T]``, generates a new type that
@@ -115,7 +115,7 @@ type PropsOnly[T] = typing.NewProtocol[
     *[
         typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
         for p in typing.Iter[typing.Attrs[T]]
-        if typing.IsSub[typing.GetType[p], Property]
+        if typing.IsAssignable[typing.GetType[p], Property]
     ]
 ]
 
