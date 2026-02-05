@@ -1438,7 +1438,7 @@ difference? Combined with dictionary-comprehensions and dot notation
             for p in typing.Iter(typing.Attrs(T))
             if typing.IsAssignable(p.type, Property)
         }
-    ]
+    )
 
 (The user-defined type alias ``PointerArg`` still must be called with
 brackets, despite being basically a helper operator.)
