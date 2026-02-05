@@ -1527,6 +1527,44 @@ worse. Supporting filtering while mapping would make it even more bad
 
 We can explore other options too if needed.
 
+Perform type manipulations with normal Python functions
+-------------------------------------------------------
+
+One suggestion has been, instead of defining a new type language
+fragment for type-level manipulations, to support calling (some subset
+of) Python functions that serve as kind-of "mini-mypy-plugins".
+
+The main advantage (in our view) here would be leveraging a more
+familiar execution model.
+
+One suggested advantage is that it would be a simplification of the
+proposal, but we feel that the simplifications promised by the idea
+are mostly a mirage, and that calling Python functions to manipulate
+types would be quite a bit *more* complicated.
+
+It would require a well-defined and safe-to-run subset of the language
+(and standard library) to be defined that could be run from within
+typecheckers. Subsets like this have been defined in other system
+(see `Starlark <#starlark_>`_, the configuration language for Bazel),
+but it's still a lot of surface area, and programmers would need to
+keep in mind the boundaries of it.
+
+Additionally there would need to be a clear specification of how types
+are represented in the "mini-plugin" functions, as well defining
+functions/methods for performing various manipulations. Those
+functions would have a pretty big overlap with what this PEP currently
+proposes.
+
+If runtime use is desired, then either the type representation would
+need to be made compatible with how ``typing`` currently works or we'd
+need to have two different runtime type representations.
+
+Whether it would improve the syntax is more up for debate; I think
+that adopting some of the syntactic cleanup ideas discussed above (but
+not yet integrated into the main proposal) would improve the syntactic
+situation at lower cost.
+
+
 Make the type-level operations more "strictly-typed"
 ----------------------------------------------------
 
@@ -1586,6 +1624,7 @@ Footnotes
 .. _#prisma: https://www.prisma.io/
 .. _#prisma-example: https://github.com/prisma/prisma-examples/tree/latest/orm/express
 .. _#qb-test: https://github.com/vercel/python-typemap/blob/main/tests/test_qblike_2.py
+.. _#starlark: https://starlark-lang.org/
 
 .. [#broadcasting] http://docs.scipy.org/doc/numpy/user/basics.broadcasting.html
 .. [#ref-impl] https://github.com/msullivan/mypy/tree/typemap
