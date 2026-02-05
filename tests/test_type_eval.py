@@ -47,6 +47,7 @@ from typemap_extensions import (
     Slice,
     SpecialFormEllipsis,
     StrConcat,
+    UpdateClass,
     Uppercase,
 )
 
@@ -1653,6 +1654,365 @@ def test_new_protocol_with_methods_02():
             @staticmethod
             def static_method(x: int) -> int: ...
     """)
+
+
+def test_update_class_members_01():
+    # Non-generic UpdateClass
+    class A:
+        a1: int  # not overridden
+        a2: int  # overridden
+
+        def __init_subclass__(
+            cls,
+        ) -> UpdateClass[
+            Member[Literal["a2"], str],
+            Member[Literal["b1"], str],
+            Member[Literal["b2"], str],
+        ]:
+            super().__init_subclass__()
+
+        def f(self) -> int: ...
+
+    class B(A):
+        b0: int  # omitted
+        b1: int  # overridden
+        # b2 added in UpdateClass
+
+        def g(self) -> int: ...  # omitted
+
+    # Attrs
+    attrs = eval_typing(Attrs[B])
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a1"], int, Never, Never, A],
+            Member[Literal["a2"], str, Never, Never, B],
+            Member[Literal["b1"], str, Never, Never, B],
+            Member[Literal["b2"], str, Never, Never, B],
+        ]
+    )
+
+    # Members
+    members = eval_typing(Members[B])
+    assert (
+        members
+        == tuple[
+            Member[Literal["a1"], int, Never, Never, A],
+            Member[Literal["a2"], str, Never, Never, B],
+            Member[Literal["b1"], str, Never, Never, B],
+            Member[Literal["b2"], str, Never, Never, B],
+            Member[
+                Literal["__init_subclass__"],
+                classmethod[
+                    A,
+                    tuple[()],
+                    UpdateClass[
+                        Member[Literal["a2"], str],
+                        Member[Literal["b1"], str],
+                        Member[Literal["b2"], str],
+                    ],
+                ],
+                Literal["ClassVar"],
+                object,
+                A,
+            ],
+            Member[
+                Literal["f"],
+                Callable[[Param[Literal["self"], A]], int],
+                Literal["ClassVar"],
+                object,
+                A,
+            ],
+        ]
+    )
+
+    # GetMember
+    assert members == eval_typing(
+        tuple[
+            GetMember[B, Literal["a1"]],
+            GetMember[B, Literal["a2"]],
+            GetMember[B, Literal["b1"]],
+            GetMember[B, Literal["b2"]],
+            GetMember[B, Literal["__init_subclass__"]],
+            GetMember[B, Literal["f"]],
+        ]
+    )
+    m = eval_typing(GetMember[B, Literal["g"]])
+    assert m == Never
+
+
+type MembersExceptInitSubclass[T] = tuple[
+    *[
+        m
+        for m in Iter[Members[T]]
+        if not IsAssignable[GetName[m], Literal["__init_subclass__"]]
+    ]
+]
+
+
+def test_update_class_members_02():
+    # Generic UpdateClass, does not use T
+    class A:
+        a1: int  # not overridden
+        a2: int  # overridden
+
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> UpdateClass[
+            Member[Literal["a2"], str],
+            Member[Literal["b1"], str],
+            Member[Literal["b2"], str],
+        ]:
+            super().__init_subclass__()
+
+        def f(self) -> int: ...
+
+    class B(A):
+        b0: int  # omitted
+        b1: int  # overridden
+        # b2 added in UpdateClass
+
+        def g(self) -> int: ...  # omitted
+
+    # Attrs
+    attrs = eval_typing(Attrs[B])
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a1"], int, Never, Never, A],
+            Member[Literal["a2"], str, Never, Never, B],
+            Member[Literal["b1"], str, Never, Never, B],
+            Member[Literal["b2"], str, Never, Never, B],
+        ]
+    )
+
+    # Members
+    members = eval_typing(MembersExceptInitSubclass[B])
+    assert (
+        members
+        == tuple[
+            Member[Literal["a1"], int, Never, Never, A],
+            Member[Literal["a2"], str, Never, Never, B],
+            Member[Literal["b1"], str, Never, Never, B],
+            Member[Literal["b2"], str, Never, Never, B],
+            Member[
+                Literal["f"],
+                Callable[[Param[Literal["self"], A]], int],
+                Literal["ClassVar"],
+                object,
+                A,
+            ],
+        ]
+    )
+
+    # GetMember
+    assert members == eval_typing(
+        tuple[
+            GetMember[B, Literal["a1"]],
+            GetMember[B, Literal["a2"]],
+            GetMember[B, Literal["b1"]],
+            GetMember[B, Literal["b2"]],
+            GetMember[B, Literal["f"]],
+        ]
+    )
+    m = eval_typing(GetMember[B, Literal["g"]])
+    assert m == Never
+
+
+def test_update_class_members_03():
+    # Generic UpdateClass, uses T
+    type AttrsAsSets[T] = UpdateClass[
+        *[Member[GetName[m], set[GetType[m]]] for m in Iter[Attrs[T]]]
+    ]
+
+    class A:
+        a: int
+
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> AttrsAsSets[T]:
+            super().__init_subclass__()
+
+        def f(self) -> int: ...
+
+    class B(A):
+        b: str
+
+        def g(self) -> int: ...  # omitted
+
+    # Attrs
+    attrs = eval_typing(Attrs[B])
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a"], set[int], Never, Never, B],
+            Member[Literal["b"], set[str], Never, Never, B],
+        ]
+    )
+
+    # Members
+    members = eval_typing(MembersExceptInitSubclass[B])
+    assert (
+        members
+        == tuple[
+            Member[Literal["a"], set[int], Never, Never, B],
+            Member[Literal["b"], set[str], Never, Never, B],
+            Member[
+                Literal["f"],
+                Callable[[Param[Literal["self"], A]], int],
+                Literal["ClassVar"],
+                object,
+                A,
+            ],
+        ]
+    )
+
+    # GetMember
+    assert members == eval_typing(
+        tuple[
+            GetMember[B, Literal["a"]],
+            GetMember[B, Literal["b"]],
+            GetMember[B, Literal["f"]],
+        ]
+    )
+    m = eval_typing(GetMember[B, Literal["g"]])
+    assert m == Never
+
+
+def test_update_class_members_04():
+    # Non-UpdateClass __init_subclass__ unaffected
+    class A:
+        a: int
+
+        def __init_subclass__(
+            cls,
+        ) -> None:
+            super().__init_subclass__()
+
+        def f(self) -> int: ...
+
+    class B(A):
+        b: int
+
+        def g(self) -> int: ...
+
+    # Attrs
+    attrs = eval_typing(Attrs[B])
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a"], int, Never, Never, A],
+            Member[Literal["b"], int, Never, Never, B],
+        ]
+    )
+
+    # Members
+    members = eval_typing(Members[B])
+    assert (
+        members
+        == tuple[
+            Member[Literal["a"], int, Never, Never, A],
+            Member[Literal["b"], int, Never, Never, B],
+            Member[
+                Literal["__init_subclass__"],
+                classmethod[
+                    A,
+                    tuple[()],
+                    None,
+                ],
+                Literal["ClassVar"],
+                object,
+                A,
+            ],
+            Member[
+                Literal["f"],
+                Callable[[Param[Literal["self"], A]], int],
+                Literal["ClassVar"],
+                object,
+                A,
+            ],
+            Member[
+                Literal["g"],
+                Callable[[Param[Literal["self"], B]], int],
+                Literal["ClassVar"],
+                object,
+                B,
+            ],
+        ]
+    )
+
+    # GetMember
+    assert members == eval_typing(
+        tuple[
+            GetMember[B, Literal["a"]],
+            GetMember[B, Literal["b"]],
+            GetMember[B, Literal["__init_subclass__"]],
+            GetMember[B, Literal["f"]],
+            GetMember[B, Literal["g"]],
+        ]
+    )
+
+
+def test_update_class_inheritance_01():
+    # __init_subclass__ calls follow normal MRO
+    class A:
+        a: int
+
+        def __init_subclass__[T](
+            cls: T,
+        ) -> UpdateClass[()]: ...
+
+    class B(A):
+        b: int
+
+    class C(B):
+        c: int
+
+
+def test_update_class_is_sub_01():
+    # Subclass retains information about bases
+
+    class A:
+        a: int
+
+        def __init_subclass__[T](
+            cls: T,
+        ) -> UpdateClass[()]:
+            super().__init_subclass__()
+
+    class B(A):
+        b: int
+
+    class C(B):
+        c: int
+
+    assert eval_typing(IsAssignable[B, A]) == _BoolLiteral[True]
+    assert eval_typing(IsAssignable[C, B]) == _BoolLiteral[True]
+    assert eval_typing(IsAssignable[C, A]) == _BoolLiteral[True]
+
+
+def test_update_class_getarg_01():
+    # Subclass is able to get args from base classes
+
+    class A[X0, X1]:
+        a: X1
+
+        def __init_subclass__[T](
+            cls: T,
+        ) -> UpdateClass[()]:
+            super().__init_subclass__()
+
+    class B[Y](A[int, Y]):
+        b: Y
+
+    class C(B[float]):
+        c: float
+
+    assert eval_typing(GetArg[B[str], A, Literal[0]]) is int
+    assert eval_typing(GetArg[B[str], A, Literal[1]]) is str
+    assert eval_typing(GetArg[C, B, Literal[0]]) is float
+    assert eval_typing(GetArg[C, A, Literal[0]]) is int
+    assert eval_typing(GetArg[C, A, Literal[1]]) is float
 
 
 ##############
