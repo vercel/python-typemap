@@ -1537,12 +1537,10 @@ of) Python functions that serve as kind-of "mini-mypy-plugins".
 The main advantage (in our view) here would be leveraging a more
 familiar execution model.
 
-Other potential advantages include simplifying the proposal and
-potentially improving the syntax.
-
-We think that the simplifications promised by the idea are mostly a
-mirage, and that calling Python functions to manipulate types would be
-quite a bit *more* complicated.
+One suggested advantage is that it would be a simplification of the
+proposal, but we feel that the simplifications promised by the idea
+are mostly a mirage, and that calling Python functions to manipulate
+types would be quite a bit *more* complicated.
 
 It would require a well-defined and safe-to-run subset of the language
 (and standard library) to be defined that could be run from within
