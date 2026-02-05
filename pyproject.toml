@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = []
 
+[tool.setuptools.packages.find]
+include = ["typemap", "typemap_extensions"]
+
 [dependency-groups]
 test = [
     "pytest>=7.0",
@@ -68,7 +71,7 @@ extend-ignore = [
 [tool.ruff]
 line-length = 80
 indent-width = 4
-include = ["pyproject.toml", "typemap/**/*.py", "tests/**/*.py"]
+include = ["pyproject.toml", "typemap/**/*.py", "typemap_extensions/**/*.py", "tests/**/*.py"]
 
 [tool.ruff.format]
 quote-style = "preserve"

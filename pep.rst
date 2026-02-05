@@ -1005,7 +1005,8 @@ as a literal type--all of these mechanisms lean very heavily on literal types.
                 for c in typing.Iter[typing.Attrs[K]]
             ]
         ]
-    ]: ...
+    ]:
+        raise NotImplementedError
 
 ConvertField is our first type helper, and it is a conditional type
 alias, which decides between two types based on a (limited)
@@ -1035,7 +1036,7 @@ grabs the argument to a ``Pointer``).
 
 ::
 
-    type PointerArg[T: Pointer] = typing.GetArg[T, Pointer, Literal[0]]
+    type PointerArg[T] = typing.GetArg[T, Pointer, Literal[0]]
 
 ``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
 we've discussed already.

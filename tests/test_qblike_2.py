@@ -1,9 +1,9 @@
 import textwrap
 
-from typing import Literal, Unpack
+from typing import Literal, Unpack, TYPE_CHECKING
 
 from typemap.type_eval import eval_call, eval_typing
-from typemap import typing
+import typemap_extensions as typing
 
 from . import format_helper
 
@@ -66,7 +66,8 @@ def select[ModelT, K: typing.BaseTypedDict](
             for c in typing.Iter[typing.Attrs[K]]
         ]
     ]
-]: ...
+]:
+    raise NotImplementedError
 
 
 """ConvertField is our first type helper, and it is a conditional type
@@ -95,7 +96,7 @@ inherits from ``Base``.
 grabs the argument to a ``Pointer``).
 
 """
-type PointerArg[T: Pointer] = typing.GetArg[T, Pointer, Literal[0]]
+type PointerArg[T] = typing.GetArg[T, Pointer, Literal[0]]
 
 """
 ``AdjustLink`` sticks a ``list`` around ``MultiLink``, using features
@@ -149,6 +150,17 @@ class User:
     name: Property[str]
     email: Property[str]
     posts: MultiLink[Post]
+
+
+def test_qblike_typing_only_1() -> None:
+    if TYPE_CHECKING:
+        _test_select = select(
+            Post,
+            title=True,
+            comments=True,
+            author=True,
+        )
+        reveal_type(_test_select)  # noqa
 
 
 def test_qblike2_1():

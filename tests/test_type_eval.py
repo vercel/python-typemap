@@ -18,7 +18,9 @@ from typing import (
 import pytest
 
 from typemap.type_eval import eval_typing
-from typemap.typing import (
+from typemap.typing import _BoolLiteral
+
+from typemap_extensions import (
     Attrs,
     Bool,
     FromUnion,
@@ -44,7 +46,6 @@ from typemap.typing import (
     SpecialFormEllipsis,
     StrConcat,
     Uppercase,
-    _BoolLiteral,
 )
 
 from . import format_helper
@@ -1675,7 +1676,7 @@ def test_type_eval_annotated_04():
 ##############
 # RaiseError tests
 
-from typemap.typing import RaiseError
+from typemap_extensions import RaiseError
 from typemap.type_eval import TypeMapError
 
 

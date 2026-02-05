@@ -3,7 +3,7 @@ import pytest
 from typing import Callable, Generic, Literal, Self, TypeVar
 
 from typemap.type_eval import eval_call_with_types
-from typemap.typing import (
+from typemap_extensions import (
     GenericCallable,
     GetArg,
     GetName,

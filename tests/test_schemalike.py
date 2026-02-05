@@ -3,7 +3,7 @@ import textwrap
 from typing import Callable, Literal
 
 from typemap.type_eval import eval_typing
-from typemap.typing import (
+from typemap_extensions import (
     NewProtocol,
     Iter,
     Attrs,

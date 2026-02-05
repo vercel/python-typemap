@@ -25,10 +25,10 @@ def format_class_basic(cls: type) -> str:
         code += f"    {attr_name}: {attr_type_s}{eq}\n"
 
     for name, attr in cls.__dict__.items():
-        if attr is typing._no_init_or_replace_init:
+        if attr is typing._no_init_or_replace_init:  # type: ignore[attr-defined]
             continue
         if isinstance(attr, classmethod):
-            attr = inspect.unwrap(attr)
+            attr = inspect.unwrap(attr)  # type: ignore[arg-type]
             code += f"    @classmethod\n"
         elif isinstance(attr, staticmethod):
             attr = inspect.unwrap(attr)

@@ -3,7 +3,7 @@ import textwrap
 from typing import Unpack
 
 from typemap.type_eval import eval_call
-from typemap.typing import (
+from typemap_extensions import (
     Attrs,
     BaseTypedDict,
     NewProtocol,

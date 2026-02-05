@@ -3,7 +3,7 @@ import typing
 from typing import Literal, Never, TypeVar, TypedDict, Union, ReadOnly
 
 from typemap.type_eval import eval_typing
-from typemap.typing import (
+from typemap_extensions import (
     Attrs,
     FromUnion,
     GetArg,

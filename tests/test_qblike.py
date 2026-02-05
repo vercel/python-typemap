@@ -7,7 +7,7 @@ from typemap.type_eval import (
     eval_call_with_types,
     eval_typing,
 )
-from typemap.typing import (
+from typemap_extensions import (
     BaseTypedDict,
     NewProtocol,
     Iter,

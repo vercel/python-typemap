@@ -1,6 +1,6 @@
 from typing import Literal
 
-from typemap import typing
+import typemap_extensions as typing
 
 import pytest
 

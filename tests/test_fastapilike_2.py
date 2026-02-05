@@ -6,9 +6,10 @@ from typing import (
     TypedDict,
     Never,
     Self,
+    TYPE_CHECKING,
 )
 
-from typemap import typing
+import typemap_extensions as typing
 
 
 class FieldArgs(TypedDict, total=False):
@@ -25,7 +26,7 @@ class Field[T: FieldArgs](typing.InitField[T]):
 ####
 
 # TODO: Should this go into the stdlib?
-type GetFieldItem[T: typing.InitField, K] = typing.GetMemberType[
+type GetFieldItem[T, K] = typing.GetMemberType[
     typing.GetArg[T, typing.InitField, Literal[0]], K
 ]
 
@@ -206,6 +207,10 @@ class Hero:
 
     secret_name: str = Field(hidden=True)
 
+
+if TYPE_CHECKING:
+    pubhero: Public[Hero]
+    reveal_type(pubhero)  # noqa
 
 #######
 

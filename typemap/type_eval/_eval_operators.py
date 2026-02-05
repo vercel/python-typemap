@@ -577,7 +577,7 @@ def _function_type(func, *, receiver_type):
 
     # TODO: Is doing the tuple for staticmethod/classmethod legit?
     # Putting a list in makes it unhashable...
-    f: typing.Any
+    f: typing.Any  # type: ignore[annotation-unchecked]
     if isinstance(func, staticmethod):
         f = staticmethod[tuple[*params], ret]
     elif isinstance(func, classmethod):

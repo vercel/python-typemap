@@ -2,7 +2,9 @@ import pytest
 import typing
 
 from typemap.type_eval import eval_call_with_types, eval_typing, TypeMapError
-from typemap.typing import (
+from typemap.typing import _BoolLiteral
+
+from typemap_extensions import (
     Attrs,
     BaseTypedDict,
     Bool,
@@ -15,7 +17,6 @@ from typemap.typing import (
     Member,
     NewProtocol,
     RaiseError,
-    _BoolLiteral,
 )
 
 
