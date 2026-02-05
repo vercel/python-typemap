@@ -43,6 +43,7 @@ from typemap.typing import (
     SpecialFormEllipsis,
     StrConcat,
     Uncapitalize,
+    UpdateClass,
     Uppercase,
     _BoolLiteral,
 )
@@ -78,7 +79,7 @@ def _make_init_type(v):
         return typing.Literal[(v,)]
 
 
-def get_annotated_type_hints(cls, **kwargs):
+def get_annotated_type_hints(cls, *, ctx, **kwargs):
     """Get the type hints/quals for a cls annotated with definition site.
 
     This traverses the mro and finds the definition site for each annotation.
@@ -90,6 +91,11 @@ def get_annotated_type_hints(cls, **kwargs):
     hints = {}
     for abox in reversed(box.mro):
         acls = abox.alias_type()
+
+        if abox is box and (updated_cls := _eval_init_subclass(box, ctx)):
+            # For the class itself, apply all UpdateClass from
+            # ancesstors' __init_subclass__ to get the final type.
+            abox = _apply_generic.box(updated_cls)
 
         annos, _ = _apply_generic.get_local_defns(abox)
         for k, ty in annos.items():
@@ -120,13 +126,18 @@ def get_annotated_type_hints(cls, **kwargs):
     return hints
 
 
-def get_annotated_method_hints(cls):
+def get_annotated_method_hints(cls, *, ctx):
     # TODO: Cache the box (slash don't need it??)
     box = _apply_generic.box(cls)
 
     hints = {}
     for abox in reversed(box.mro):
         acls = abox.alias_type()
+
+        if abox is box and (updated_cls := _eval_init_subclass(box, ctx)):
+            # For the class itself, apply all UpdateClass from
+            # ancesstors' __init_subclass__ to get the final type.
+            abox = _apply_generic.box(updated_cls)
 
         _, dct = _apply_generic.get_local_defns(abox)
         for name, attr in dct.items():
@@ -150,6 +161,81 @@ def get_annotated_method_hints(cls):
                 )
 
     return hints
+
+
+def _eval_init_subclass(
+    box: _apply_generic.Boxed, ctx: typing.Any
+) -> type | None:
+    """Get type after all __init_subclass__ with UpdateClass are evaluated."""
+    for abox in reversed(box.mro[1:]):  # Skip the type itself
+        if ms := _get_update_class_members(box.cls, abox.alias_type(), ctx=ctx):
+            return _create_updated_class(box.cls, ms, ctx=ctx)
+
+    return None
+
+
+def _get_update_class_members(
+    cls: type, base: type, ctx: typing.Any
+) -> list[Member] | None:
+    if (
+        (init_subclass := base.__dict__.get("__init_subclass__"))
+        and (
+            init_subclass_annos := getattr(
+                init_subclass, "__annotations__", None
+            )
+        )
+        and (ret_annotation := init_subclass_annos.get("return"))
+        and _typing_inspect.is_generic_alias(ret_annotation)
+        and typing.get_origin(ret_annotation) is UpdateClass
+    ):
+        # Substitute the cls type var with the current class
+        # This may not happen if cls is not generic!
+        if (
+            cls_anno := next(
+                (v for k, v in init_subclass_annos.items() if k != "return"),
+                None,
+            )
+        ) and isinstance(cls_anno, typing.TypeVar):
+            substitution = {cls_anno: cls}
+            ret_annotation = _apply_generic.substitute(
+                ret_annotation, substitution
+            )
+
+        evaled_ret = _eval_types(ret_annotation, ctx=ctx)
+
+        return [m for m in typing.get_args(evaled_ret)]
+
+    return None
+
+
+def _create_updated_class(t: type, ms: list[Member], ctx) -> type:
+    dct: dict[str, object] = {}
+
+    # Copy the module
+    dct["__module__"] = t.__module__
+
+    # Process the new members from UpdateClass
+    dct["__annotations__"] = annos = {}
+    for m in ms:
+        tname, typ, quals, init, _ = typing.get_args(m)
+        member_name = _eval_literal(tname, ctx)
+        typ = _eval_types(typ, ctx)
+        tquals = _eval_types(quals, ctx)
+
+        if type_eval.issubtype(
+            typing.Literal["ClassVar"], tquals
+        ) and _is_method_like(typ):
+            dct[member_name] = _callable_type_to_method(member_name, typ, ctx)
+        else:
+            # Update/add the annotation
+            annos[member_name] = _add_quals(typ, tquals)
+            _unpack_init(dct, member_name, init)
+
+    # Create the updated class
+    mcls = type(t)
+    cls = mcls(t.__name__, t.__bases__, dct)
+
+    return cls
 
 
 def _union_elems(tp, ctx):
@@ -489,10 +575,15 @@ def _callable_type_to_method(name, typ, ctx):
         has_pos_only = any(_is_pos_only(p) for p in typing.get_args(params))
         quals = typing.Literal["positional"] if has_pos_only else typing.Never
         # Override the receiver type with type[Self].
-        # An annoying thing to know is that for a member classmethod of C,
-        # cls *should* be type[C], but if it was not explicitly annotated, it
-        # will be C.
-        cls_param = Param[typing.Literal["cls"], type[typing.Self], quals]
+        if name == "__init_subclass__" and isinstance(cls, typing.TypeVar):
+            # For __init_subclass__ generic on cls: T, keep type[T]
+            cls_typ = type[cls]  # type: ignore[name-defined]
+        else:
+            # An annoying thing to know is that for a member classmethod of C,
+            # cls *should* be type[C], but if it was not explicitly annotated,
+            # it will be C.
+            cls_typ = type[typing.Self]  # type: ignore[name-defined]
+        cls_param = Param[typing.Literal["cls"], cls_typ, quals]
         typ = typing.Callable[[cls_param] + list(typing.get_args(params)), ret]
     elif head is staticmethod:
         params, ret = typing.get_args(typ)
@@ -690,7 +781,7 @@ def _hints_to_members(hints, ctx):
 @type_eval.register_evaluator(Attrs)
 @_lift_over_unions
 def _eval_Attrs(tp, *, ctx):
-    hints = get_annotated_type_hints(tp, include_extras=True)
+    hints = get_annotated_type_hints(tp, include_extras=True, ctx=ctx)
     return _hints_to_members(hints, ctx)
 
 
@@ -698,8 +789,8 @@ def _eval_Attrs(tp, *, ctx):
 @_lift_over_unions
 def _eval_Members(tp, *, ctx):
     hints = {
-        **get_annotated_type_hints(tp, include_extras=True),
-        **get_annotated_method_hints(tp),
+        **get_annotated_type_hints(tp, include_extras=True, ctx=ctx),
+        **get_annotated_method_hints(tp, ctx=ctx),
     }
     return _hints_to_members(hints, ctx)
 
@@ -710,8 +801,8 @@ def _eval_GetMember(tp, prop, *, ctx):
     # XXX: extras?
     name = _from_literal(prop)
     hints = {
-        **get_annotated_type_hints(tp, include_extras=True),
-        **get_annotated_method_hints(tp),
+        **get_annotated_type_hints(tp, include_extras=True, ctx=ctx),
+        **get_annotated_method_hints(tp, ctx=ctx),
     }
     if name in hints:
         return _hint_to_member(name, *hints[name], ctx=ctx)
@@ -740,8 +831,8 @@ def _eval_GetMemberType(tp, prop, *, ctx):
     # XXX: extras?
     name = _from_literal(prop)
     hints = {
-        **get_annotated_type_hints(tp, include_extras=True),
-        **get_annotated_method_hints(tp),
+        **get_annotated_type_hints(tp, include_extras=True, ctx=ctx),
+        **get_annotated_method_hints(tp, ctx=ctx),
     }
     if name in hints:
         return hints[name][0]
