@@ -9,7 +9,7 @@ from typemap_extensions import (
     NewProtocol,
     Iter,
     Attrs,
-    IsSub,
+    IsAssignable,
     GetAnnotations,
     DropAnnotations,
     FromUnion,
@@ -54,7 +54,7 @@ type InitFnType[T] = Member[
                     GetName[p],
                     DropAnnotations[GetType[p]],
                     Literal["keyword", "default"]
-                    if IsSub[
+                    if IsAssignable[
                         Literal[PropQuals.HAS_DEFAULT],
                         GetAnnotations[GetType[p]],
                     ]
@@ -76,14 +76,14 @@ type AddInit[T] = NewProtocol[
 # Strip `| None` from a type by iterating over its union components
 # and filtering
 type NotOptional[T] = Union[
-    *[x for x in Iter[FromUnion[T]] if not IsSub[x, None]]
+    *[x for x in Iter[FromUnion[T]] if not IsAssignable[x, None]]
 ]
 
 # Adjust an attribute type for use in Public below by dropping | None for
 # primary keys and stripping all annotations.
 type FixPublicType[T] = DropAnnotations[
     NotOptional[T]
-    if IsSub[Literal[PropQuals.PRIMARY], GetAnnotations[T]]
+    if IsAssignable[Literal[PropQuals.PRIMARY], GetAnnotations[T]]
     else T
 ]
 
@@ -94,7 +94,9 @@ type Public[T] = NewProtocol[
     *[
         Member[GetName[p], FixPublicType[GetType[p]], GetQuals[p]]
         for p in Iter[Attrs[T]]
-        if not IsSub[Literal[PropQuals.HIDDEN], GetAnnotations[GetType[p]]]
+        if not IsAssignable[
+            Literal[PropQuals.HIDDEN], GetAnnotations[GetType[p]]
+        ]
     ]
 ]
 
@@ -103,7 +105,9 @@ type Create[T] = NewProtocol[
     *[
         Member[GetName[p], GetType[p], GetQuals[p]]
         for p in Iter[Attrs[T]]
-        if not IsSub[Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]]
+        if not IsAssignable[
+            Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]
+        ]
     ]
 ]
 
@@ -118,7 +122,9 @@ type Update[T] = NewProtocol[
             GetQuals[p],
         ]
         for p in Iter[Attrs[T]]
-        if not IsSub[Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]]
+        if not IsAssignable[
+            Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]
+        ]
     ]
 ]
 

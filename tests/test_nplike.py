@@ -16,9 +16,9 @@ class Array[DType, *Shape]:
 
 type MergeOne[T, S] = (
     T
-    if typing.Matches[T, S] or typing.Matches[S, Literal[1]]
+    if typing.IsEquivalent[T, S] or typing.IsEquivalent[S, Literal[1]]
     else S
-    if typing.Matches[T, Literal[1]]
+    if typing.IsEquivalent[T, Literal[1]]
     else typing.RaiseError[Literal["Broadcast mismatch"], T, S]
 )
 
@@ -27,7 +27,7 @@ type Last[T] = typing.GetArg[T, tuple, Literal[-1]]
 
 # Matching on Never here is intentional; it prevents infinite
 # recursions when T is not a tuple.
-type Empty[T] = typing.IsSub[typing.Length[T], Literal[0]]
+type Empty[T] = typing.IsAssignable[typing.Length[T], Literal[0]]
 
 type Broadcast[T, S] = (
     S

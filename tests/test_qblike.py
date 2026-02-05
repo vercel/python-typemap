@@ -12,7 +12,7 @@ from typemap_extensions import (
     NewProtocol,
     Iter,
     Attrs,
-    IsSub,
+    IsAssignable,
     GetType,
     Member,
     GetName,
@@ -32,12 +32,12 @@ class Link[T]:
 
 
 type PropsOnly[T] = NewProtocol[
-    *[p for p in Iter[Attrs[T]] if IsSub[GetType[p], Property]]
+    *[p for p in Iter[Attrs[T]] if IsAssignable[GetType[p], Property]]
 ]
 
 # Conditional type alias!
 type FilterLinks[T] = (
-    Link[PropsOnly[GetArg[T, Link, Literal[0]]]] if IsSub[T, Link] else T
+    Link[PropsOnly[GetArg[T, Link, Literal[0]]]] if IsAssignable[T, Link] else T
 )
 
 

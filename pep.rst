@@ -579,18 +579,15 @@ proposing to add that as a notion, but we could.
 Boolean operators
 '''''''''''''''''
 
-* ``IsSub[T, S]``: Returns a boolean literal type indicating whether
-  ``T`` is a subtype of ``S``.
+* ``IsAssignable[T, S]``: Returns a boolean literal type indicating whether
+  ``S`` is assignable to ``T``.
 
-  (Actually, I suppose, whether ``S`` is "assignable to" ``T``. We can
-  certainly bikeshed on this name.)
-
-* ``Matches[T, S]``:
-  Equivalent to ``IsSub[T, S] and IsSub[S, T]``.
+* ``IsEquivalent[T, S]``:
+  Equivalent to ``IsAssignable[T, S] and IsAssignable[S, T]``.
 
 * ``Bool[T]``: Returns ``Literal[True]`` if ``T`` is also
   ``Literal[True]`` or a union containing it.
-  Equivalent to ``IsSub[T, Literal[True]] and not IsSub[T, Never]``.
+  Equivalent to ``IsAssignable[T, Literal[True]] and not IsAssignable[T, Never]``.
 
   This is useful for invoking "helper aliases" that return a boolean
   literal type.
@@ -1021,7 +1018,7 @@ producing a new target type containing only properties and wrapping
 
     type ConvertField[T] = (
         AdjustLink[PropsOnly[PointerArg[T]], T]
-        if typing.IsSub[T, Link]
+        if typing.IsAssignable[T, Link]
         else PointerArg[T]
     )
 
@@ -1044,7 +1041,7 @@ we've discussed already.
 ::
 
     type AdjustLink[Tgt, LinkTy] = (
-        list[Tgt] if typing.IsSub[LinkTy, MultiLink] else Tgt
+        list[Tgt] if typing.IsAssignable[LinkTy, MultiLink] else Tgt
     )
 
 And the final helper, ``PropsOnly[T]``, generates a new type that
@@ -1056,7 +1053,7 @@ contains all the ``Property`` attributes of ``T``.
         *[
             typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
             for p in typing.Iter[typing.Attrs[T]]
-            if typing.IsSub[typing.GetType[p], Property]
+            if typing.IsAssignable[typing.GetType[p], Property]
         ]
     ]
 
@@ -1078,7 +1075,7 @@ suite, but here is a possible implementation of just ``Public``
     # otherwise we return the type itself.
     type GetDefault[Init] = (
         GetFieldItem[Init, Literal["default"]]
-        if typing.IsSub[Init, Field]
+        if typing.IsAssignable[Init, Field]
         else Init
     )
 
@@ -1092,7 +1089,7 @@ suite, but here is a possible implementation of just ``Public``
                 GetDefault[typing.GetInit[p]],
             ]
             for p in typing.Iter[typing.Attrs[T]]
-            if not typing.IsSub[
+            if not typing.IsAssignable[
                 Literal[True],
                 GetFieldItem[typing.GetInit[p], Literal["primary_key"]],
             ]
@@ -1131,7 +1128,7 @@ dataclasses-style method generation
                         # All arguments are keyword-only
                         # It takes a default if a default is specified in the class
                         Literal["keyword"]
-                        if typing.IsSub[
+                        if typing.IsAssignable[
                             GetDefault[typing.GetInit[p]],
                             Never,
                         ]
@@ -1165,9 +1162,9 @@ NumPy-style broadcasting
 
     type MergeOne[T, S] = (
         T
-        if typing.Matches[T, S] or typing.Matches[S, Literal[1]]
+        if typing.IsEquivalent[T, S] or typing.IsEquivalent[S, Literal[1]]
         else S
-        if typing.Matches[T, Literal[1]]
+        if typing.IsEquivalent[T, Literal[1]]
         else typing.RaiseError[Literal["Broadcast mismatch"], T, S]
     )
 
@@ -1176,7 +1173,7 @@ NumPy-style broadcasting
 
     # Matching on Never here is intentional; it prevents infinite
     # recursions when T is not a tuple.
-    type Empty[T] = typing.IsSub[typing.Length[T], Literal[0]]
+    type Empty[T] = typing.IsAssignable[typing.Length[T], Literal[0]]
 
     type Broadcast[T, S] = (
         S
@@ -1227,7 +1224,7 @@ Generic Callable
 
 Consider a method with the following signature::
 
-    def process[T](self, x: T) -> T if IsSub[T, list] else list[T]:
+    def process[T](self, x: T) -> T if IsAssignable[T, list] else list[T]:
         ...
 
 The type of the method is generic, and the generic is bound at the
@@ -1240,13 +1237,13 @@ unbound type variables and let them be generalized::
     type Foo = NewProtocol[
         Member[
             Literal["process"],
-            Callable[[T], set[T] if IsSub[T, int] else T]
+            Callable[[T], set[T] if IsAssignable[T, int] else T]
         ]
     ]
 
 The problem is that this is basically incompatible with runtime
 evaluation support, since evaluating the alias ``Foo`` will need to
-evaluate the ``IsSub``, and so we will lose one side of the
+evaluate the ``IsAssignable``, and so we will lose one side of the
 conditional at least.  Similar problems will happen when evaluating
 ``Members`` on a class with generic functions.  By wrapping the body
 in a lambda, we can delay evaluation in both of these cases.  (The
@@ -1356,8 +1353,8 @@ the model more complicated, but a lot of code will read much nicer.
 TODO: Should we do this?
 
 
-Replace ``IsSub`` with something weaker than "assignable to" checking
----------------------------------------------------------------------
+Replace ``IsAssignable`` with something weaker than "assignable to" checking
+----------------------------------------------------------------------------
 
 Full python typing assignability checking is not fully implementable
 at runtime (in particular, even if all the typeshed types for the
@@ -1371,15 +1368,15 @@ ideally with the contours of that effort well-documented.
 An alternative approach would be to have a weaker predicate as the
 core primitive.
 
-One possibility would be a "sub-similarity" check: ``IsSubSimilar``
+One possibility would be a "sub-similarity" check: ``IsAssignableSimilar``
 would do *simple* checking of the *head* of types, essentially,
 without looking at type parameters. It would not work with protocols.
 It would still lift over unions and would check literals.
 
 We decided it probably was not a good idea to introduce a new notion
 that is similar to but not the same as subtyping, and that would need
-to either have a long and weird name like ``IsSubSimilar`` or a
-misleading short one like ``IsSub``.
+to either have a long and weird name like ``IsAssignableSimilar`` or a
+misleading short one like ``IsAssignable``.
 
 .. _less_syntax:
 

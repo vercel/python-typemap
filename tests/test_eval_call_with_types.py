@@ -8,7 +8,7 @@ from typemap_extensions import (
     GetArg,
     GetName,
     GetType,
-    IsSub,
+    IsAssignable,
     Iter,
     Members,
     Param,
@@ -266,10 +266,10 @@ type GetCallableMember[T, N: str] = GetArg[
             GetType[m]
             for m in Iter[Members[T]]
             if (
-                IsSub[GetType[m], Callable]
-                or IsSub[GetType[m], GenericCallable]
+                IsAssignable[GetType[m], Callable]
+                or IsAssignable[GetType[m], GenericCallable]
             )
-            and IsSub[GetName[m], N]
+            and IsAssignable[GetName[m], N]
         ]
     ],
     tuple,

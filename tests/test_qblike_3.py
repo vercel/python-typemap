@@ -24,9 +24,9 @@ from typemap_extensions import (
     GetType,
     GetInit,
     InitField,
-    IsSub,
+    IsAssignable,
     Iter,
-    Matches,
+    IsEquivalent,
     Member,
     NewProtocol,
     Slice,
@@ -106,7 +106,7 @@ For example, `select(User.name, Post.content)` will return a list of:
 # Type Helpers
 
 
-type ReplaceNever[T, D] = T if not IsSub[T, Never] else D
+type ReplaceNever[T, D] = T if not IsAssignable[T, Never] else D
 type GetInitFieldItem[T: InitField, K, Default] = ReplaceNever[
     GetMemberType[GetArg[T, InitField, Literal[0]], K], Default
 ]
@@ -165,7 +165,7 @@ type ColumnInitIsNullable[Init] = GetInitFieldItem[
 type ColumnInitIsAutoincrement[Init] = GetInitFieldItem[
     Init, Literal["autoincrement"], Literal[False]
 ]
-type ColumnInitHasDefault[Init] = not IsSub[
+type ColumnInitHasDefault[Init] = not IsAssignable[
     GetInitFieldItem[Init, Literal["default"], Never], Never
 ]
 
@@ -173,8 +173,10 @@ type ReadValueNeverNull[M] = (
     not Bool[ColumnInitIsNullable[GetInit[M]]]
     or Bool[ColumnInitIsAutoincrement[GetInit[M]]]
     or (
-        IsSub[FieldPyType[GetType[M]], list]
-        and IsSub[GetArg[FieldPyType[GetType[M]], list, Literal[0]], Table]
+        IsAssignable[FieldPyType[GetType[M]], list]
+        and IsAssignable[
+            GetArg[FieldPyType[GetType[M]], list, Literal[0]], Table
+        ]
     )
 )
 
@@ -219,18 +221,24 @@ type EntryFieldMembers[T: Table, FieldNames: tuple[Literal[str], ...]] = tuple[
     *[
         m
         for m in Iter[Attrs[T]]
-        if any(IsSub[GetName[m], f] for f in Iter[FieldNames])
+        if any(IsAssignable[GetName[m], f] for f in Iter[FieldNames])
     ]
 ]
 
-type EntryIsTable[E: QueryEntry, T: Table] = Matches[EntryTable[E], T]
+type EntryIsTable[E: QueryEntry, T: Table] = IsEquivalent[EntryTable[E], T]
 type EntriesHasTable[Es: tuple[QueryEntry, ...], T: Table] = any(
     Bool[EntryIsTable[e, T]] for e in Iter[Es]
 )
 
 type MakeQueryEntryAllFields[T: Table] = QueryEntry[
     T,
-    tuple[*[GetName[m] for m in Iter[Attrs[T]] if IsSub[GetType[m], Field]],],
+    tuple[
+        *[
+            GetName[m]
+            for m in Iter[Attrs[T]]
+            if IsAssignable[GetType[m], Field]
+        ],
+    ],
 ]
 type MakeQueryEntryNamedFields[
     T: Table,
@@ -241,8 +249,10 @@ type MakeQueryEntryNamedFields[
         *[
             GetName[m]
             for m in Iter[Attrs[T]]
-            if IsSub[GetType[m], Field]
-            and any(IsSub[FieldName[GetType[m]], f] for f in Iter[FieldNames])
+            if IsAssignable[GetType[m], Field]
+            and any(
+                IsAssignable[FieldName[GetType[m]], f] for f in Iter[FieldNames]
+            )
         ],
     ],
 ]
@@ -278,11 +288,11 @@ type AddField[Entries, New: Field] = tuple[
 ]
 type AddEntries[Entries, News: tuple[Table | Field, ...]] = (
     Entries
-    if IsSub[Length[News], Literal[0]]
+    if IsAssignable[Length[News], Literal[0]]
     else AddEntries[
         (
             AddTable[Entries, GetArg[News, tuple, Literal[0]]]
-            if IsSub[GetArg[News, tuple, Literal[0]], Table]
+            if IsAssignable[GetArg[News, tuple, Literal[0]], Table]
             else AddField[Entries, GetArg[News, tuple, Literal[0]]]
         ),
         Slice[News, Literal[1], Literal[None]],
@@ -318,7 +328,7 @@ type QueryRow[Es: tuple[QueryEntry[Table, tuple[Member]], ...]] = (
         EntryTable[GetArg[Es, tuple, Literal[0]]],
         EntryFields[GetArg[Es, tuple, Literal[0]]],
     ]
-    if IsSub[Literal[1], Length[Es]]
+    if IsAssignable[Literal[1], Length[Es]]
     else NewProtocol[
         *[
             Member[
