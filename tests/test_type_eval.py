@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import collections
 import textwrap
 import unittest
@@ -398,9 +400,10 @@ def test_getmember_01():
     assert d == Never
 
 
-def test_getmember_02():
-    type OnlyIntToSet[T] = set[T] if IsAssignable[T, int] else T
+type OnlyIntToSet[T] = set[T] if IsAssignable[T, int] else T
 
+
+def test_getmember_02():
     class C:
         def f[T](self, x: T) -> OnlyIntToSet[T]: ...
 
@@ -423,8 +426,6 @@ def test_getmember_02():
 
 
 def test_getmember_03():
-    type OnlyIntToSet[T] = set[T] if IsAssignable[T, int] else T
-
     class C:
         def f[T](self, x: T) -> OnlyIntToSet[T]: ...
 
@@ -957,20 +958,24 @@ def test_eval_getarg_custom_06():
     assert eval_typing(GetArg[t, ATree, Literal[1]]) == Never
 
 
+# Doubly recursive generic types
+NA = TypeVar("NA")
+NB = TypeVar("NB")
+
+
+class ANode(Generic[NA, NB]):
+    val: NA | list[BNode[NA, NB]]
+
+
+class BNode(Generic[NA, NB]):
+    val: NB | list[ANode[NA, NB]]
+
+
+class ABTree(Generic[NA, NB]):
+    root: ANode[NA, NB] | BNode[NA, NB]
+
+
 def test_eval_getarg_custom_07():
-    # Doubly recursive generic types
-    A = TypeVar("A")
-    B = TypeVar("B")
-
-    class ANode(Generic[A, B]):
-        val: A | list[BNode[A, B]]
-
-    class BNode(Generic[A, B]):
-        val: B | list[ANode[A, B]]
-
-    class ABTree(Generic[A, B]):
-        root: ANode[A, B] | BNode[A, B]
-
     t = ABTree[int, str]
     assert eval_typing(GetArg[t, ABTree, Literal[0]]) is int
     assert eval_typing(GetArg[t, ABTree, Literal[1]]) is str
@@ -982,19 +987,22 @@ def test_eval_getarg_custom_07():
     assert eval_typing(GetArg[t, ABTree, Literal[2]]) == Never
 
 
+T = TypeVar("T")
+
+
+class Container(Generic[T]):
+    data: list[T]
+
+    def get[T](self, index: int, default: T) -> int | T: ...
+    def map[U](self, func: Callable[[int], U]) -> list[U]: ...
+    def convert[T](self, func: Callable[[int], T]) -> Container2[T]: ...
+
+
+class Container2[T]: ...
+
+
 def test_eval_getarg_custom_08():
     # Generic class with generic methods
-    T = TypeVar("T")
-
-    class Container(Generic[T]):
-        data: list[T]
-
-        def get[T](self, index: int, default: T) -> int | T: ...
-        def map[U](self, func: Callable[[int], U]) -> list[U]: ...
-        def convert[T](self, func: Callable[[int], T]) -> Container2[T]: ...
-
-    class Container2[T]: ...
-
     t = Container[int]
     assert eval_typing(GetArg[t, Container, Literal[0]]) is int
     assert eval_typing(GetArg[t, Container, Literal[-1]]) is int
