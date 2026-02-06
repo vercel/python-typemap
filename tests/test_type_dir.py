@@ -34,12 +34,12 @@ class AnotherBase[I]:
     iii: OrGotcha[StrForInt[I]]
 
 
-class Base[T]:
-    # This K is dodgy
-    K = TypeVar("K")
+# This K is dodgy
+K = TypeVar("K")
 
+
+class Base[T]:
     t: dict[str, StrForInt[T]]
-    kkk: K
 
     fin: typing.Final[int]
 
@@ -201,7 +201,6 @@ def test_type_dir_1a():
             last: int | typing.Literal[True]
             iii: str | int | typing.Literal['gotcha!']
             t: dict[str, str | int | typing.Literal['gotcha!']]
-            kkk: ~K
             fin: typing.Final[int]
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
@@ -234,7 +233,6 @@ def test_type_dir_2():
             last: int | typing.Literal[True] | None
             iii: str | int | typing.Literal['gotcha!'] | None
             t: dict[str, str | int | typing.Literal['gotcha!']] | None
-            kkk: ~K | None
             fin: typing.Final[int | None]
             x: tests.test_type_dir.Wrapper[int | None] | None
             ordinary: str | None
@@ -249,7 +247,6 @@ def test_type_dir_3():
             LAST: int | typing.Literal[True]
             III: str | int | typing.Literal['gotcha!']
             T: dict[str, str | int | typing.Literal['gotcha!']]
-            KKK: ~K
             FIN: typing.Final[int]
             X: tests.test_type_dir.Wrapper[int | None]
             ORDINARY: str
@@ -276,7 +273,6 @@ def test_type_dir_5():
             last: int
             iii: str | int
             t: dict[str, str | int | typing.Literal['gotcha!']]
-            kkk: ~K
             fin: typing.Final[int]
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
@@ -291,7 +287,6 @@ def test_type_dir_6():
             last: int
             iii: str | int
             t: dict[str, str | int | typing.Literal['gotcha!']]
-            kkk: ~K
             fin: typing.Final[int]
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
