@@ -1954,29 +1954,97 @@ def test_update_class_members_04():
 
 
 def test_update_class_inheritance_01():
-    # __init_subclass__ calls follow normal MRO
+    # current class init subclass is not applied
+    type AttrsAsSets[T] = UpdateClass[
+        *[Member[GetName[m], set[GetType[m]]] for m in Iter[Attrs[T]]]
+    ]
+
     class A:
         a: int
 
         def __init_subclass__[T](
-            cls: T,
-        ) -> UpdateClass[()]: ...
+            cls: type[T],
+        ) -> AttrsAsSets[T]:
+            super().__init_subclass__()
 
     class B(A):
         b: int
 
-    class C(B):
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> AttrsAsSets[T]:
+            super().__init_subclass__()
+
+    attrs = eval_typing(Attrs[B])
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a"], set[int], Never, Never, B],
+            Member[Literal["b"], set[int], Never, Never, B],
+        ]
+    )
+
+
+def test_update_class_inheritance_02():
+    # __init_subclass__ calls follow normal MRO
+    type AttrsAsSets[T] = UpdateClass[
+        *[Member[GetName[m], set[GetType[m]]] for m in Iter[Attrs[T]]]
+    ]
+    type AttrsAsList[T] = UpdateClass[
+        *[Member[GetName[m], list[GetType[m]]] for m in Iter[Attrs[T]]]
+    ]
+    type AttrsAsTuple[T] = UpdateClass[
+        *[Member[GetName[m], tuple[GetType[m]]] for m in Iter[Attrs[T]]]
+    ]
+
+    class A:
+        a: int
+
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> AttrsAsSets[T]:
+            super().__init_subclass__()
+
+    class B(A):
+        b: int
+
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> AttrsAsList[T]:
+            super().__init_subclass__()
+
+    class C:
         c: int
 
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> AttrsAsTuple[T]:
+            super().__init_subclass__()
 
-def test_update_class_is_sub_01():
+    class D(B, C):
+        d: int
+
+    attrs = eval_typing(Attrs[D])
+    # MRO = D, B, A, C, object
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["c"], tuple[set[list[int]]], Never, Never, D],
+            Member[Literal["a"], tuple[set[list[int]]], Never, Never, D],
+            Member[Literal["b"], tuple[set[list[int]]], Never, Never, D],
+            Member[Literal["d"], tuple[set[list[int]]], Never, Never, D],
+        ]
+    )
+
+
+def test_update_class_is_assignable_01():
     # Subclass retains information about bases
 
     class A:
         a: int
 
         def __init_subclass__[T](
-            cls: T,
+            cls: type[T],
         ) -> UpdateClass[()]:
             super().__init_subclass__()
 
@@ -1998,7 +2066,7 @@ def test_update_class_getarg_01():
         a: X1
 
         def __init_subclass__[T](
-            cls: T,
+            cls: type[T],
         ) -> UpdateClass[()]:
             super().__init_subclass__()
 
