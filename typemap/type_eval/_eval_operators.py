@@ -12,6 +12,7 @@ from typing_extensions import _AnnotatedAlias as typing_AnnotatedAlias
 from typemap import type_eval
 from typemap.type_eval import _apply_generic, _typing_inspect
 from typemap.type_eval._eval_typing import (
+    _child_context,
     _eval_types,
     _get_class_type_hint_namespaces,
 )
@@ -185,25 +186,44 @@ def _get_update_class_members(
             )
         )
         and (ret_annotation := init_subclass_annos.get("return"))
-        and _typing_inspect.is_generic_alias(ret_annotation)
-        and typing.get_origin(ret_annotation) is UpdateClass
     ):
         # Substitute the cls type var with the current class
         # This may not happen if cls is not generic!
         if (
-            cls_anno := next(
-                (v for k, v in init_subclass_annos.items() if k != "return"),
-                None,
+            (
+                cls_anno := next(
+                    (
+                        v
+                        for k, v in init_subclass_annos.items()
+                        if k != "return"
+                    ),
+                    None,
+                )
             )
-        ) and isinstance(cls_anno, typing.TypeVar):
-            substitution = {cls_anno: cls}
+            and typing.get_origin(cls_anno) is type
+            and (cls_type_args := typing.get_args(cls_anno))
+            and (cls_type := cls_type_args[0])
+            and isinstance(cls_type, typing.TypeVar)
+        ):
+            substitution = {cls_type: cls}
             ret_annotation = _apply_generic.substitute(
                 ret_annotation, substitution
             )
 
-        evaled_ret = _eval_types(ret_annotation, ctx=ctx)
+        # Evaluate the return annotation
+        # Do it in a child context, so the evaluations are isolated. For
+        # example, if the return annotation uses Attrs[MyClass], we want
+        # Attrs[MyClass] to be evaluated with the updated class, not the
+        # original.
+        with _child_context() as ctx:
+            evaled_ret = _eval_types(ret_annotation, ctx=ctx)
 
-        return [m for m in typing.get_args(evaled_ret)]
+        # If the result is an UpdateClass, return the members
+        if (
+            _typing_inspect.is_generic_alias(evaled_ret)
+            and typing.get_origin(evaled_ret) is UpdateClass
+        ):
+            return [m for m in typing.get_args(evaled_ret)]
 
     return None
 
