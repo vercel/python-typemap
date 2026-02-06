@@ -226,6 +226,23 @@ def test_type_getattr_union_5():
     assert d == int | list[float] | TB
 
 
+def test_getmembertype_classmethod_01():
+    class C:
+        @classmethod
+        def f(cls, x: int) -> int: ...
+        @classmethod
+        def g(cls: type[C], x: int) -> int: ...
+        @classmethod
+        def h(cls: type[Self], x: int) -> int: ...
+
+    d = eval_typing(GetMemberType[C, Literal["f"]])
+    assert d == classmethod[C, tuple[Param[Literal["x"], int]], int]
+    d = eval_typing(GetMemberType[C, Literal["g"]])
+    assert d == classmethod[C, tuple[Param[Literal["x"], int]], int]
+    d = eval_typing(GetMemberType[C, Literal["h"]])
+    assert d == classmethod[Self, tuple[Param[Literal["x"], int]], int]
+
+
 def test_type_strings_1():
     d = eval_typing(Uppercase[Literal["foo"]])
     assert d == Literal["FOO"]
