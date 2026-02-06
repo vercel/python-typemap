@@ -196,10 +196,12 @@ def get_annotations(
     obj: object,
     args: dict[str, object],
     key: str = '__annotate__',
+    annos_ok: bool = True,
 ) -> Any | None:
     """Get the annotations on an object, substituting in type vars."""
 
     rr = None
+    globs = None
     if af := typing.cast(types.FunctionType, getattr(obj, key, None)):
         # Substitute in names that are provided but keep the existing
         # values for everything else.
@@ -210,10 +212,13 @@ def get_annotations(
             )
         )
 
-        ff = types.FunctionType(
-            af.__code__, af.__globals__, af.__name__, None, closure
-        )
+        globs = af.__globals__
+        ff = types.FunctionType(af.__code__, globs, af.__name__, None, closure)
         rr = ff(annotationlib.Format.VALUE)
+    elif annos_ok and (rr := getattr(obj, "__annotations__", None)):
+        globs = {}
+        if mod := sys.modules.get(obj.__module__):
+            globs.update(vars(mod))
 
     if isinstance(rr, dict) and any(isinstance(v, str) for v in rr.values()):
         # Copy in any __type_params__ that aren't provided for, so that if
@@ -225,14 +230,16 @@ def get_annotations(
                     args[str(param)] = param
 
         for k, v in rr.items():
+            # Eval strings
             if isinstance(v, str):
+                v = eval(v, globs, args)
                 # Handle cases where annotation is explicitly a string,
                 # e.g.:
-                #
                 #   class Foo[X]:
                 #       x: "Foo[X | None]"
-
-                rr[k] = eval(v, af.__globals__, args)
+                if isinstance(v, str):
+                    v = eval(v, globs, args)
+            rr[k] = v
 
     return rr
 
@@ -243,29 +250,6 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
 
     if (rr := get_annotations(boxed.cls, boxed.str_args)) is not None:
         annos.update(rr)
-    elif anns := getattr(boxed.cls, "__annotations__", None):
-        # TODO: substitute vars in this case
-        _globals = {}
-        if mod := sys.modules.get(boxed.cls.__module__):
-            _globals.update(vars(mod))
-        _globals.update(boxed.str_args)
-
-        _locals = dict(boxed.cls.__dict__)
-        _locals.update(boxed.str_args)
-
-        for k, v in anns.items():
-            if isinstance(v, str):
-                result = eval(v, _globals, _locals)
-                # Handle cases where annotation is explicitly a string
-                # e.g.
-                #   class Foo[T]:
-                #       x: "Bar[T]"
-                if isinstance(result, str):
-                    result = eval(result, _globals, _locals)
-                annos[k] = result
-
-            else:
-                annos[k] = v
 
     for name, orig in boxed.cls.__dict__.items():
         if name in EXCLUDED_ATTRIBUTES:
@@ -276,9 +260,14 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
         if isinstance(stuff, types.FunctionType):
             local_fn: Any = None
 
-            if (rr := get_annotations(stuff, boxed.str_args)) is not None:
+            # TODO: This annos_ok thing is a hack because processing
+            # __annotations__ on methods broke stuff and I didn't want
+            # to chase it down yet.
+            if (
+                rr := get_annotations(stuff, boxed.str_args, annos_ok=False)
+            ) is not None:
                 local_fn = make_func(orig, rr)
-            elif anns := getattr(stuff, "__annotations__", None):
+            elif getattr(stuff, "__annotations__", None):
                 # XXX: This is totally wrong; we still need to do
                 # substitute in class vars
                 local_fn = stuff
