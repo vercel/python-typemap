@@ -398,7 +398,7 @@ def test_getmember_01():
 
 
 def test_getmember_02():
-    type OnlyIntToSet[T] = set[T] if IsSub[T, int] else T
+    type OnlyIntToSet[T] = set[T] if IsAssignable[T, int] else T
 
     class C:
         def f[T](self, x: T) -> OnlyIntToSet[T]: ...
@@ -422,7 +422,7 @@ def test_getmember_02():
 
 
 def test_getmember_03():
-    type OnlyIntToSet[T] = set[T] if IsSub[T, int] else T
+    type OnlyIntToSet[T] = set[T] if IsAssignable[T, int] else T
 
     class C:
         def f[T](self, x: T) -> OnlyIntToSet[T]: ...
