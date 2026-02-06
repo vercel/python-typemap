@@ -7,6 +7,8 @@ import itertools
 import re
 import types
 import typing
+import sys
+
 from typing_extensions import _AnnotatedAlias as typing_AnnotatedAlias
 
 from typemap import type_eval
@@ -14,7 +16,6 @@ from typemap.type_eval import _apply_generic, _typing_inspect
 from typemap.type_eval._eval_typing import (
     _child_context,
     _eval_types,
-    _get_class_type_hint_namespaces,
 )
 from typemap.typing import (
     Attrs,
@@ -180,11 +181,10 @@ def _get_update_class_members(
 ) -> list[Member] | None:
     if (
         (init_subclass := base.__dict__.get("__init_subclass__"))
-        and (
-            init_subclass_annos := getattr(
-                init_subclass, "__annotations__", None
-            )
-        )
+        # XXX: We're using get_type_hints now to evaluate hints but
+        # we should have our own generic infrastructure instead.
+        # (I'm working on it -sully)
+        and (init_subclass_annos := typing.get_type_hints(init_subclass))
         and (ret_annotation := init_subclass_annos.get("return"))
     ):
         # Substitute the cls type var with the current class
@@ -749,6 +749,38 @@ def _resolved_function_signature(func, receiver_type=None):
         )
 
     return sig
+
+
+def _get_class_type_hint_namespaces(
+    obj: type,
+) -> tuple[dict[str, typing.Any], dict[str, typing.Any]]:
+    globalns: dict[str, typing.Any] = {}
+    localns: dict[str, typing.Any] = {}
+
+    # Get module globals
+    if obj.__module__ and (module := sys.modules.get(obj.__module__)):
+        globalns.update(module.__dict__)
+
+    # Annotations may use typevars defined in the class
+    localns.update(obj.__dict__)
+
+    if _typing_inspect.is_generic_alias(obj):
+        # We need the origin's type vars
+        localns.update(obj.__origin__.__dict__)
+
+        # Extract type parameters from the class
+        args = typing.get_args(obj)
+        origin = typing.get_origin(obj)
+        tps = getattr(obj, '__type_params__', ()) or getattr(
+            origin, '__parameters__', ()
+        )
+        for tp, arg in zip(tps, args, strict=False):
+            localns[tp.__name__] = arg
+
+    # Add the class itself for self-references
+    localns[obj.__name__] = obj
+
+    return globalns, localns
 
 
 def _get_function_hint_namespaces(func, receiver_type=None):

@@ -1,3 +1,6 @@
+# We should have at least *one* test with this...
+from __future__ import annotations
+
 import dataclasses
 import enum
 import textwrap
@@ -164,7 +167,7 @@ class Hero:
         HasDefault[int | None, None]
     ]  # = Field(default=None, primary_key=True)
 
-    name: str
+    name: "str"
     age: HasDefault[int | None, None]  # = Field(default=None, index=True)
 
     secret_name: Hidden[str]

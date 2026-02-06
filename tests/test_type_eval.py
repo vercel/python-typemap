@@ -1827,12 +1827,13 @@ def test_update_class_members_02():
     assert m == Never
 
 
+type AttrsAsSets[T] = UpdateClass[
+    *[Member[GetName[m], set[GetType[m]]] for m in Iter[Attrs[T]]]
+]
+
+
 def test_update_class_members_03():
     # Generic UpdateClass, uses T
-    type AttrsAsSets[T] = UpdateClass[
-        *[Member[GetName[m], set[GetType[m]]] for m in Iter[Attrs[T]]]
-    ]
-
     class A:
         a: int
 
@@ -1906,9 +1907,8 @@ def test_update_class_members_04():
 
     # Attrs
     attrs = eval_typing(Attrs[B])
-    assert (
-        attrs
-        == tuple[
+    assert str(attrs) == str(
+        tuple[
             Member[Literal["a"], int, Never, Never, A],
             Member[Literal["b"], int, Never, Never, B],
         ]
@@ -1963,10 +1963,6 @@ def test_update_class_members_04():
 
 def test_update_class_inheritance_01():
     # current class init subclass is not applied
-    type AttrsAsSets[T] = UpdateClass[
-        *[Member[GetName[m], set[GetType[m]]] for m in Iter[Attrs[T]]]
-    ]
-
     class A:
         a: int
 
@@ -1993,18 +1989,16 @@ def test_update_class_inheritance_01():
     )
 
 
+type AttrsAsList[T] = UpdateClass[
+    *[Member[GetName[m], list[GetType[m]]] for m in Iter[Attrs[T]]]
+]
+type AttrsAsTuple[T] = UpdateClass[
+    *[Member[GetName[m], tuple[GetType[m]]] for m in Iter[Attrs[T]]]
+]
+
+
 def test_update_class_inheritance_02():
     # __init_subclass__ calls follow normal MRO
-    type AttrsAsSets[T] = UpdateClass[
-        *[Member[GetName[m], set[GetType[m]]] for m in Iter[Attrs[T]]]
-    ]
-    type AttrsAsList[T] = UpdateClass[
-        *[Member[GetName[m], list[GetType[m]]] for m in Iter[Attrs[T]]]
-    ]
-    type AttrsAsTuple[T] = UpdateClass[
-        *[Member[GetName[m], tuple[GetType[m]]] for m in Iter[Attrs[T]]]
-    ]
-
     class A:
         a: int
 

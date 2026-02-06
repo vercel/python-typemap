@@ -22,7 +22,7 @@ from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
 if typing.TYPE_CHECKING:
     from typing import Any, Sequence
 
-from . import _apply_generic, _typing_inspect
+from . import _apply_generic
 
 
 __all__ = ("eval_typing",)
@@ -282,59 +282,8 @@ def _eval_func(
     return _apply_generic.make_func(func, annos)
 
 
-def _get_class_type_hint_namespaces(
-    obj: type,
-) -> tuple[dict[str, typing.Any], dict[str, typing.Any]]:
-    globalns: dict[str, typing.Any] = {}
-    localns: dict[str, typing.Any] = {}
-
-    # Get module globals
-    if obj.__module__ and (module := sys.modules.get(obj.__module__)):
-        globalns.update(module.__dict__)
-
-    # Annotations may use typevars defined in the class
-    localns.update(obj.__dict__)
-
-    if _typing_inspect.is_generic_alias(obj):
-        # We need the origin's type vars
-        localns.update(obj.__origin__.__dict__)
-
-        # Extract type parameters from the class
-        args = typing.get_args(obj)
-        origin = typing.get_origin(obj)
-        tps = getattr(obj, '__type_params__', ()) or getattr(
-            origin, '__parameters__', ()
-        )
-        for tp, arg in zip(tps, args, strict=False):
-            localns[tp.__name__] = arg
-
-    # Add the class itself for self-references
-    localns[obj.__name__] = obj
-
-    return globalns, localns
-
-
 @_eval_types_impl.register
 def _eval_type_type(obj: type, ctx: EvalContext):
-    # Ensure that any string annotations are resolved
-    if (
-        hasattr(obj, '__annotations__')
-        and obj.__annotations__
-        and any(isinstance(v, str) for v in obj.__annotations__.values())
-    ):
-        # Ensure we don't recurse infinitely
-        ctx.seen[obj] = obj
-
-        # Replace string annotations with resolved types
-        globalns, localns = _get_class_type_hint_namespaces(obj)
-        hints = {
-            k: _eval_types(v, ctx)
-            for k, v in typing.get_type_hints(
-                obj, globalns=globalns, localns=localns, include_extras=True
-            ).items()
-        }
-        obj.__annotations__.update(hints)
-
     return obj
 
 
