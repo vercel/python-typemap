@@ -599,9 +599,6 @@ def _callable_type_to_method(name, typ, ctx):
             # For __init_subclass__ generic on cls: T, keep type[T]
             cls_typ = type[cls]  # type: ignore[name-defined]
         else:
-            # An annoying thing to know is that for a member classmethod of C,
-            # cls *should* be type[C], but if it was not explicitly annotated,
-            # it will be C.
             cls_typ = type[typing.Self]  # type: ignore[name-defined]
         cls_param = Param[typing.Literal["cls"], cls_typ, quals]
         typ = typing.Callable[[cls_param] + list(typing.get_args(params)), ret]
@@ -658,7 +655,15 @@ def _function_type(func, *, receiver_type):
             if ann is empty:
                 ann = receiver_type
             else:
-                specified_receiver = ann
+                if (
+                    isinstance(func, classmethod)
+                    and typing.get_origin(ann) is type
+                    and (receiver_args := typing.get_args(ann))
+                ):
+                    # The annotation for cls in a classmethod should be type[C]
+                    specified_receiver = receiver_args[0]
+                else:
+                    specified_receiver = ann
 
         quals = []
         if p.kind == inspect.Parameter.VAR_POSITIONAL:

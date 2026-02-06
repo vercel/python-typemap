@@ -1651,7 +1651,7 @@ def test_new_protocol_with_methods_02():
         ],
         Member[
             Literal["class_method"],
-            classmethod[type[Self], tuple[Param[Literal["x"], int]], int],
+            classmethod[Self, tuple[Param[Literal["x"], int]], int],
             Literal["ClassVar"],
         ],
         Member[
