@@ -1,4 +1,3 @@
-import annotationlib
 import enum
 import inspect
 import types
@@ -12,7 +11,7 @@ from . import _eval_operators
 from . import _eval_typing
 from . import _typing_inspect
 from ._eval_operators import _callable_type_to_signature
-from ._apply_generic import substitute, _get_closure_types
+from ._apply_generic import substitute, get_annotations
 
 RtType = Any
 
@@ -188,30 +187,12 @@ def _eval_call_with_type_vars(
     vars: dict[str, RtType],
     ctx: _eval_typing.EvalContext,
 ) -> RtType:
-    try:
-        af = typing.cast(types.FunctionType, func.__annotate__)
-    except AttributeError:
-        raise ValueError("func has no __annotate__ attribute")
-    if not af:
-        raise ValueError("func has no __annotate__ attribute")
-
-    closure_types = _get_closure_types(af)
-    for name, value in closure_types.items():
-        if name not in vars:
-            vars[name] = value
-
-    af_args = tuple(
-        types.CellType(vars[name]) for name in af.__code__.co_freevars
-    )
-
-    ff = types.FunctionType(
-        af.__code__, af.__globals__, af.__name__, None, af_args
-    )
-
     old_obj = ctx.current_generic_alias
     ctx.current_generic_alias = func
     try:
-        rr = ff(annotationlib.Format.VALUE)
+        rr = get_annotations(func, vars)
+        if rr is None:
+            return Any
         return _eval_typing.eval_typing(rr["return"])
     finally:
         ctx.current_generic_alias = old_obj

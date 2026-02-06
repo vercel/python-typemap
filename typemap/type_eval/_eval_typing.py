@@ -1,12 +1,9 @@
-import annotationlib
-
 import collections.abc
 import contextlib
 import contextvars
 import dataclasses
 import functools
 import inspect
-import sys
 import types
 import typing
 
@@ -317,13 +314,9 @@ def _eval_annotated(obj: typing_AnnotatedAlias, ctx: EvalContext):
 
 @_eval_types_impl.register
 def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
-    assert obj.__module__  # FIXME: or can this really happen?
-    func = obj.evaluate_value
-    mod = sys.modules[obj.__module__]
-    ff = types.FunctionType(
-        func.__code__, mod.__dict__, None, None, func.__closure__
+    unpacked = _apply_generic.get_annotations(
+        obj, args={}, key='evaluate_value'
     )
-    unpacked = ff(annotationlib.Format.VALUE)
     return _eval_types(unpacked, ctx)
 
 
@@ -366,11 +359,7 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
         # Let's reconstruct it by evaluating all arguments
         return new_obj
 
-    func = obj.evaluate_value
-
-    # obj.__args__ matches the declared parameter order, but args are expected
-    # to be in the same order as func.__code__.co_freevars.
-    args_by_name = dict(
+    named_args = dict(
         zip(
             (p.__name__ for p in obj.__origin__.__type_params__),
             obj.__args__,
@@ -378,20 +367,15 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
         )
     )
 
-    args = tuple(
-        types.CellType(_eval_types(args_by_name[name], ctx))
-        for name in func.__code__.co_freevars
-    )
-    mod = sys.modules[obj.__module__]
-
     with _child_context() as child_ctx:
         child_ctx.current_generic_alias = new_obj
         if not _is_type_alias_type(new_obj):
             # Type alias types are already added in _eval_types
             child_ctx.alias_stack.add(new_obj)
 
-        ff = types.FunctionType(func.__code__, mod.__dict__, None, None, args)
-        unpacked = ff(annotationlib.Format.VALUE)
+        unpacked = _apply_generic.get_annotations(
+            obj, named_args, key='evaluate_value'
+        )
 
         child_ctx.seen[obj] = unpacked
         evaled = _eval_types(unpacked, child_ctx)

@@ -405,7 +405,7 @@ type OnlyIntToSet[T] = set[T] if IsAssignable[T, int] else T
 
 def test_getmember_02():
     class C:
-        def f[T](self, x: T) -> OnlyIntToSet[T]: ...
+        def f[TX](self, x: TX) -> OnlyIntToSet[TX]: ...
 
     m = eval_typing(GetMember[C, Literal["f"]])
     assert eval_typing(GetName[m]) == Literal["f"]
