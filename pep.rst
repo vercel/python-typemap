@@ -1396,9 +1396,10 @@ introducing another kind of weird type form.
 Destructuring?
 ''''''''''''''
 
-The other potential downside is that it suggests that we might want to
-be able to iterate over ``Attrs`` and ``Members`` with an ``items()``
-style iterator, and that raises more complicated questions.
+The other potential "downside" (which might really be an upside!) is
+that it suggests that we might want to be able to iterate over
+``Attrs`` and ``Members`` with an ``items()`` style iterator, and that
+raises more complicated questions.
 
 First, the syntax would be something like::
 
