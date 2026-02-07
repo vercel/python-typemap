@@ -38,7 +38,7 @@ def _get_bound_type_args(
     arg_types: tuple[RtType, ...],
     kwarg_types: dict[str, RtType],
 ) -> dict[str, RtType]:
-    sig = _eval_operators._resolved_function_signature(func)
+    sig = inspect.signature(func)
 
     bound = sig.bind(*arg_types, **kwarg_types)
 

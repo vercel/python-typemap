@@ -7,7 +7,6 @@ import itertools
 import re
 import types
 import typing
-import sys
 
 from typing_extensions import _AnnotatedAlias as typing_AnnotatedAlias
 
@@ -640,7 +639,7 @@ def _callable_type_to_method(name, typ, ctx):
 
 def _function_type(func, *, receiver_type):
     root = inspect.unwrap(func)
-    sig = _resolved_function_signature(root, receiver_type)
+    sig = inspect.signature(root)
     # XXX: __type_params__!!!
 
     empty = inspect.Parameter.empty
@@ -723,94 +722,6 @@ def _create_generic_callable_lambda(
                 ret, dict(zip(type_params, vs, strict=True))
             ),
         ]
-
-
-def _resolved_function_signature(func, receiver_type=None):
-    """Get the signature of a function with type hints resolved.
-
-    This is used to deal with string annotations in the signature which are
-    generated when using __future__ import annotations.
-    """
-
-    sig = inspect.signature(func)
-
-    _globals, _locals = _get_function_hint_namespaces(func, receiver_type)
-    if hints := typing.get_type_hints(
-        func, globalns=_globals, localns=_locals, include_extras=True
-    ):
-        params = []
-        for name, param in sig.parameters.items():
-            annotation = hints.get(name, param.annotation)
-            params.append(param.replace(annotation=annotation))
-
-        return_annotation = hints.get("return", sig.return_annotation)
-        sig = sig.replace(
-            parameters=params, return_annotation=return_annotation
-        )
-
-    return sig
-
-
-def _get_class_type_hint_namespaces(
-    obj: type,
-) -> tuple[dict[str, typing.Any], dict[str, typing.Any]]:
-    globalns: dict[str, typing.Any] = {}
-    localns: dict[str, typing.Any] = {}
-
-    # Get module globals
-    if obj.__module__ and (module := sys.modules.get(obj.__module__)):
-        globalns.update(module.__dict__)
-
-    # Annotations may use typevars defined in the class
-    localns.update(obj.__dict__)
-
-    if _typing_inspect.is_generic_alias(obj):
-        # We need the origin's type vars
-        localns.update(obj.__origin__.__dict__)
-
-        # Extract type parameters from the class
-        args = typing.get_args(obj)
-        origin = typing.get_origin(obj)
-        tps = getattr(obj, '__type_params__', ()) or getattr(
-            origin, '__parameters__', ()
-        )
-        for tp, arg in zip(tps, args, strict=False):
-            localns[tp.__name__] = arg
-
-    # Add the class itself for self-references
-    localns[obj.__name__] = obj
-
-    return globalns, localns
-
-
-def _get_function_hint_namespaces(func, receiver_type=None):
-    globalns = {}
-    localns = {}
-
-    # module globals
-    module = inspect.getmodule(func)
-    if module:
-        globalns |= module.__dict__
-
-    # If no receiver was specified, this might still be a method, try to get
-    # the class from the qualname.
-    if (
-        not receiver_type
-        and (qn := getattr(func, '__qualname__', None))
-        and '.' in qn
-    ):
-        class_name = qn.rsplit('.', 1)[0]
-        receiver_type = getattr(module, class_name, None)
-
-    # Get the class's type hint namespaces
-    if receiver_type:
-        cls_globalns, cls_localns = _get_class_type_hint_namespaces(
-            receiver_type
-        )
-        globalns.update(cls_globalns)
-        localns.update(cls_localns)
-
-    return globalns, localns
 
 
 def _hint_to_member(n, t, qs, init, d, *, ctx):
