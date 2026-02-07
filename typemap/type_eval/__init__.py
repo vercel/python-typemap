@@ -1,6 +1,7 @@
 from ._eval_typing import (
     eval_typing,
     _get_current_context,
+    _ensure_context,
     register_evaluator,
     StuckException,
     _EvalProxy,
@@ -28,4 +29,5 @@ __all__ = (
     "StuckException",
     "_EvalProxy",
     "_get_current_context",
+    "_ensure_context",
 )

@@ -2,7 +2,7 @@ import textwrap
 import typing
 from typing import Literal, Never, TypeVar, TypedDict, Union, ReadOnly
 
-from typemap.type_eval import eval_typing
+from typemap.type_eval import eval_typing, _ensure_context
 from typemap_extensions import (
     Attrs,
     FromUnion,
@@ -323,6 +323,25 @@ def test_type_dir_9():
     """)
 
 
+def test_type_dir_10():
+    class Lurr:
+        def foo[T](x: T) -> int if IsAssignable[T, str] else list[int]: ...
+
+    d = eval_typing(Lurr)
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+        class Lurr:
+            foo: typing.ClassVar[typemap.typing.GenericCallable[tuple[T], <...>]]
+    """)
+
+    member = _get_member(eval_typing(Members[Lurr]), "foo")
+
+    fn = member.__args__[1].__args__[1]
+    with _ensure_context():
+        assert fn(str).__args__[1] is int
+        assert fn(bool).__args__[1] == list[int]
+
+
 def test_type_dir_get_arg_1():
     d = eval_typing(BaseArg[Final])
     assert d is int
@@ -405,10 +424,7 @@ def test_type_members_func_3():
     assert name == typing.Literal["sbase"]
     assert quals == typing.Literal["ClassVar"]
 
-    assert (
-        str(typ)
-        == "typemap.typing.GenericCallable[tuple[Z], typemap.type_eval._eval_operators._create_generic_callable_lambda.<locals>.<lambda>]"
-    )
+    assert str(typ) == "typemap.typing.GenericCallable[tuple[Z], <...>]"
 
     evaled = eval_typing(
         typing.get_args(typ)[1](*typing.get_args(typing.get_args(typ)[0]))

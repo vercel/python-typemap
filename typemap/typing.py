@@ -72,7 +72,17 @@ class SpecialFormEllipsis:
 
 
 class _GenericCallableGenericAlias(_GenericAlias, _root=True):
-    pass
+    def __repr__(self):
+        from typing import _type_repr
+
+        name = _type_repr(self.__origin__)
+        if self.__args__:
+            rargs = [_type_repr(self.__args__[0]), "<...>"]
+            args = ", ".join(rargs)
+        else:
+            # To ensure the repr is eval-able.
+            args = "()"
+        return f'{name}[{args}]'
 
 
 class GenericCallable:

@@ -97,7 +97,7 @@ def cached_box(cls, *, ctx):
     return box
 
 
-def get_annotated_type_hints(cls, *, ctx, **kwargs):
+def get_annotated_type_hints(cls, *, ctx, attrs_only=False, **kwargs):
     """Get the type hints/quals for a cls annotated with definition site.
 
     This traverses the mro and finds the definition site for each annotation.
@@ -126,6 +126,10 @@ def get_annotated_type_hints(cls, *, ctx, **kwargs):
                         break
                 else:
                     break
+
+            # Skip method-like ClassVars when only attributes are wanted
+            if attrs_only and "ClassVar" in quals and _is_method_like(ty):
+                continue
 
             if k in abox.cls.__dict__:
                 # Wrap in tuple when creating Literal in case it *is* a tuple
@@ -647,11 +651,7 @@ def _callable_type_to_method(name, typ, ctx):
     return head(func)
 
 
-def _function_type(func, *, receiver_type):
-    root = inspect.unwrap(func)
-    sig = inspect.signature(root)
-    # XXX: __type_params__!!!
-
+def _function_type_from_sig(sig, func, *, receiver_type):
     empty = inspect.Parameter.empty
 
     def _ann(x):
@@ -707,6 +707,15 @@ def _function_type(func, *, receiver_type):
         f = classmethod[specified_receiver, tuple[*params[1:]], ret]
     else:
         f = typing.Callable[params, ret]
+
+    return f
+
+
+def _function_type(func, *, receiver_type):
+    root = inspect.unwrap(func)
+    sig = inspect.signature(root)
+    f = _function_type_from_sig(sig, func, receiver_type=receiver_type)
+
     if root.__type_params__:
         # Must store a lambda that performs type variable substitution
         type_params = root.__type_params__
@@ -762,7 +771,9 @@ def _hints_to_members(hints, ctx):
 @type_eval.register_evaluator(Attrs)
 @_lift_over_unions
 def _eval_Attrs(tp, *, ctx):
-    hints = get_annotated_type_hints(tp, include_extras=True, ctx=ctx)
+    hints = get_annotated_type_hints(
+        tp, include_extras=True, attrs_only=True, ctx=ctx
+    )
     return _hints_to_members(hints, ctx)
 
 
@@ -1190,7 +1201,10 @@ def _eval_NewProtocol(*etyps: Member, ctx):
         if type_eval.issubtype(
             typing.Literal["ClassVar"], tquals
         ) and _is_method_like(typ):
-            dct[name] = _callable_type_to_method(name, typ, ctx)
+            try:
+                dct[name] = _callable_type_to_method(name, typ, ctx)
+            except type_eval.StuckException:
+                annos[name] = _add_quals(typ, tquals)
         else:
             annos[name] = _add_quals(typ, tquals)
             _unpack_init(dct, name, init)
