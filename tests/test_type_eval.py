@@ -1707,14 +1707,11 @@ def test_update_class_members_01():
 
     # Attrs
     attrs = eval_typing(Attrs[B])
-    assert (
-        attrs
-        == tuple[
-            Member[Literal["a1"], int, Never, Never, A],
-            Member[Literal["a2"], str, Never, Never, B],
-            Member[Literal["b1"], str, Never, Never, B],
-            Member[Literal["b2"], str, Never, Never, B],
-        ]
+    assert attrs.__args__ == (
+        Member[Literal["a1"], int, Never, Never, A],
+        Member[Literal["a2"], str, Never, Never, B],
+        Member[Literal["b1"], str, Never, Never, B],
+        Member[Literal["b2"], str, Never, Never, B],
     )
 
     # Members
@@ -2006,14 +2003,6 @@ def test_update_class_inheritance_01():
     )
 
 
-type AttrsAsList[T] = UpdateClass[
-    *[Member[GetName[m], list[GetType[m]]] for m in Iter[Attrs[T]]]
-]
-type AttrsAsTuple[T] = UpdateClass[
-    *[Member[GetName[m], tuple[GetType[m]]] for m in Iter[Attrs[T]]]
-]
-
-
 def test_update_class_inheritance_02():
     # __init_subclass__ calls follow normal MRO
     class A:
@@ -2025,34 +2014,35 @@ def test_update_class_inheritance_02():
             super().__init_subclass__()
 
     class B(A):
-        b: int
+        b: bytes
 
         def __init_subclass__[T](
             cls: type[T],
-        ) -> AttrsAsList[T]:
+        ) -> UpdateClass[
+            *[Member[GetName[m], list[GetType[m]]] for m in Iter[Attrs[T]]]
+        ]:
             super().__init_subclass__()
 
     class C:
-        c: int
+        c: float
 
         def __init_subclass__[T](
             cls: type[T],
-        ) -> AttrsAsTuple[T]:
+        ) -> UpdateClass[
+            *[Member[GetName[m], tuple[GetType[m]]] for m in Iter[Attrs[T]]]
+        ]:
             super().__init_subclass__()
 
     class D(B, C):
-        d: int
+        d: bool
 
     attrs = eval_typing(Attrs[D])
     # MRO = D, B, A, C, object
-    assert (
-        attrs
-        == tuple[
-            Member[Literal["c"], tuple[set[list[int]]], Never, Never, D],
-            Member[Literal["a"], tuple[set[list[int]]], Never, Never, D],
-            Member[Literal["b"], tuple[set[list[int]]], Never, Never, D],
-            Member[Literal["d"], tuple[set[list[int]]], Never, Never, D],
-        ]
+    assert attrs.__args__ == (
+        Member[Literal["c"], tuple[set[list[float]]], Never, Never, D],
+        Member[Literal["a"], tuple[set[list[int]]], Never, Never, D],
+        Member[Literal["b"], tuple[set[list[bytes]]], Never, Never, D],
+        Member[Literal["d"], tuple[set[list[bool]]], Never, Never, D],
     )
 
 
