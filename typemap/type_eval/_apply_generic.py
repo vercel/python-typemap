@@ -13,7 +13,7 @@ from . import _typing_inspect
 
 
 if typing.TYPE_CHECKING:
-    from typing import Any, Mapping
+    from typing import Any, Mapping, MutableMapping
 
 
 @dataclasses.dataclass(frozen=True)
@@ -206,13 +206,25 @@ EXCLUDED_ATTRIBUTES = typing.EXCLUDED_ATTRIBUTES - {'__init__'}  # type: ignore[
 
 def get_annotations(
     obj: object,
-    args: Mapping[str, object],
+    args: MutableMapping[str, object],
     key: str = '__annotate__',
     cls: type | None = None,
     annos_ok: bool = True,
 ) -> Any | None:
     """Get the annotations on an object, substituting in type vars."""
 
+    rr, globs = _get_raw_annotations(obj, args, key, annos_ok)
+    args = _args_with_type_params(obj, args, cls)
+    rr = _eval_raw_annotations(args, rr, globs)
+    return rr
+
+
+def _get_raw_annotations(
+    obj: object,
+    args: Mapping[str, object],
+    key: str = '__annotate__',
+    annos_ok: bool = True,
+) -> tuple[Any | None, dict[str, Any] | None]:
     rr = None
     globs = None
     if af := typing.cast(types.FunctionType, getattr(obj, key, None)):
@@ -237,24 +249,73 @@ def get_annotations(
         # modify the original.
         rr = dict(rr)
 
-    if isinstance(rr, dict) and any(isinstance(v, str) for v in rr.values()):
+    return rr, globs
+
+
+def _type_param_name(
+    param: typing.TypeVar | typing.ParamSpec | typing.TypeVarTuple,
+) -> str:
+    """Name used in annotations (e.g. 'T'); str(param) can be '~T'."""
+    return getattr(param, "__name__", str(param))
+
+
+def _args_with_type_params(
+    obj: object, args: MutableMapping[str, object], cls: type | None
+) -> MutableMapping[str, object]:
+    # Copy in any __type_params__ that aren't provided for, so that if
+    # we have to eval, we have them.
+    if params := getattr(obj, "__type_params__", None):
         args = dict(args)
-        # Copy in any __type_params__ that aren't provided for, so that if
-        # we have to eval, we have them.
-        if params := getattr(obj, "__type_params__", None):
-            for param in params:
-                if str(param) not in args:
-                    args[str(param)] = param
+        for param in params:
+            name = _type_param_name(param)
+            if name not in args:
+                args[name] = param
 
-        # Include the class itself in args so that self-referential string
-        # annotations (e.g. from `from __future__ import annotations`) in
-        # nested scopes can be resolved during eval. (This only half
-        # solves that general problem, but it is the best we can do.)
-        rcls = cls or obj
-        if isinstance(rcls, (type, typing.TypeAliasType)):
-            if rcls.__name__ not in args:
-                args[rcls.__name__] = rcls
+    # Include the class itself in args so that self-referential string
+    # annotations (e.g. from `from __future__ import annotations`) in
+    # nested scopes can be resolved during eval. (This only half
+    # solves that general problem, but it is the best we can do.)
+    rcls = cls or obj
+    if isinstance(rcls, (type, typing.TypeAliasType)):
+        if rcls.__name__ not in args:
+            args[rcls.__name__] = rcls
 
+    return args
+
+
+def _find_annotation_type_vars(
+    args: Mapping[str, object],
+    rr: Any | None,
+    globs: dict[str, Any] | None,
+) -> list[typing.TypeVar]:
+    """Get the type vars used in a function's annotations."""
+    type_vars = []
+    if isinstance(rr, dict) and any(isinstance(v, str) for v in rr.values()):
+        # For now, only handle plain type vars.
+        # TODO:
+        # - pattern matched annotations: T | None, set[T], etc.
+        # - type vars in an expression: U if IsAssignable[T, int] else V
+        try:
+            for v in rr.values():
+                v = eval(v, globs, args)
+                if isinstance(v, typing.TypeVar):
+                    type_vars.append(v)
+        except _eval_typing.StuckException:
+            pass
+
+    return type_vars
+
+
+def _eval_raw_annotations(
+    args: Mapping[str, object],
+    rr: Any | None,
+    globs: dict[str, Any] | None,
+) -> Any | None:
+    if (
+        isinstance(rr, dict)
+        and any(isinstance(v, str) for v in rr.values())
+        and isinstance(globs, dict)
+    ):
         for k, v in rr.items():
             # Eval strings
             if isinstance(v, str):
@@ -324,10 +385,19 @@ def get_local_defns(
             # __annotations__ on methods broke stuff and I didn't want
             # to chase it down yet.
             stuck = False
+            type_params = list(stuff.__type_params__)
             try:
-                rr = get_annotations(
-                    stuff, boxed.str_args, cls=boxed.cls, annos_ok=False
+                rr, globs = _get_raw_annotations(
+                    stuff, boxed.str_args, annos_ok=False
                 )
+                raw_args = _args_with_type_params(
+                    stuff, boxed.str_args, boxed.cls
+                )
+
+                for tv in _find_annotation_type_vars(raw_args, rr, globs):
+                    if tv not in type_params:
+                        type_params.append(tv)
+                rr = _eval_raw_annotations(raw_args, rr, globs)
             except _eval_typing.StuckException:
                 stuck = True
                 rr = None
@@ -344,8 +414,7 @@ def get_local_defns(
             # If we got stuck, we build a GenericCallable that
             # computes the type once it has been given type
             # variables!
-            if stuck and stuff.__type_params__:
-                type_params = stuff.__type_params__
+            if stuck and type_params:
                 str_args = boxed.str_args
 
                 def _make_lambda(fn, o, sa, tp):
@@ -355,7 +424,7 @@ def get_local_defns(
                         args = dict(sa)
                         args.update(
                             zip(
-                                (str(p) for p in tp),
+                                (_type_param_name(p) for p in tp),
                                 vs,
                                 strict=True,
                             )

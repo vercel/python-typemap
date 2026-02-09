@@ -218,7 +218,7 @@ def _get_update_class_members(
         return None
     init_subclass = inspect.unwrap(init_subclass)
 
-    args = {}
+    args: dict[str, object] = {}
     # Get any type params from the base class if it is generic
     if (base_args := boxed_base.args.values()) and (
         origin_params := getattr(base_origin, '__type_params__', None)
@@ -711,9 +711,16 @@ def _function_type_from_sig(sig, func, *, receiver_type):
     for i, p in enumerate(sig.parameters.values()):
         ann = p.annotation
         # Special handling for first argument on methods.
-        if i == 0 and receiver_type and not isinstance(func, staticmethod):
+        if i == 0 and not isinstance(func, staticmethod):
             if ann is empty:
-                ann = receiver_type
+                # Self if no receiver, else the class.
+                ann = (
+                    receiver_type
+                    if receiver_type
+                    else type[typing.Self]
+                    if isinstance(func, classmethod)
+                    else typing.Self
+                )
             else:
                 if (
                     isinstance(func, classmethod)
