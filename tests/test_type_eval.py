@@ -434,14 +434,14 @@ def test_getmember_02():
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
         assert (
-            ft(str)
+            eval_typing(ft(str))
             == Callable[
                 [Param[Literal["self"], C], Param[Literal["x"], str]],
                 str,
             ]
         )
         assert (
-            ft(int)
+            eval_typing(ft(int))
             == Callable[
                 [Param[Literal["self"], C], Param[Literal["x"], int]],
                 set[int],
@@ -517,6 +517,218 @@ def test_getmember_04():
         eval_typing(mt.__args__[1].__args__[1](int))
         == Callable[[Param[Literal["self"], C], Param[Literal["x"], int]], int]
     )
+
+
+def test_getmember_05():
+    class C:
+        def member_method(self, x: T) -> T: ...
+        @classmethod
+        def class_method(cls, x: T) -> T: ...
+        @staticmethod
+        def static_method(x: T) -> T: ...
+
+    # member method
+    m = eval_typing(GetMember[C, Literal["member_method"]])
+    assert eval_typing(GetName[m]) == Literal["member_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            ft(str)
+            == Callable[
+                [Param[Literal["self"], C], Param[Literal["x"], str, Never]],
+                str,
+            ]
+        )
+
+    # class method
+    m = eval_typing(GetMember[C, Literal["class_method"]])
+    assert eval_typing(GetName[m]) == Literal["class_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            ft(str)
+            == classmethod[
+                C,
+                tuple[Param[Literal["x"], str, Never]],
+                str,
+            ]
+        )
+
+    # static method
+    m = eval_typing(GetMember[C, Literal["static_method"]])
+    assert eval_typing(GetName[m]) == Literal["static_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            ft(str) == staticmethod[tuple[Param[Literal["x"], str, Never]], str]
+        )
+
+
+def test_getmember_06():
+    class C[T]:
+        def member_method(
+            self, x: T
+        ) -> set[T] if IsAssignable[T, int] else T: ...
+        @classmethod
+        def class_method(
+            cls, x: T
+        ) -> set[T] if IsAssignable[T, int] else T: ...
+        @staticmethod
+        def static_method(x: T) -> set[T] if IsAssignable[T, int] else T: ...
+
+    # member method
+    m = eval_typing(GetMember[C[int], Literal["member_method"]])
+    assert eval_typing(GetName[m]) == Literal["member_method"]
+    assert (
+        eval_typing(GetType[m])
+        == Callable[
+            [Param[Literal["self"], C[int]], Param[Literal["x"], int]], set[int]
+        ]
+    )
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C[int]
+
+    m = eval_typing(GetMember[C[str], Literal["member_method"]])
+    assert eval_typing(GetName[m]) == Literal["member_method"]
+    assert (
+        eval_typing(GetType[m])
+        == Callable[
+            [Param[Literal["self"], C[str]], Param[Literal["x"], str]], str
+        ]
+    )
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C[str]
+
+    # class method
+    m = eval_typing(GetMember[C[int], Literal["class_method"]])
+    assert eval_typing(GetName[m]) == Literal["class_method"]
+    assert (
+        eval_typing(GetType[m])
+        == classmethod[C[int], tuple[Param[Literal["x"], int]], set[int]]
+    )
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C[int]
+
+    m = eval_typing(GetMember[C[str], Literal["class_method"]])
+    assert eval_typing(GetName[m]) == Literal["class_method"]
+    assert (
+        eval_typing(GetType[m])
+        == classmethod[C[str], tuple[Param[Literal["x"], str]], str]
+    )
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C[str]
+
+    # static method
+    m = eval_typing(GetMember[C[int], Literal["static_method"]])
+    assert eval_typing(GetName[m]) == Literal["static_method"]
+    assert (
+        eval_typing(GetType[m])
+        == staticmethod[tuple[Param[Literal["x"], int]], set[int]]
+    )
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C[int]
+
+    m = eval_typing(GetMember[C[str], Literal["static_method"]])
+    assert eval_typing(GetName[m]) == Literal["static_method"]
+    assert (
+        eval_typing(GetType[m])
+        == staticmethod[tuple[Param[Literal["x"], str]], str]
+    )
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C[str]
+
+
+def test_getmember_07():
+    # T defined externally
+    class C:
+        def member_method(
+            self, x: T
+        ) -> set[T] if IsAssignable[T, int] else T: ...
+        @classmethod
+        def class_method(
+            cls, x: T
+        ) -> set[T] if IsAssignable[T, int] else T: ...
+        @staticmethod
+        def static_method(x: T) -> set[T] if IsAssignable[T, int] else T: ...
+
+    # member method
+    m = eval_typing(GetMember[C, Literal["member_method"]])
+    assert eval_typing(GetName[m]) == Literal["member_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            ft(str)
+            == Callable[
+                [Param[Literal["self"], C], Param[Literal["x"], str, Never]],
+                str,
+            ]
+        )
+        assert (
+            ft(int)
+            == Callable[
+                [Param[Literal["self"], C], Param[Literal["x"], int, Never]],
+                set[int],
+            ]
+        )
+
+    # class method
+    m = eval_typing(GetMember[C, Literal["class_method"]])
+    assert eval_typing(GetName[m]) == Literal["class_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            ft(str)
+            == classmethod[
+                C,
+                tuple[Param[Literal["x"], str, Never]],
+                str,
+            ]
+        )
+        assert (
+            ft(int)
+            == classmethod[
+                C,
+                tuple[Param[Literal["x"], int, Never]],
+                set[int],
+            ]
+        )
+
+    # static method
+    m = eval_typing(GetMember[C, Literal["static_method"]])
+    assert eval_typing(GetName[m]) == Literal["static_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == C
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            ft(str) == staticmethod[tuple[Param[Literal["x"], str, Never]], str]
+        )
+        assert (
+            ft(int)
+            == staticmethod[tuple[Param[Literal["x"], int, Never]], set[int]]
+        )
 
 
 def test_getarg_never():
