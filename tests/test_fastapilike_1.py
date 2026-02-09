@@ -5,7 +5,7 @@ import dataclasses
 import enum
 import textwrap
 
-from typing import Annotated, Callable, Literal, Union, Self
+from typing import Annotated, Callable, Literal, Never, Union, Self
 
 from typemap.type_eval import eval_typing
 from typemap_extensions import (
@@ -21,6 +21,7 @@ from typemap_extensions import (
     GetQuals,
     Member,
     Members,
+    ParamKind,
     Param,
 )
 
@@ -56,12 +57,13 @@ type InitFnType[T] = Member[
                 Param[
                     GetName[p],
                     DropAnnotations[GetType[p]],
-                    Literal["keyword", "default"]
+                    Literal[ParamKind.KEYWORD_ONLY],
+                    DropAnnotations[GetType[p]]
                     if IsAssignable[
                         Literal[PropQuals.HAS_DEFAULT],
                         GetAnnotations[GetType[p]],
                     ]
-                    else Literal["keyword"],
+                    else Never,
                 ]
                 for p in Iter[Attrs[T]]
             ],

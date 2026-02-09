@@ -1,6 +1,7 @@
 import collections
 import collections.abc
 import contextlib
+import enum
 import functools
 import inspect
 import itertools
@@ -39,6 +40,7 @@ from typemap.typing import (
     Members,
     NewProtocol,
     Param,
+    ParamKind,
     RaiseError,
     Slice,
     SpecialFormEllipsis,
@@ -377,7 +379,7 @@ def _eval_Bool(tp, *, ctx):
 
 
 def _get_quals(quals_type):
-    # Extract qualifiers from Literal["*", "**", ...] or Never
+    # Extract qualifiers from Literal[ParamKind.X, ...] or Never
     if _typing_inspect.is_literal(quals_type):
         qual_args = typing.get_args(quals_type)
         return set(qual_args)
@@ -410,8 +412,7 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
     Where:
         - name is None for positional-only or variadic params, or a string
         - type is the parameter type annotation
-        - quals is a Literal with any of: "*", "**", "keyword", "default"
-          or Never if no qualifiers
+        - quals is a Literal of ParamKind enum values, or Never if no qualifiers
     """
     args = typing.get_args(callable_type)
     if (
@@ -428,7 +429,7 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
             Param[
                 typing.Literal["cls"],
                 receiver,  # type: ignore[valid-type]
-                typing.Literal["positional"],
+                typing.Literal[ParamKind.POSITIONAL_ONLY],
             ],
             *param_types.__args__,
         ]
@@ -481,8 +482,8 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
         # Extract name from Literal[name] or None
         name = _from_literal(name_type)
 
-        # Extract qualifiers from Literal["*", "**", ...] or Never
-        quals: set[str] = set()
+        # Extract qualifiers from Literal[ParamKind.X, ...] or Never
+        quals: set[ParamKind] = set()
         if quals_type is not typing.Never:
             if _typing_inspect.is_literal(quals_type):
                 qual_args = typing.get_args(quals_type)
@@ -492,29 +493,35 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
 
         # Determine parameter kind and default
         kind: inspect._ParameterKind
-        if "**" in quals:
+        if ParamKind.VAR_KEYWORD in quals:
             kind = inspect.Parameter.VAR_KEYWORD
             name = name or "kwargs"
-        elif "*" in quals:
+        elif ParamKind.VAR_POSITIONAL in quals:
             kind = inspect.Parameter.VAR_POSITIONAL
             name = name or "args"
             # XXX: not sure we need this
             saw_keyword_only = True
-        elif "keyword" in quals:
+        elif ParamKind.KEYWORD_ONLY in quals:
             kind = inspect.Parameter.KEYWORD_ONLY
             saw_keyword_only = True
-        elif "positional" in quals or name is None:
+        elif ParamKind.POSITIONAL_ONLY in quals or name is None:
             kind = inspect.Parameter.POSITIONAL_ONLY
         elif saw_keyword_only:
             kind = inspect.Parameter.KEYWORD_ONLY
         else:
             kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
 
-        # Handle default value
+        # Handle default value from the 4th Param arg (D)
+        default_type = param_args[3] if len(param_args) > 3 else typing.Never
         default: typing.Any
-        if "default" in quals:
-            # We don't have the actual default value, use a sentinel
-            default = _DUMMY_DEFAULT
+        if default_type is not typing.Never:
+            if (
+                _typing_inspect.is_literal(default_type)
+                and len(default_type.__args__) == 1  # type: ignore[union-attr]
+            ):
+                default = default_type.__args__[0]  # type: ignore[union-attr]
+            else:
+                default = _DUMMY_DEFAULT
         else:
             default = inspect.Parameter.empty
 
@@ -562,10 +569,12 @@ def _signature_to_function(name: str, sig: inspect.Signature):
 
 
 def _is_pos_only(param):
-    name, _, quals = typing.get_args(param)
-    qual_set = _get_quals(quals)
-    return "positional" in qual_set or (
-        name is None and not (_get_quals(quals) & {"*", "**"})
+    args = typing.get_args(param)
+    name = args[0]
+    qual_set = _get_quals(args[2] if len(args) > 2 else typing.Never)
+    return ParamKind.POSITIONAL_ONLY in qual_set or (
+        name is None
+        and not (qual_set & {ParamKind.VAR_POSITIONAL, ParamKind.VAR_KEYWORD})
     )
 
 
@@ -592,7 +601,10 @@ def _callable_type_to_method(name, typ, ctx):
         # We have to make class positional only if there is some other
         # positional only argument. Annoying!
         has_pos_only = any(_is_pos_only(p) for p in typing.get_args(params))
-        quals = typing.Literal["positional"] if has_pos_only else typing.Never
+        if has_pos_only:
+            quals = typing.Literal[ParamKind.POSITIONAL_ONLY]
+        else:
+            quals = typing.Literal[ParamKind.POSITIONAL_OR_KEYWORD]
         # Override the receiver type with type[Self].
         if name == "__init_subclass__" and isinstance(cls, typing.TypeVar):
             # For __init_subclass__ generic on cls: T, keep type[T]
@@ -666,20 +678,31 @@ def _function_type(func, *, receiver_type):
 
         quals = []
         if p.kind == inspect.Parameter.VAR_POSITIONAL:
-            quals.append("*")
-        if p.kind == inspect.Parameter.VAR_KEYWORD:
-            quals.append("**")
-        if p.kind == inspect.Parameter.KEYWORD_ONLY:
-            quals.append("keyword")
-        if p.kind == inspect.Parameter.POSITIONAL_ONLY:
-            quals.append("positional")
-        if p.default is not empty:
-            quals.append("default")
+            quals.append(ParamKind.VAR_POSITIONAL)
+        elif p.kind == inspect.Parameter.VAR_KEYWORD:
+            quals.append(ParamKind.VAR_KEYWORD)
+        elif p.kind == inspect.Parameter.KEYWORD_ONLY:
+            quals.append(ParamKind.KEYWORD_ONLY)
+        elif p.kind == inspect.Parameter.POSITIONAL_ONLY:
+            quals.append(ParamKind.POSITIONAL_ONLY)
+        else:
+            quals.append(ParamKind.POSITIONAL_OR_KEYWORD)
+        ann_type = _ann(ann)
+        has_default = p.default is not empty
+        if has_default:
+            v = p.default
+            if v is None or isinstance(v, (int, str, bytes, bool, enum.Enum)):
+                default_type = typing.Literal[(v,)]
+            else:
+                default_type = ann_type
+        else:
+            default_type = typing.Never
         params.append(
             Param[
                 typing.Literal[p.name],
-                _ann(ann),
-                typing.Literal[*quals] if quals else typing.Never,
+                ann_type,
+                typing.Literal[*quals],
+                default_type,
             ]
         )
 
