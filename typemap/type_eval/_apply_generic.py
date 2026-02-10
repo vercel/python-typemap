@@ -196,6 +196,7 @@ def get_annotations(
     obj: object,
     args: dict[str, object],
     key: str = '__annotate__',
+    cls: type | None = None,
     annos_ok: bool = True,
 ) -> Any | None:
     """Get the annotations on an object, substituting in type vars."""
@@ -221,13 +222,22 @@ def get_annotations(
             globs.update(vars(mod))
 
     if isinstance(rr, dict) and any(isinstance(v, str) for v in rr.values()):
+        args = args.copy()
         # Copy in any __type_params__ that aren't provided for, so that if
         # we have to eval, we have them.
         if params := getattr(obj, "__type_params__", None):
-            args = args.copy()
             for param in params:
                 if str(param) not in args:
                     args[str(param)] = param
+
+        # Include the class itself in args so that self-referential string
+        # annotations (e.g. from `from __future__ import annotations`) in
+        # nested scopes can be resolved during eval. (This only half
+        # solves that general problem, but it is the best we can do.)
+        rcls = cls or obj
+        if isinstance(rcls, (type, typing.TypeAliasType)):
+            if rcls.__name__ not in args:
+                args[rcls.__name__] = rcls
 
         for k, v in rr.items():
             # Eval strings
@@ -248,15 +258,7 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
 
-    # Include the class itself in args so that self-referential string
-    # annotations (e.g. from `from __future__ import annotations`) in
-    # nested scopes can be resolved during eval. (This only half
-    # solves that general problem, but it is the best we can do.)
-    str_args = boxed.str_args
-    if boxed.cls.__name__ not in str_args:
-        str_args = {**str_args, boxed.cls.__name__: boxed.cls}
-
-    if (rr := get_annotations(boxed.cls, str_args)) is not None:
+    if (rr := get_annotations(boxed.cls, boxed.str_args)) is not None:
         annos.update(rr)
 
     for name, orig in boxed.cls.__dict__.items():
@@ -272,7 +274,7 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
             # __annotations__ on methods broke stuff and I didn't want
             # to chase it down yet.
             if (
-                rr := get_annotations(stuff, str_args, annos_ok=False)
+                rr := get_annotations(stuff, boxed.str_args, cls=boxed.cls, annos_ok=False)
             ) is not None:
                 local_fn = make_func(orig, rr)
             elif getattr(stuff, "__annotations__", None):
