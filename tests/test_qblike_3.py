@@ -137,13 +137,13 @@ class Table[name: str]:
     pass
 
 
-class Field[Table, Name, PyType]:
+class Field[PyType, Table, Name]:
     def __lt__(self, other: Any) -> Filter[Table]: ...
 
 
-type FieldTable[T] = GetArg[T, Field, Literal[0]]
-type FieldName[T] = GetArg[T, Field, Literal[1]]
-type FieldPyType[T] = GetArg[T, Field, Literal[2]]
+type FieldPyType[T] = GetArg[T, Field, Literal[0]]
+type FieldTable[T] = GetArg[T, Field, Literal[1]]
+type FieldName[T] = GetArg[T, Field, Literal[2]]
 
 
 class ColumnArgs(TypedDict, total=False):
@@ -351,50 +351,50 @@ class Session:
 
 
 class User(Table[Literal["users"]]):
-    id: Field[User, Literal["id"], int] = column(
+    id: Field[int, User, Literal["id"]] = column(
         db_type=DbInteger(), primary_key=True, autoincrement=True
     )
-    name: Field[User, Literal["name"], str] = column(
+    name: Field[str, User, Literal["name"]] = column(
         db_type=DbString(length=150), nullable=False
     )
-    email: Field[User, Literal["email"], str] = column(
+    email: Field[str, User, Literal["email"]] = column(
         db_type=DbString(length=100), unique=True, nullable=False
     )
-    age: Field[User, Literal["age"], int | None] = column(db_type=DbInteger())
-    active: Field[User, Literal["active"], bool] = column(
+    age: Field[int | None, User, Literal["age"]] = column(db_type=DbInteger())
+    active: Field[bool, User, Literal["active"]] = column(
         db_type=DbBoolean(), default=True, nullable=False
     )
-    posts: Field[User, Literal["posts"], list[Post]] = column(
+    posts: Field[list[Post], User, Literal["posts"]] = column(
         db_type=DbLinkSource(source="Post", cardinality=Cardinality.MANY)
     )
 
 
 class Post(Table[Literal["posts"]]):
-    id: Field[Post, Literal["id"], int] = column(
+    id: Field[int, Post, Literal["id"]] = column(
         db_type=DbInteger(), primary_key=True, autoincrement=True
     )
-    content: Field[Post, Literal["content"], str] = column(
+    content: Field[str, Post, Literal["content"]] = column(
         db_type=DbString(length=1000), nullable=False
     )
-    author: Field[Post, Literal["author"], User] = column(
+    author: Field[User, Post, Literal["author"]] = column(
         db_type=DbLinkTarget(target=User), nullable=False
     )
-    comments: Field[Post, Literal["comments"], list[Comment]] = column(
+    comments: Field[list[Comment], Post, Literal["comments"]] = column(
         db_type=DbLinkSource(source="Comment", cardinality=Cardinality.MANY)
     )
 
 
 class Comment(Table[Literal["comments"]]):
-    id: Field[Comment, Literal["id"], int] = column(
+    id: Field[int, Comment, Literal["id"]] = column(
         db_type=DbInteger(), primary_key=True, autoincrement=True
     )
-    content: Field[Comment, Literal["content"], str] = column(
+    content: Field[str, Comment, Literal["content"]] = column(
         db_type=DbString(length=1000), nullable=False
     )
-    author: Field[Comment, Literal["author"], User] = column(
+    author: Field[User, Comment, Literal["author"]] = column(
         db_type=DbLinkTarget(target=User), nullable=False
     )
-    post: Field[Comment, Literal["post"], Post] = column(
+    post: Field[Post, Comment, Literal["post"]] = column(
         db_type=DbLinkTarget(target=Post), nullable=False
     )
 
