@@ -11,7 +11,7 @@ def format_class_basic(cls: type) -> str:
 
         ts = ""
         if params := root.__type_params__:
-            ts = "[" + ", ".join(str(p) for p in params) + "]"
+            ts = "[" + ", ".join(p.__name__ for p in params) + "]"
 
         return f"{name}{ts}{sig}"
 
