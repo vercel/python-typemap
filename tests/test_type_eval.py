@@ -16,6 +16,7 @@ from typing import (
     TypeVar,
     Union,
     get_args,
+    overload,
 )
 
 import pytest
@@ -45,6 +46,7 @@ from typemap_extensions import (
     Member,
     Members,
     NewProtocol,
+    Overloaded,
     Param,
     Slice,
     SpecialFormEllipsis,
@@ -463,6 +465,46 @@ def test_getmember_03():
             [Param[Literal["self"], Self], Param[Literal["x"], Vs[0]]],
             OnlyIntToSet[Vs[0]],
         ]
+    )
+
+
+def test_getmember_04():
+    class C:
+        @overload
+        def f(self, x: int) -> set[int]: ...
+
+        @overload
+        def f[T](self, x: T) -> T: ...
+
+        def f(self, x): ...
+
+    m = eval_typing(GetMember[C, Literal["f"]])
+    mt = eval_typing(GetType[m])
+    assert mt.__origin__ is Overloaded
+    assert len(mt.__args__) == 2
+
+    # Non-generic overload
+    assert (
+        eval_typing(IsAssignable[GetArg[mt, Overloaded, Literal[0]], Callable])
+        == _BoolLiteral[True]
+    )
+    assert (
+        mt.__args__[0]
+        == Callable[
+            [Param[Literal["self"], C], Param[Literal["x"], int]], set[int]
+        ]
+    )
+
+    # Generic overload
+    assert (
+        eval_typing(
+            IsAssignable[GetArg[mt, Overloaded, Literal[1]], GenericCallable]
+        )
+        == _BoolLiteral[True]
+    )
+    assert (
+        eval_typing(mt.__args__[1].__args__[1](int))
+        == Callable[[Param[Literal["self"], C], Param[Literal["x"], int]], int]
     )
 
 
