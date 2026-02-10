@@ -16,6 +16,7 @@ from typemap_extensions import (
     Member,
     Members,
     NewProtocol,
+    Param,
     Uppercase,
 )
 
@@ -205,11 +206,11 @@ def test_type_dir_1a():
             x: tests.test_type_dir.Wrapper[int | None]
             ordinary: str
             def foo(self: Self, a: int | None, *, b: int = ...) -> dict[str, int]: ...
-            def base[Z](self: Self, a: int | Z | None, b: ~K) -> dict[str, int | Z]: ...
+            def base[Z, ~K](self: Self, a: int | Z | None, b: ~K) -> dict[str, int | Z]: ...
             @classmethod
-            def cbase(cls: type[typing.Self], a: int | None, b: ~K) -> dict[str, int]: ...
+            def cbase[~K](cls: type[typing.Self], a: int | None, b: ~K) -> dict[str, int]: ...
             @staticmethod
-            def sbase[Z](a: OrGotcha[int] | Z | None, b: ~K) -> dict[str, int | Z]: ...
+            def sbase[Z, ~K](a: OrGotcha[int] | Z | None, b: ~K) -> dict[str, int | Z]: ...
     """)
 
 
@@ -409,11 +410,19 @@ def test_type_members_func_2():
     assert name == typing.Literal["cbase"]
     assert quals == typing.Literal["ClassVar"]
 
-    assert (
-        str(typ)
-        == "\
-classmethod[tests.test_type_dir.Base[int], tuple[typemap.typing.Param[typing.Literal['a'], int | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int]]"
-    )
+    assert str(typ) == "typemap.typing.GenericCallable[tuple[~K], <...>]"
+
+    with _ensure_context():
+        assert (
+            typ.__args__[1](float)
+            == classmethod[
+                Base[int],
+                tuple[
+                    Param[Literal["a"], int | None], Param[Literal["b"], float]
+                ],
+                dict[str, int],
+            ]
+        )
 
 
 def test_type_members_func_3():
@@ -424,15 +433,21 @@ def test_type_members_func_3():
     assert name == typing.Literal["sbase"]
     assert quals == typing.Literal["ClassVar"]
 
-    assert str(typ) == "typemap.typing.GenericCallable[tuple[Z], <...>]"
+    assert str(typ) == "typemap.typing.GenericCallable[tuple[Z, ~K], <...>]"
 
-    evaled = eval_typing(
-        typing.get_args(typ)[1](*typing.get_args(typing.get_args(typ)[0]))
-    )
-    assert (
-        str(evaled)
-        == "staticmethod[tuple[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never]], dict[str, int | Z]]"
-    )
+    with _ensure_context():
+        assert (
+            eval_typing(typ.__args__[1](float, bool))
+            == staticmethod[
+                tuple[
+                    Param[
+                        Literal["a"], int | Literal['gotcha!'] | float | None
+                    ],
+                    Param[Literal["b"], bool],
+                ],
+                dict[str, int | float],
+            ]
+        )
 
 
 # Test initializers
