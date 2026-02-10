@@ -2,6 +2,7 @@ from ._eval_typing import (
     eval_typing,
     _get_current_context,
     register_evaluator,
+    StuckException,
     _EvalProxy,
 )
 from ._apply_generic import flatten_class
@@ -24,6 +25,7 @@ __all__ = (
     "flatten_class",
     "issubtype",
     "TypeMapError",
+    "StuckException",
     "_EvalProxy",
     "_get_current_context",
 )

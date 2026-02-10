@@ -25,6 +25,12 @@ from . import _apply_generic
 __all__ = ("eval_typing",)
 
 
+class StuckException(Exception):
+    """Raised when a type operator receives a type variable argument."""
+
+    pass
+
+
 _eval_funcs: dict[type, typing.Callable[..., Any]] = {}
 
 
@@ -101,6 +107,10 @@ class EvalContext:
         typing.TypeAliasType | types.GenericAlias, typing.Any
     ] = dataclasses.field(default_factory=dict)
 
+    box_cache: dict[typing.Any, _apply_generic.Boxed] = dataclasses.field(
+        default_factory=dict
+    )
+
     # The typing.Any is really a types.FunctionType, but mypy gets
     # confused and wants to treat it as a MethodType.
     current_generic_alias: types.GenericAlias | typing.Any | None = None
@@ -123,7 +133,7 @@ def _ensure_context() -> typing.Iterator[EvalContext]:
         _current_context.set(ctx)
         ctx_set = True
     evaluator_token = nt.special_form_evaluator.set(
-        lambda t: _eval_types(t, ctx)
+        lambda t: _eval_types(t, _current_context.get())  # type: ignore[arg-type]
     )
 
     try:
@@ -168,6 +178,7 @@ def _child_context() -> typing.Iterator[EvalContext]:
             recursive_type_alias=ctx.recursive_type_alias,
             known_recursive_types=ctx.known_recursive_types.copy(),
             current_generic_alias=ctx.current_generic_alias,
+            box_cache=ctx.box_cache,  # Not copied!
         )
         _current_context.set(child_ctx)
         yield child_ctx
@@ -394,6 +405,13 @@ def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
     new_args = _eval_args(typing.get_args(obj), ctx)
 
     if func := _eval_funcs.get(obj.__origin__):
+        _tvars = (
+            typing.TypeVar,
+            typing.ParamSpec,
+            typing.TypeVarTuple,
+        )
+        if any(isinstance(a, _tvars) for a in new_args):
+            raise StuckException(obj)
         ret = func(*new_args, ctx=ctx)
         # return _eval_types(ret, ctx)  # ???
         return ret

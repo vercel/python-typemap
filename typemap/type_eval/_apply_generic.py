@@ -12,7 +12,7 @@ from . import _eval_typing
 from . import _typing_inspect
 
 if typing.TYPE_CHECKING:
-    from typing import Any
+    from typing import Any, Mapping
 
 
 @dataclasses.dataclass(frozen=True)
@@ -20,6 +20,9 @@ class Boxed:
     cls: type[Any]
     bases: list[Boxed]
     args: dict[Any, Any]
+    orig_cls: type[Any] | None = (
+        None  # Original class, before __init_subclass__ applied
+    )
 
     str_args: dict[str, Any] = dataclasses.field(init=False)
     mro: tuple[Boxed, ...] = dataclasses.field(init=False)
@@ -38,14 +41,22 @@ class Boxed:
         object.__setattr__(
             self,
             "mro",
-            _compute_mro(self),
+            tuple(_compute_mro(self)),
         )
+
+    @property
+    def canonical_cls(self):
+        """The class for the original boxing.
+
+        (Possibly a new one was created after __init_subclass__ applied.
+        """
+        return self.orig_cls or self.cls
 
     def alias_type(self):
         if self.args:
-            return self.cls[*self.args.values()]
+            return self.canonical_cls[*self.args.values()]
         else:
-            return self.cls
+            return self.canonical_cls
 
     def __repr__(self):
         return f"Boxed<{self.cls} {self.args}>"
@@ -194,7 +205,7 @@ EXCLUDED_ATTRIBUTES = typing.EXCLUDED_ATTRIBUTES - {'__init__'}  # type: ignore[
 
 def get_annotations(
     obj: object,
-    args: dict[str, object],
+    args: Mapping[str, object],
     key: str = '__annotate__',
     cls: type | None = None,
     annos_ok: bool = True,
@@ -222,7 +233,7 @@ def get_annotations(
             globs.update(vars(mod))
 
     if isinstance(rr, dict) and any(isinstance(v, str) for v in rr.values()):
-        args = args.copy()
+        args = dict(args)
         # Copy in any __type_params__ that aren't provided for, so that if
         # we have to eval, we have them.
         if params := getattr(obj, "__type_params__", None):
@@ -273,9 +284,18 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
             # TODO: This annos_ok thing is a hack because processing
             # __annotations__ on methods broke stuff and I didn't want
             # to chase it down yet.
-            if (
-                rr := get_annotations(stuff, boxed.str_args, cls=boxed.cls, annos_ok=False)
-            ) is not None:
+            try:
+                rr = get_annotations(
+                    stuff, boxed.str_args, cls=boxed.cls, annos_ok=False
+                )
+            except _eval_typing.StuckException:
+                # TODO: Either generate a GenericCallable or a
+                # function with our own __annotate__ for this case
+                # where we can't even fetch the signature without
+                # trouble.
+                rr = None
+
+            if rr is not None:
                 local_fn = make_func(orig, rr)
             elif getattr(stuff, "__annotations__", None):
                 # XXX: This is totally wrong; we still need to do

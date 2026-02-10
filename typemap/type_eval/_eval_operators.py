@@ -1,6 +1,7 @@
 import collections
 import collections.abc
 import contextlib
+import dataclasses
 import functools
 import inspect
 import itertools
@@ -80,23 +81,33 @@ def _make_init_type(v):
         return typing.Literal[(v,)]
 
 
+def cached_box(cls, *, ctx):
+    if str(cls).startswith('typemap.typing'):
+        return _apply_generic.box(cls)
+    if cls in ctx.box_cache:
+        return ctx.box_cache[cls]
+    ctx.box_cache[cls] = box = _apply_generic.box(cls)
+    assert box.mro
+    # if not all(b.mro for b in box.mro):
+    #     breakpoint()
+    # assert all(b.mro for b in box.mro)
+
+    if new_box := _eval_init_subclass(box, ctx):
+        ctx.box_cache[cls] = box = new_box
+    return box
+
+
 def get_annotated_type_hints(cls, *, ctx, **kwargs):
     """Get the type hints/quals for a cls annotated with definition site.
 
     This traverses the mro and finds the definition site for each annotation.
     """
 
-    # TODO: Cache the box (slash don't need it??)
-    box = _apply_generic.box(cls)
+    box = cached_box(cls, ctx=ctx)
 
     hints = {}
     for abox in reversed(box.mro):
         acls = abox.alias_type()
-
-        if abox is box and (updated_cls := _eval_init_subclass(box, ctx)):
-            # For the class itself, apply all UpdateClass from
-            # ancesstors' __init_subclass__ to get the final type.
-            abox = _apply_generic.box(updated_cls)
 
         annos, _ = _apply_generic.get_local_defns(abox)
         for k, ty in annos.items():
@@ -128,17 +139,11 @@ def get_annotated_type_hints(cls, *, ctx, **kwargs):
 
 
 def get_annotated_method_hints(cls, *, ctx):
-    # TODO: Cache the box (slash don't need it??)
-    box = _apply_generic.box(cls)
+    box = cached_box(cls, ctx=ctx)
 
     hints = {}
     for abox in reversed(box.mro):
         acls = abox.alias_type()
-
-        if abox is box and (updated_cls := _eval_init_subclass(box, ctx)):
-            # For the class itself, apply all UpdateClass from
-            # ancesstors' __init_subclass__ to get the final type.
-            abox = _apply_generic.box(updated_cls)
 
         _, dct = _apply_generic.get_local_defns(abox)
         for name, attr in dct.items():
@@ -166,25 +171,38 @@ def get_annotated_method_hints(cls, *, ctx):
 
 def _eval_init_subclass(
     box: _apply_generic.Boxed, ctx: typing.Any
-) -> type | None:
+) -> _apply_generic.Boxed:
     """Get type after all __init_subclass__ with UpdateClass are evaluated."""
-    for abox in reversed(box.mro[1:]):  # Skip the type itself
-        if ms := _get_update_class_members(box.cls, abox.alias_type(), ctx=ctx):
-            return _create_updated_class(box.cls, ms, ctx=ctx)
-
-    return None
+    for abox in box.mro[1:]:  # Skip the type itself
+        with _child_context() as ctx:
+            if ms := _get_update_class_members(
+                box.cls, abox.alias_type(), ctx=ctx
+            ):
+                nbox = _apply_generic.box(
+                    _create_updated_class(box.cls, ms, ctx=ctx)
+                )
+                # We want to preserve the original cls for Members output
+                box = dataclasses.replace(nbox, orig_cls=box.canonical_cls)
+                ctx.box_cache[box.cls] = box
+    return box
 
 
 def _get_update_class_members(
     cls: type, base: type, ctx: typing.Any
 ) -> list[Member] | None:
-    if (
-        (init_subclass := base.__dict__.get("__init_subclass__"))
-        # XXX: We're using get_type_hints now to evaluate hints but
-        # we should have our own generic infrastructure instead.
-        # (I'm working on it -sully)
-        and (init_subclass_annos := typing.get_type_hints(init_subclass))
-        and (ret_annotation := init_subclass_annos.get("return"))
+    init_subclass = base.__dict__.get("__init_subclass__")
+    if not init_subclass:
+        return None
+    init_subclass = inspect.unwrap(init_subclass)
+
+    args = {}
+    if type_params := getattr(init_subclass, '__type_params__', None):
+        args[str(type_params[0])] = cls
+
+    init_subclass_annos = _apply_generic.get_annotations(init_subclass, args)
+
+    if init_subclass_annos and (
+        ret_annotation := init_subclass_annos.get("return")
     ):
         # Substitute the cls type var with the current class
         # This may not happen if cls is not generic!
@@ -210,12 +228,7 @@ def _get_update_class_members(
             )
 
         # Evaluate the return annotation
-        # Do it in a child context, so the evaluations are isolated. For
-        # example, if the return annotation uses Attrs[MyClass], we want
-        # Attrs[MyClass] to be evaluated with the updated class, not the
-        # original.
-        with _child_context() as ctx:
-            evaled_ret = _eval_types(ret_annotation, ctx=ctx)
+        evaled_ret = _eval_types(ret_annotation, ctx=ctx)
 
         # If the result is an UpdateClass, return the members
         if (
