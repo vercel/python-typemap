@@ -248,7 +248,15 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
 
-    if (rr := get_annotations(boxed.cls, boxed.str_args)) is not None:
+    # Include the class itself in args so that self-referential string
+    # annotations (e.g. from `from __future__ import annotations`) in
+    # nested scopes can be resolved during eval. (This only half
+    # solves that general problem, but it is the best we can do.)
+    str_args = boxed.str_args
+    if boxed.cls.__name__ not in str_args:
+        str_args = {**str_args, boxed.cls.__name__: boxed.cls}
+
+    if (rr := get_annotations(boxed.cls, str_args)) is not None:
         annos.update(rr)
 
     for name, orig in boxed.cls.__dict__.items():
@@ -264,7 +272,7 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
             # __annotations__ on methods broke stuff and I didn't want
             # to chase it down yet.
             if (
-                rr := get_annotations(stuff, boxed.str_args, annos_ok=False)
+                rr := get_annotations(stuff, str_args, annos_ok=False)
             ) is not None:
                 local_fn = make_func(orig, rr)
             elif getattr(stuff, "__annotations__", None):
