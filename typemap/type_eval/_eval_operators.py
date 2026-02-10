@@ -766,14 +766,42 @@ def _function_type_from_sig(sig, func, *, receiver_type):
     return f
 
 
+def _find_function_type_vars(ty, *, seen=None):
+    """Find type vars in a function tyoe.
+
+    Mirrors _apply_generic._find_annotation_type_vars.
+    """
+    type_vars = []
+    if typing.get_origin(ty) is classmethod:
+        _, params, ret = typing.get_args(ty)
+        params = params.__args__
+    elif typing.get_origin(ty) is staticmethod:
+        params, ret = typing.get_args(ty)
+        params = params.__args__
+    else:
+        params, ret = typing.get_args(ty)
+
+    for param in params:
+        _, type, _ = typing.get_args(param)
+        if _typing_inspect.is_type_var(type):
+            type_vars.append(type)
+    if _typing_inspect.is_type_var(ret):
+        type_vars.append(ret)
+
+    return type_vars
+
+
 def _function_type(func, *, receiver_type):
     root = inspect.unwrap(func)
     sig = inspect.signature(root)
     f = _function_type_from_sig(sig, func, receiver_type=receiver_type)
 
-    if root.__type_params__:
-        # Must store a lambda that performs type variable substitution
-        type_params = root.__type_params__
+    type_params = list(getattr(root, "__type_params__", ()) or ())
+    for tv in _find_function_type_vars(f):
+        if tv not in type_params:
+            type_params.append(tv)
+
+    if type_params:
         callable_lambda = _create_generic_callable_lambda(f, type_params)
         f = GenericCallable[tuple[*type_params], callable_lambda]
     return f

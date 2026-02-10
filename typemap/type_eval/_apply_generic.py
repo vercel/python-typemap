@@ -288,7 +288,10 @@ def _find_annotation_type_vars(
     rr: Any | None,
     globs: dict[str, Any] | None,
 ) -> list[typing.TypeVar]:
-    """Get the type vars used in a function's annotations."""
+    """Get the type vars used in a function's annotations.
+
+    Mirrors _eval_operators._collect_type_vars.
+    """
     type_vars = []
     if isinstance(rr, dict) and any(isinstance(v, str) for v in rr.values()):
         # For now, only handle plain type vars.
