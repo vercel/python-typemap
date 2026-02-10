@@ -101,6 +101,10 @@ class GenericCallable:
         return _GenericCallableGenericAlias(cls, (typevars, func))
 
 
+class Overloaded[*Callables]:
+    pass
+
+
 ###
 
 
