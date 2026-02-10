@@ -21,7 +21,7 @@ from typing import (
 
 import pytest
 
-from typemap.type_eval import eval_typing
+from typemap.type_eval import _ensure_context, eval_typing
 from typemap.typing import _BoolLiteral
 
 from typemap_extensions import (
@@ -506,6 +506,207 @@ def test_getmember_04():
         eval_typing(mt.__args__[1].__args__[1](int))
         == Callable[[Param[Literal["self"], C], Param[Literal["x"], int]], int]
     )
+
+
+def test_getmember_05():
+    # member method, generic self, complex return type
+    class A:
+        def member_method[T](self: T) -> GetMemberType[T, Literal["x"]]: ...
+
+    class B(A):
+        x: int
+
+    class C(A):
+        x: str
+
+    m = eval_typing(GetMember[A, Literal["member_method"]])
+    assert eval_typing(GetName[m]) == Literal["member_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == A
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            eval_typing(ft(A)) == Callable[[Param[Literal["self"], A]], Never]
+        )
+        assert eval_typing(ft(B)) == Callable[[Param[Literal["self"], B]], int]
+        assert eval_typing(ft(C)) == Callable[[Param[Literal["self"], C]], str]
+
+
+def test_getmember_06():
+    # member method, generic self, complex param type
+    class A:
+        def member_method[T](
+            self: T, x: GetMemberType[T, Literal["x"]]
+        ) -> None: ...
+
+    class B(A):
+        x: int
+
+    class C(A):
+        x: str
+
+    m = eval_typing(GetMember[A, Literal["member_method"]])
+    assert eval_typing(GetName[m]) == Literal["member_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == A
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            eval_typing(ft(A))
+            == Callable[
+                [Param[Literal["self"], A], Param[Literal["x"], Never]], None
+            ]
+        )
+        assert (
+            eval_typing(ft(B))
+            == Callable[
+                [Param[Literal["self"], B], Param[Literal["x"], int]], None
+            ]
+        )
+        assert (
+            eval_typing(ft(C))
+            == Callable[
+                [Param[Literal["self"], C], Param[Literal["x"], str]], None
+            ]
+        )
+
+
+def test_getmember_07():
+    # class method, generic self, complex return type
+    class A:
+        @classmethod
+        def class_method[T](cls: type[T]) -> GetMemberType[T, Literal["x"]]: ...
+
+    class B(A):
+        x: int
+
+    class C(A):
+        x: str
+
+    m = eval_typing(GetMember[A, Literal["class_method"]])
+    assert eval_typing(GetName[m]) == Literal["class_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == A
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert eval_typing(ft(A)) == classmethod[A, tuple[()], Never]
+        assert eval_typing(ft(B)) == classmethod[B, tuple[()], int]
+        assert eval_typing(ft(C)) == classmethod[C, tuple[()], str]
+
+
+def test_getmember_08():
+    # class method, generic self, complex param type
+    class A:
+        @classmethod
+        def class_method[T](
+            cls: type[T], x: GetMemberType[T, Literal["x"]]
+        ) -> None: ...
+
+    class B(A):
+        x: int
+
+    class C(A):
+        x: str
+
+    m = eval_typing(GetMember[A, Literal["class_method"]])
+    assert eval_typing(GetName[m]) == Literal["class_method"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == A
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            eval_typing(ft(A))
+            == classmethod[A, tuple[Param[Literal["x"], Never]], None]
+        )
+        assert (
+            eval_typing(ft(B))
+            == classmethod[B, tuple[Param[Literal["x"], int]], None]
+        )
+        assert (
+            eval_typing(ft(C))
+            == classmethod[C, tuple[Param[Literal["x"], str]], None]
+        )
+
+
+def test_getmember_09():
+    # member method, generic self, iterating over members
+    class A:
+        def f[T](
+            self: T,
+        ) -> tuple[
+            *[
+                GetType[m]
+                for m in Iter[Attrs[T]]
+                if not IsAssignable[
+                    Slice[GetName[m], None, Literal[1]], Literal["_"]
+                ]
+            ]
+        ]: ...
+
+    class B(A):
+        a: bool
+        b: str
+        _c: int
+        _d: float
+
+    m = eval_typing(GetMember[A, Literal["f"]])
+    assert eval_typing(GetName[m]) == Literal["f"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == A
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert (
+            eval_typing(ft(A))
+            == Callable[[Param[Literal["self"], A]], tuple[()]]
+        )
+        assert (
+            eval_typing(ft(B))
+            == Callable[[Param[Literal["self"], B]], tuple[bool, str]]
+        )
+
+
+def test_getmember_10():
+    # class method, generic self, iterating over members
+    class A:
+        @classmethod
+        def f[T](
+            cls: type[T],
+        ) -> tuple[
+            *[
+                GetType[m]
+                for m in Iter[Attrs[T]]
+                if not IsAssignable[
+                    Slice[GetName[m], None, Literal[1]], Literal["_"]
+                ]
+            ]
+        ]: ...
+
+    class B(A):
+        a: bool
+        b: str
+        _x: int
+        _y: float
+
+    m = eval_typing(GetMember[B, Literal["f"]])
+    assert eval_typing(GetName[m]) == Literal["f"]
+    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
+    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
+    assert eval_typing(GetDefiner[m]) == A
+
+    ft = m.__args__[1].__args__[1]
+    with _ensure_context():
+        assert eval_typing(ft(A)) == classmethod[A, tuple[()], tuple[()]]
+        assert eval_typing(ft(B)) == classmethod[B, tuple[()], tuple[bool, str]]
 
 
 def test_getarg_never():
