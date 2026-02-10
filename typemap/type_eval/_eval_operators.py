@@ -39,6 +39,7 @@ from typemap.typing import (
     Member,
     Members,
     NewProtocol,
+    Overloaded,
     Param,
     RaiseError,
     Slice,
@@ -165,6 +166,17 @@ def get_annotated_method_hints(cls, *, ctx):
 
                 hints[name] = (
                     _function_type(attr, receiver_type=acls),
+                    ("ClassVar",),
+                    object,
+                    acls,
+                )
+            elif isinstance(attr, _apply_generic.WrappedOverloaded):
+                overloads = [
+                    _function_type(_eval_types(of, ctx), receiver_type=acls)
+                    for of in attr.functions
+                ]
+                hints[name] = (
+                    Overloaded[*overloads],
                     ("ClassVar",),
                     object,
                     acls,

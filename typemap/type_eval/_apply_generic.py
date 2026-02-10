@@ -291,7 +291,14 @@ def _resolved_function_signature(func, args):
     return sig
 
 
-def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
+def get_local_defns(
+    boxed: Boxed,
+) -> tuple[
+    dict[str, Any],
+    dict[
+        str, types.FunctionType | classmethod | staticmethod | WrappedOverloaded
+    ],
+]:
     from typemap.typing import GenericCallable
 
     annos: dict[str, Any] = {}
@@ -327,6 +334,8 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
                 # XXX: This is totally wrong; we still need to do
                 # substitute in class vars
                 local_fn = stuff
+            elif overloaded := _is_overloaded_function(stuff):
+                local_fn = overloaded
 
             # If we got stuck, we build a GenericCallable that
             # computes the type once it has been given type
@@ -368,6 +377,23 @@ def get_local_defns(boxed: Boxed) -> tuple[dict[str, Any], dict[str, Any]]:
                 dct[name] = local_fn
 
     return annos, dct
+
+
+@dataclasses.dataclass(frozen=True)
+class WrappedOverloaded:
+    functions: tuple[types.FunctionType, ...]
+
+
+def _is_overloaded_function(func):
+    module_overload_registry = typing._overload_registry[func.__module__]
+    if not module_overload_registry:
+        return None
+
+    func_overload_registry = module_overload_registry[func.__qualname__]
+    if not func_overload_registry:
+        return
+
+    return WrappedOverloaded(tuple(func_overload_registry.values()))
 
 
 def flatten_class_new_proto(cls: type) -> type:
