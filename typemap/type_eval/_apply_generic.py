@@ -416,8 +416,9 @@ def get_local_defns(
             # variables!
             if stuck and type_params:
                 str_args = boxed.str_args
+                canonical_cls = boxed.canonical_cls
 
-                def _make_lambda(fn, o, sa, tp):
+                def _make_lambda(fn, o, sa, tp, cls):
                     from ._eval_operators import _function_type_from_sig
 
                     def lam(*vs):
@@ -431,14 +432,16 @@ def get_local_defns(
                         )
                         sig = _resolved_function_signature(fn, args)
                         return _function_type_from_sig(
-                            sig, o, receiver_type=None
+                            sig, o, receiver_type=cls
                         )
 
                     return lam
 
                 gc = GenericCallable[  # type: ignore[valid-type,misc]
                     tuple[*type_params],  # type: ignore[valid-type]
-                    _make_lambda(stuff, orig, str_args, type_params),
+                    _make_lambda(
+                        stuff, orig, str_args, type_params, canonical_cls
+                    ),
                 ]
                 annos[name] = typing.ClassVar[gc]
             elif local_fn is not None:
