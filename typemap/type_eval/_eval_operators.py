@@ -192,7 +192,7 @@ def _eval_init_subclass(
     """Get type after all __init_subclass__ with UpdateClass are evaluated."""
     for abox in box.mro[1:]:  # Skip the type itself
         with _child_context() as ctx:
-            if ms := _get_update_class_members(box, abox.alias_type(), ctx=ctx):
+            if ms := _get_update_class_members(box, abox, ctx=ctx):
                 nbox = _apply_generic.box(
                     _create_updated_class(box, ms, ctx=ctx)
                 )
@@ -205,12 +205,14 @@ def _eval_init_subclass(
 
 
 def _get_update_class_members(
-    box: _apply_generic.Boxed, base: type, ctx: EvalContext
+    box: _apply_generic.Boxed,
+    boxed_base: _apply_generic.Boxed,
+    ctx: EvalContext,
 ) -> list[Member] | None:
     cls = box.cls
 
     # Get __init_subclass__ from the base class's origin if base is generic.
-    base_origin = typing.get_origin(base) or base
+    base_origin = boxed_base.cls
     init_subclass = base_origin.__dict__.get("__init_subclass__")
     if not init_subclass:
         return None
@@ -218,7 +220,7 @@ def _get_update_class_members(
 
     args = {}
     # Get any type params from the base class if it is generic
-    if (base_args := typing.get_args(base)) and (
+    if (base_args := boxed_base.args.values()) and (
         origin_params := getattr(base_origin, '__type_params__', None)
     ):
         args = dict(
