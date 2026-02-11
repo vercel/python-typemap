@@ -296,7 +296,7 @@ def get_local_defns(
 ) -> tuple[
     dict[str, Any],
     dict[
-        str, types.FunctionType | classmethod | staticmethod | WrappedOverloaded
+        str, types.FunctionType | classmethod | staticmethod | WrappedOverloads
     ],
 ]:
     from typemap.typing import GenericCallable
@@ -334,8 +334,8 @@ def get_local_defns(
                 # XXX: This is totally wrong; we still need to do
                 # substitute in class vars
                 local_fn = stuff
-            elif overloaded := _is_overloaded_function(stuff):
-                local_fn = overloaded
+            elif overloads := typing.get_overloads(stuff):
+                local_fn = WrappedOverloads(tuple(overloads))
 
             # If we got stuck, we build a GenericCallable that
             # computes the type once it has been given type
@@ -380,20 +380,8 @@ def get_local_defns(
 
 
 @dataclasses.dataclass(frozen=True)
-class WrappedOverloaded:
-    functions: tuple[types.FunctionType, ...]
-
-
-def _is_overloaded_function(func):
-    module_overload_registry = typing._overload_registry[func.__module__]
-    if not module_overload_registry:
-        return None
-
-    func_overload_registry = module_overload_registry[func.__qualname__]
-    if not func_overload_registry:
-        return
-
-    return WrappedOverloaded(tuple(func_overload_registry.values()))
+class WrappedOverloads:
+    functions: tuple[typing.Callable[..., Any], ...]
 
 
 def flatten_class_new_proto(cls: type) -> type:

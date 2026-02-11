@@ -170,7 +170,7 @@ def get_annotated_method_hints(cls, *, ctx):
                     object,
                     acls,
                 )
-            elif isinstance(attr, _apply_generic.WrappedOverloaded):
+            elif isinstance(attr, _apply_generic.WrappedOverloads):
                 overloads = [
                     _function_type(_eval_types(of, ctx), receiver_type=acls)
                     for of in attr.functions
