@@ -2120,6 +2120,57 @@ def test_update_class_members_08():
     )
 
 
+def test_update_class_members_09():
+    # Generic classes which use their type params in UpdateClass
+    class A[V]:
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> UpdateClass[Member[Literal["a"], V], *Attrs[T]]:
+            super().__init_subclass__()
+
+    class B[V](A[int]):
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> UpdateClass[Member[Literal["b"], V], *Attrs[T]]:
+            super().__init_subclass__()
+
+    class C[V](B[str]):
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> UpdateClass[Member[Literal["c"], V], *Attrs[T]]:
+            super().__init_subclass__()
+
+    class D[V](C[float]):
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> UpdateClass[Member[Literal["d"], V]]:
+            super().__init_subclass__()
+
+    attrs = eval_typing(Attrs[A[int]])
+    assert attrs == tuple[()]
+
+    attrs = eval_typing(Attrs[B[str]])
+    assert attrs == tuple[Member[Literal["a"], int, Never, Never, B[str]]]
+
+    attrs = eval_typing(Attrs[C[float]])
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a"], int, Never, Never, C[float]],
+            Member[Literal["b"], str, Never, Never, C[float]],
+        ]
+    )
+
+    attrs = eval_typing(Attrs[D[bool]])
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a"], int, Never, Never, D[bool]],
+            Member[Literal["b"], str, Never, Never, D[bool]],
+            Member[Literal["c"], float, Never, Never, D[bool]],
+        ]
+    )
+
 def test_update_class_inheritance_01():
     # current class init subclass is not applied
     class A:
