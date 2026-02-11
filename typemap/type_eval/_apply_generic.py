@@ -233,6 +233,10 @@ def get_annotations(
         if mod := sys.modules.get(obj.__module__):
             globs.update(vars(mod))
 
+        # Make a copy in case we need to eval the annotations. We don't want to
+        # modify the original.
+        rr = dict(rr)
+
     if isinstance(rr, dict) and any(isinstance(v, str) for v in rr.values()):
         args = dict(args)
         # Copy in any __type_params__ that aren't provided for, so that if
