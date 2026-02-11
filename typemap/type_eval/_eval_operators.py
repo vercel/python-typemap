@@ -200,7 +200,7 @@ def _eval_init_subclass(
                 box = dataclasses.replace(
                     nbox, orig_cls=box.canonical_cls, args=box.args
                 )
-                ctx.box_cache[box.cls] = box
+                ctx.box_cache[box.alias_type()] = box
     return box
 
 
@@ -229,7 +229,7 @@ def _get_update_class_members(
 
     # Get type params from function
     if type_params := getattr(init_subclass, '__type_params__', None):
-        args[type_params[0].__name__] = cls
+        args[type_params[0].__name__] = box.alias_type()
 
     init_subclass_annos = _apply_generic.get_annotations(init_subclass, args)
 
@@ -258,12 +258,6 @@ def _get_update_class_members(
             ret_annotation = _apply_generic.substitute(
                 ret_annotation, substitution
             )
-
-        # __init_subclass__ hooks may have annotations that reference the
-        # annotations of the class being defined (e.g. Attrs[T]). These
-        # will call cached_box(T) expecting the original boxed cls, not
-        # the updated one.
-        ctx.box_cache[box.cls] = box
 
         # Evaluate the return annotation
         evaled_ret = _eval_types(ret_annotation, ctx=ctx)
