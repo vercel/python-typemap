@@ -2171,6 +2171,45 @@ def test_update_class_members_09():
         ]
     )
 
+
+@pytest.mark.xfail(reason="Super sketchy....")
+def test_update_class_members_10():
+    # Generic classes which use other classes in their hierarchy
+    # within UpdateClass.
+    class A:
+        a: int
+
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> UpdateClass[
+            Member[Literal["b"], B[str]],
+            Member[Literal["c"], C[float]],
+            Member[Literal["d"], D[bool]],
+        ]:
+            super().__init_subclass__()
+
+    class B[T](A):
+        pass
+
+    class C[T](B[T]):
+        pass
+
+    class D[T](C[T]):
+        pass
+
+    attrs = eval_typing(Attrs[C[int]])
+    # A's __init_subclass__ adds Member["x", B[str]]; we get "a" from A and "x" from UpdateClass.
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a"], int, Never, Never, A],
+            Member[Literal["b"], B[str], Never, Never, C[int]],
+            Member[Literal["c"], C[float], Never, Never, C[int]],
+            Member[Literal["d"], D[bool], Never, Never, C[int]],
+        ]
+    )
+
+
 def test_update_class_inheritance_01():
     # current class init subclass is not applied
     class A:
@@ -2286,6 +2325,23 @@ def test_update_class_getarg_01():
     assert eval_typing(GetArg[C, B, Literal[0]]) is float
     assert eval_typing(GetArg[C, A, Literal[0]]) is int
     assert eval_typing(GetArg[C, A, Literal[1]]) is float
+
+
+@pytest.mark.xfail(reason="TODO")
+def test_update_class_empty_01():
+    class A:
+        a: int
+
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> UpdateClass[()]:
+            super().__init_subclass__()
+
+    class B(A):
+        b: int
+
+    attrs = eval_typing(Attrs[B])
+    assert attrs == tuple[()]
 
 
 ##############
