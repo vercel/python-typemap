@@ -16,6 +16,7 @@ from typemap.type_eval import _apply_generic, _typing_inspect
 from typemap.type_eval._eval_typing import (
     _child_context,
     _eval_types,
+    EvalContext,
 )
 from typemap.typing import (
     Attrs,
@@ -82,7 +83,7 @@ def _make_init_type(v):
         return typing.Literal[(v,)]
 
 
-def cached_box(cls, *, ctx):
+def cached_box(cls, *, ctx: EvalContext):
     if str(cls).startswith('typemap.typing'):
         return _apply_generic.box(cls)
     if cls in ctx.box_cache:
@@ -186,26 +187,27 @@ def get_annotated_method_hints(cls, *, ctx):
 
 
 def _eval_init_subclass(
-    box: _apply_generic.Boxed, ctx: typing.Any
+    box: _apply_generic.Boxed, ctx: EvalContext
 ) -> _apply_generic.Boxed:
     """Get type after all __init_subclass__ with UpdateClass are evaluated."""
     for abox in box.mro[1:]:  # Skip the type itself
         with _child_context() as ctx:
-            if ms := _get_update_class_members(
-                box.cls, abox.alias_type(), ctx=ctx
-            ):
+            if ms := _get_update_class_members(box, abox.alias_type(), ctx=ctx):
                 nbox = _apply_generic.box(
-                    _create_updated_class(box.cls, ms, ctx=ctx)
+                    _create_updated_class(box, ms, ctx=ctx)
                 )
                 # We want to preserve the original cls for Members output
-                box = dataclasses.replace(nbox, orig_cls=box.canonical_cls)
+                box = dataclasses.replace(
+                    nbox, orig_cls=box.canonical_cls, args=box.args
+                )
                 ctx.box_cache[box.cls] = box
     return box
 
 
 def _get_update_class_members(
-    cls: type, base: type, ctx: typing.Any
+    box: _apply_generic.Boxed, base: type, ctx: EvalContext
 ) -> list[Member] | None:
+    cls = box.cls
     origin = typing.get_origin(base) or base
     init_subclass = origin.__dict__.get("__init_subclass__")
     if not init_subclass:
@@ -244,6 +246,12 @@ def _get_update_class_members(
                 ret_annotation, substitution
             )
 
+        # __init_subclass__ hooks may have annotations that reference the
+        # annotations of the class being defined (e.g. Attrs[T]). These
+        # will call cached_box(T) expecting the original boxed cls, not
+        # the updated one.
+        ctx.box_cache[box.cls] = box
+
         # Evaluate the return annotation
         evaled_ret = _eval_types(ret_annotation, ctx=ctx)
 
@@ -257,7 +265,10 @@ def _get_update_class_members(
     return None
 
 
-def _create_updated_class(t: type, ms: list[Member], ctx) -> type:
+def _create_updated_class(
+    box: _apply_generic.Boxed, ms: list[Member], ctx: EvalContext
+) -> type:
+    t = box.cls
     dct: dict[str, object] = {}
 
     # Copy the module
@@ -281,8 +292,22 @@ def _create_updated_class(t: type, ms: list[Member], ctx) -> type:
             _unpack_init(dct, member_name, init)
 
     # Create the updated class
+
+    # If typing.Generic is a base, we need to use it with the type params
+    # applied. Additionally, use types.newclass to properly resolve the mro.
+    bases = tuple(
+        b.alias_type()
+        if b.cls is not typing.Generic
+        else typing.Generic[t.__type_params__]  # type: ignore[index]
+        for b in box.bases
+    )
+
+    kwds = {}
     mcls = type(t)
-    cls = mcls(t.__name__, t.__bases__, dct)
+    if mcls is not type:
+        kwds["metaclass"] = mcls
+
+    cls = types.new_class(t.__name__, bases, kwds, lambda ns: ns.update(dct))
 
     return cls
 
