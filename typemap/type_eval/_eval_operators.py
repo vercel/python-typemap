@@ -208,15 +208,26 @@ def _get_update_class_members(
     box: _apply_generic.Boxed, base: type, ctx: EvalContext
 ) -> list[Member] | None:
     cls = box.cls
-    origin = typing.get_origin(base) or base
-    init_subclass = origin.__dict__.get("__init_subclass__")
+
+    # Get __init_subclass__ from the base class's origin if base is generic.
+    base_origin = typing.get_origin(base) or base
+    init_subclass = base_origin.__dict__.get("__init_subclass__")
     if not init_subclass:
         return None
     init_subclass = inspect.unwrap(init_subclass)
 
     args = {}
+    # Get any type params from the base class if it is generic
+    if (base_args := typing.get_args(base)) and (
+        origin_params := getattr(base_origin, '__type_params__', None)
+    ):
+        args = dict(
+            zip((p.__name__ for p in origin_params), base_args, strict=True)
+        )
+
+    # Get type params from function
     if type_params := getattr(init_subclass, '__type_params__', None):
-        args[str(type_params[0])] = cls
+        args[type_params[0].__name__] = cls
 
     init_subclass_annos = _apply_generic.get_annotations(init_subclass, args)
 
@@ -308,6 +319,9 @@ def _create_updated_class(
         kwds["metaclass"] = mcls
 
     cls = types.new_class(t.__name__, bases, kwds, lambda ns: ns.update(dct))
+    # Explicitly set __type_params__. This normally doesn't work, but we are
+    # creating fake classes for the purpose of type evaluation.
+    cls.__type_params__ = t.__type_params__
 
     return cls
 
