@@ -2056,9 +2056,46 @@ def test_update_class_members_06():
         Member[Literal["b"], set[int], Never, Never, B[int]],
     )
 
+    attrs = eval_typing(Attrs[B[str]])
+    assert attrs.__args__ == (
+        Member[Literal["a"], set[int], Never, Never, B[str]],
+        Member[Literal["b"], set[str], Never, Never, B[str]],
+    )
+
 
 def test_update_class_members_07():
     # Generic derived and base class with UpdateClass
+    # derived from generic base
+    class A[T]:
+        a: T
+
+        def __init_subclass__[U](
+            cls: type[U],
+        ) -> AttrsAsSets[U]:
+            super().__init_subclass__()
+
+    class B[T](A[tuple[T]]):
+        b: T
+
+    class C[T, U](A[U]):
+        c: T
+
+    attrs = eval_typing(Attrs[B[int]])
+    assert attrs.__args__ == (
+        Member[Literal["a"], set[tuple[int]], Never, Never, B[int]],
+        Member[Literal["b"], set[int], Never, Never, B[int]],
+    )
+
+    attrs = eval_typing(Attrs[C[int, str]])
+    assert attrs.__args__ == (
+        Member[Literal["a"], set[str], Never, Never, C[int, str]],
+        Member[Literal["c"], set[int], Never, Never, C[int, str]],
+    )
+
+
+def test_update_class_members_08():
+    # Generic derived and base class with UpdateClass
+    # derived from specialized base
     class A[T]:
         a: T
 
@@ -2074,6 +2111,12 @@ def test_update_class_members_07():
     assert attrs.__args__ == (
         Member[Literal["a"], set[int], Never, Never, B[int]],
         Member[Literal["b"], set[int], Never, Never, B[int]],
+    )
+
+    attrs = eval_typing(Attrs[B[str]])
+    assert attrs.__args__ == (
+        Member[Literal["a"], set[int], Never, Never, B[str]],
+        Member[Literal["b"], set[str], Never, Never, B[str]],
     )
 
 
