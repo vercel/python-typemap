@@ -2017,6 +2017,26 @@ def test_update_class_members_04():
     )
 
 
+def test_update_class_members_05():
+    # Generic base class with UpdateClass
+    class A[T]:
+        a: T
+
+        def __init_subclass__[U](
+            cls: type[U],
+        ) -> AttrsAsSets[U]:
+            super().__init_subclass__()
+
+    class B(A[int]):
+        b: str
+
+    attrs = eval_typing(Attrs[B])
+    assert attrs.__args__ == (
+        Member[Literal["a"], set[int], Never, Never, B],
+        Member[Literal["b"], set[str], Never, Never, B],
+    )
+
+
 def test_update_class_inheritance_01():
     # current class init subclass is not applied
     class A:
