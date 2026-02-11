@@ -206,7 +206,8 @@ def _eval_init_subclass(
 def _get_update_class_members(
     cls: type, base: type, ctx: typing.Any
 ) -> list[Member] | None:
-    init_subclass = base.__dict__.get("__init_subclass__")
+    origin = typing.get_origin(base) or base
+    init_subclass = origin.__dict__.get("__init_subclass__")
     if not init_subclass:
         return None
     init_subclass = inspect.unwrap(init_subclass)
