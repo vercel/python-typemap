@@ -2037,6 +2037,46 @@ def test_update_class_members_05():
     )
 
 
+def test_update_class_members_06():
+    # Generic derived class with UpdateClass
+    class A:
+        a: int
+
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> AttrsAsSets[T]:
+            super().__init_subclass__()
+
+    class B[T](A):
+        b: T
+
+    attrs = eval_typing(Attrs[B[int]])
+    assert attrs.__args__ == (
+        Member[Literal["a"], set[int], Never, Never, B[int]],
+        Member[Literal["b"], set[int], Never, Never, B[int]],
+    )
+
+
+def test_update_class_members_07():
+    # Generic derived and base class with UpdateClass
+    class A[T]:
+        a: T
+
+        def __init_subclass__[U](
+            cls: type[U],
+        ) -> AttrsAsSets[U]:
+            super().__init_subclass__()
+
+    class B[T](A[int]):
+        b: T
+
+    attrs = eval_typing(Attrs[B[int]])
+    assert attrs.__args__ == (
+        Member[Literal["a"], set[int], Never, Never, B[int]],
+        Member[Literal["b"], set[int], Never, Never, B[int]],
+    )
+
+
 def test_update_class_inheritance_01():
     # current class init subclass is not applied
     class A:
