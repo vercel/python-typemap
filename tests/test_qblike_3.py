@@ -18,18 +18,21 @@ from typemap_extensions import (
     Bool,
     Length,
     GetArg,
+    GetInit,
     GetMemberType,
     GetName,
+    GetQuals,
     GetSpecialAttr,
     GetType,
-    GetInit,
     InitField,
     IsAssignable,
     Iter,
     IsEquivalent,
     Member,
+    Members,
     NewProtocol,
     Slice,
+    UpdateClass,
 )
 
 from . import format_helper
@@ -134,7 +137,26 @@ type DbType = DbBoolean | DbInteger | DbString | DbLinkTarget | DbLinkSource
 
 
 class Table[name: str]:
-    pass
+    def __init_subclass__[T](
+        cls: type[T],
+    ) -> UpdateClass[
+        *[
+            Member[
+                GetName[m],
+                Field[
+                    FieldPyType[GetType[m]],
+                    T,
+                    GetName[m],
+                ],
+                GetQuals[m],
+                GetInit[m],
+            ]
+            for m in Iter[Members[T]]
+            if IsAssignable[GetType[m], Field]
+        ],
+        *[m for m in Iter[Members[T]] if not IsAssignable[GetType[m], Field]],
+    ]:
+        super().__init_subclass__()
 
 
 class Field[PyType, Table, Name]:
