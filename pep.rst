@@ -1306,8 +1306,10 @@ processing, and various smaller things.
 
 There is a demo of a runtime evaluator as well [#runtime]_.
 
-"Rejected" Ideas That Maybe We Should Actually Do?
-==================================================
+Alternate syntax ideas
+======================
+
+AKA '"Rejected" Ideas That Maybe We Should Actually Do?'
 
 Very interested in feedback about these!
 
