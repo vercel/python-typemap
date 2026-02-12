@@ -15,6 +15,7 @@ from typemap import type_eval
 from typemap.type_eval import _apply_generic, _typing_inspect
 from typemap.type_eval._eval_typing import (
     _child_context,
+    _eval_args,
     _eval_types,
     EvalContext,
 )
@@ -192,7 +193,8 @@ def _eval_init_subclass(
     """Get type after all __init_subclass__ with UpdateClass are evaluated."""
     for abox in box.mro[1:]:  # Skip the type itself
         with _child_context() as ctx:
-            if ms := _get_update_class_members(box, abox, ctx=ctx):
+            ms = _get_update_class_members(box, abox, ctx=ctx)
+            if ms is not None:
                 nbox = _apply_generic.box(
                     _create_updated_class(box, ms, ctx=ctx)
                 )
@@ -208,7 +210,7 @@ def _get_update_class_members(
     box: _apply_generic.Boxed,
     boxed_base: _apply_generic.Boxed,
     ctx: EvalContext,
-) -> list[Member] | None:
+) -> typing.Sequence[Member] | None:
     cls = box.cls
 
     # Get __init_subclass__ from the base class's origin if base is generic.
@@ -267,13 +269,13 @@ def _get_update_class_members(
             _typing_inspect.is_generic_alias(evaled_ret)
             and typing.get_origin(evaled_ret) is UpdateClass
         ):
-            return [m for m in typing.get_args(evaled_ret)]
+            return _eval_args(typing.get_args(evaled_ret), ctx)
 
     return None
 
 
 def _create_updated_class(
-    box: _apply_generic.Boxed, ms: list[Member], ctx: EvalContext
+    box: _apply_generic.Boxed, ms: typing.Sequence[Member], ctx: EvalContext
 ) -> type:
     t = box.cls
     dct: dict[str, object] = {}
@@ -289,9 +291,11 @@ def _create_updated_class(
         typ = _eval_types(typ, ctx)
         tquals = _eval_types(quals, ctx)
 
-        if type_eval.issubtype(
-            typing.Literal["ClassVar"], tquals
-        ) and _is_method_like(typ):
+        if (
+            type_eval.issubtype(typing.Literal["ClassVar"], tquals)
+            and _is_method_like(typ)
+            and _typing_inspect.get_head(typ) is not GenericCallable
+        ):
             dct[member_name] = _callable_type_to_method(member_name, typ, ctx)
         else:
             # Update/add the annotation

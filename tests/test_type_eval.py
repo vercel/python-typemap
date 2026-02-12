@@ -2411,6 +2411,55 @@ def test_update_class_members_10():
     )
 
 
+def test_update_class_members_11():
+    class A:
+        a: int
+
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> UpdateClass[*Members[T]]:
+            super().__init_subclass__()
+
+        def f(self) -> int: ...
+
+    class B(A):
+        b: str
+
+        def g(self) -> str: ...
+
+    attrs = eval_typing(Attrs[B])
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a"], int, Never, Never, B],
+            Member[Literal["b"], str, Never, Never, B],
+        ]
+    )
+
+    members = eval_typing(MembersExceptInitSubclass[B])
+    assert (
+        members
+        == tuple[
+            Member[Literal["a"], int, Never, Never, B],
+            Member[Literal["b"], str, Never, Never, B],
+            Member[
+                Literal["f"],
+                Callable[[Param[Literal["self"], Self]], int],
+                Literal["ClassVar"],
+                object,
+                B,
+            ],
+            Member[
+                Literal["g"],
+                Callable[[Param[Literal["self"], Self]], str],
+                Literal["ClassVar"],
+                object,
+                B,
+            ],
+        ]
+    )
+
+
 def test_update_class_inheritance_01():
     # current class init subclass is not applied
     class A:
@@ -2528,7 +2577,6 @@ def test_update_class_getarg_01():
     assert eval_typing(GetArg[C, A, Literal[1]]) is float
 
 
-@pytest.mark.xfail(reason="TODO")
 def test_update_class_empty_01():
     class A:
         a: int
@@ -2542,7 +2590,7 @@ def test_update_class_empty_01():
         b: int
 
     attrs = eval_typing(Attrs[B])
-    assert attrs == tuple[()]
+    assert attrs == tuple[Member[Literal["a"], int, Never, Never, A]]
 
 
 ##############
