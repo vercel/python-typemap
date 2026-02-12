@@ -192,7 +192,8 @@ def _eval_init_subclass(
     """Get type after all __init_subclass__ with UpdateClass are evaluated."""
     for abox in box.mro[1:]:  # Skip the type itself
         with _child_context() as ctx:
-            if ms := _get_update_class_members(box, abox, ctx=ctx):
+            ms = _get_update_class_members(box, abox, ctx=ctx)
+            if ms is not None:
                 nbox = _apply_generic.box(
                     _create_updated_class(box, ms, ctx=ctx)
                 )
