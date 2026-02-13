@@ -340,7 +340,6 @@ def get_local_defns(
     ],
 ]:
     from typemap.typing import GenericCallable, Overloaded
-    from ._eval_operators import _function_type, _function_type_from_sig
 
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
@@ -381,8 +380,6 @@ def get_local_defns(
                 definition_cls = boxed.canonical_cls
 
                 def _make_lambda(fn, o, sa, tp, recv_cls, def_cls):
-                    from ._eval_operators import _function_type_from_sig
-
                     def lam(*vs):
                         args = dict(sa)
                         args.update(
@@ -438,6 +435,110 @@ def get_local_defns(
                 dct[name] = Overloaded[*overload_types]  # type: ignore[valid-type]
 
     return annos, dct
+
+
+def _function_type_from_sig(sig, func_type, *, receiver_type):
+    from typemap.typing import Param
+
+    empty = inspect.Parameter.empty
+
+    def _ann(x):
+        return typing.Any if x is empty else None if x is type(None) else x
+
+    specified_receiver = receiver_type
+
+    params = []
+    for i, p in enumerate(sig.parameters.values()):
+        ann = p.annotation
+        # Special handling for first argument on methods.
+        if i == 0 and receiver_type and func_type is not staticmethod:
+            if ann is empty:
+                ann = receiver_type
+            else:
+                if (
+                    func_type is classmethod
+                    and typing.get_origin(ann) is type
+                    and (receiver_args := typing.get_args(ann))
+                ):
+                    # The annotation for cls in a classmethod should be type[C]
+                    specified_receiver = receiver_args[0]
+                else:
+                    specified_receiver = ann
+
+        quals = []
+        if p.kind == inspect.Parameter.VAR_POSITIONAL:
+            quals.append("*")
+        if p.kind == inspect.Parameter.VAR_KEYWORD:
+            quals.append("**")
+        if p.kind == inspect.Parameter.KEYWORD_ONLY:
+            quals.append("keyword")
+        if p.kind == inspect.Parameter.POSITIONAL_ONLY:
+            quals.append("positional")
+        if p.default is not empty:
+            quals.append("default")
+        params.append(
+            Param[
+                typing.Literal[p.name],
+                _ann(ann),
+                typing.Literal[*quals] if quals else typing.Never,
+            ]
+        )
+
+    ret = _ann(sig.return_annotation)
+
+    # TODO: Is doing the tuple for staticmethod/classmethod legit?
+    # Putting a list in makes it unhashable...
+    f: typing.Any  # type: ignore[annotation-unchecked]
+    if func_type is staticmethod:
+        f = staticmethod[tuple[*params], ret]
+    elif func_type is classmethod:
+        f = classmethod[specified_receiver, tuple[*params[1:]], ret]
+    else:
+        f = typing.Callable[params, ret]
+
+    return f
+
+
+def _function_type(
+    func, *, receiver_type
+) -> type[typing.Callable | classmethod | staticmethod | GenericCallable]:
+    from typemap.typing import GenericCallable
+
+    root = inspect.unwrap(func)
+    sig = inspect.signature(root)
+    f = _function_type_from_sig(sig, type(func), receiver_type=receiver_type)
+
+    if root.__type_params__:
+        # Must store a lambda that performs type variable substitution
+        type_params = root.__type_params__
+        callable_lambda = _create_generic_callable_lambda(f, type_params)
+        f = GenericCallable[tuple[*type_params], callable_lambda]  # type: ignore[misc,valid-type]
+    return f
+
+
+def _create_generic_callable_lambda(
+    f: typing.Callable | classmethod | staticmethod,
+    type_params: tuple[typing.TypeVar, ...],
+):
+    if typing.get_origin(f) in (staticmethod, classmethod):
+        return lambda *vs: substitute(
+            f, dict(zip(type_params, vs, strict=True))
+        )
+
+    else:
+        # Callable params are stored as a list
+        params, ret = typing.get_args(f)
+
+        return lambda *vs: typing.Callable[
+            [
+                substitute(
+                    p,
+                    dict(zip(type_params, vs, strict=True)),
+                )
+                for p in params
+            ],
+            substitute(ret, dict(zip(type_params, vs, strict=True))),
+        ]
 
 
 def flatten_class_new_proto(cls: type) -> type:
