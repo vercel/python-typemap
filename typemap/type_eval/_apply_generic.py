@@ -286,8 +286,10 @@ def get_annotations(
     return rr
 
 
-def _resolved_function_signature(func, args):
-    """Get the signature of a function with type hints resolved to arg values"""
+def _resolved_function_signature(
+    func, args, definition_cls: type | None = None
+):
+    """Get the signature of a function with hints resolved to arg values."""
 
     import typemap.typing as nt
 
@@ -306,7 +308,7 @@ def _resolved_function_signature(func, args):
     finally:
         nt.special_form_evaluator.reset(token)
 
-    if hints := get_annotations(func, args):
+    if hints := get_annotations(func, args, cls=definition_cls):
         params = []
         for name, param in sig.parameters.items():
             annotation = hints.get(name, param.annotation)
@@ -336,7 +338,7 @@ def get_local_defns(
     ],
 ]:
     from typemap.typing import GenericCallable, Overloaded
-    from ._eval_operators import _function_type
+    from ._eval_operators import _function_type, _function_type_from_sig
 
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
@@ -354,8 +356,6 @@ def get_local_defns(
         stuff = inspect.unwrap(orig)
 
         if isinstance(stuff, types.FunctionType):
-            local_fn: Any = None
-
             # TODO: This annos_ok thing is a hack because processing
             # __annotations__ on methods broke stuff and I didn't want
             # to chase it down yet.
@@ -368,24 +368,28 @@ def get_local_defns(
                 stuck = True
                 rr = None
 
+            resolved_sig = None
             if rr is not None:
-                local_fn = make_func(orig, rr)
+                resolved_sig = _resolved_function_signature(
+                    stuff, boxed.str_args, definition_cls=boxed.cls
+                )
             elif not stuck and getattr(stuff, "__annotations__", None):
                 # XXX: This is totally wrong; we still need to do
                 # substitute in class vars
-                local_fn = stuff
-            elif overloads := typing.get_overloads(stuff):
-                local_fn = WrappedOverloads(tuple(overloads))
+                resolved_sig = _resolved_function_signature(
+                    stuff, boxed.str_args, definition_cls=boxed.cls
+                )
+            overloads = typing.get_overloads(stuff)
 
-            # If we got stuck, we build a GenericCallable that
-            # computes the type once it has been given type
-            # variables!
-            if stuck and stuff.__type_params__:
+            # If the method has type params, we build a GenericCallable
+            # (in annos only) so that [Z] etc. are preserved in output.
+            if stuff.__type_params__:
                 type_params = stuff.__type_params__
                 str_args = boxed.str_args
-                canonical_cls = boxed.canonical_cls
+                receiver_cls = boxed.alias_type()
+                definition_cls = boxed.canonical_cls
 
-                def _make_lambda(fn, o, sa, tp, cls):
+                def _make_lambda(fn, o, sa, tp, recv_cls, def_cls):
                     from ._eval_operators import _function_type_from_sig
 
                     def lam(*vs):
@@ -397,9 +401,11 @@ def get_local_defns(
                                 strict=True,
                             )
                         )
-                        sig = _resolved_function_signature(fn, args)
+                        sig = _resolved_function_signature(
+                            fn, args, definition_cls=def_cls
+                        )
                         return _function_type_from_sig(
-                            sig, type(o), receiver_type=cls
+                            sig, type(o), receiver_type=recv_cls
                         )
 
                     return lam
@@ -407,53 +413,40 @@ def get_local_defns(
                 gc = GenericCallable[  # type: ignore[valid-type,misc]
                     tuple[*type_params],  # type: ignore[valid-type]
                     _make_lambda(
-                        stuff, orig, str_args, type_params, canonical_cls
+                        stuff,
+                        orig,
+                        str_args,
+                        type_params,
+                        receiver_cls,
+                        definition_cls,
                     ),
                 ]
-                annos[name] = typing.ClassVar[gc]
-            elif local_fn is not None:
-                if orig.__class__ is classmethod:
-                    local_fn = classmethod(local_fn)
-                elif orig.__class__ is staticmethod:
-                    local_fn = staticmethod(local_fn)
-
-                if isinstance(
-                    local_fn,
-                    (
-                        types.FunctionType,
-                        types.MethodType,
-                        staticmethod,
-                        classmethod,
-                    ),
-                ):
-                    dct[name] = _function_type(
-                        local_fn, receiver_type=boxed.alias_type()
-                    )
-
-                elif isinstance(local_fn, WrappedOverloads):
-                    overload_types: typing.Sequence[
-                        type[
-                            typing.Callable
-                            | classmethod
-                            | staticmethod
-                            | GenericCallable
-                        ]
-                    ] = [
-                        _function_type(
-                            _eval_typing.eval_typing(of),
-                            receiver_type=boxed.alias_type(),
-                        )
-                        for of in local_fn.functions
+                dct[name] = gc
+            elif resolved_sig is not None:
+                dct[name] = _function_type_from_sig(
+                    resolved_sig,
+                    type(orig),
+                    receiver_type=boxed.alias_type(),
+                )
+            elif overloads:
+                overload_types: typing.Sequence[
+                    type[
+                        typing.Callable
+                        | classmethod
+                        | staticmethod
+                        | GenericCallable
                     ]
+                ] = [
+                    _function_type(
+                        _eval_typing.eval_typing(of),
+                        receiver_type=boxed.alias_type(),
+                    )
+                    for of in overloads
+                ]
 
-                    dct[name] = Overloaded[*overload_types]  # type: ignore[valid-type]
+                dct[name] = Overloaded[*overload_types]  # type: ignore[valid-type]
 
     return annos, dct
-
-
-@dataclasses.dataclass(frozen=True)
-class WrappedOverloads:
-    functions: tuple[typing.Callable[..., Any], ...]
 
 
 def flatten_class_new_proto(cls: type) -> type:
