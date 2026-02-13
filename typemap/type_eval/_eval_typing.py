@@ -15,7 +15,7 @@ from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
     _UnpackGenericAlias as typing_UnpackGenericAlias,
 )
 
-from typemap.typing import _NestedGenericAlias
+from typemap.typing import _AssociatedTypeGenericAlias
 
 
 if typing.TYPE_CHECKING:
@@ -400,7 +400,9 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
 
 
 @_eval_types_impl.register
-def _eval_nested_generic_alias(obj: _NestedGenericAlias, ctx: EvalContext):
+def _eval_nested_generic_alias(
+    obj: _AssociatedTypeGenericAlias, ctx: EvalContext
+):
     base, alias = obj.__args__
 
     # TODO: what if it has parameters of its own
