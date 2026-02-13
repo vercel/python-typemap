@@ -16,8 +16,8 @@ Resolution: <url>
 Abstract
 ========
 
-We propose to add powerful type-level type introspection and type
-construction facilities to the type system, inspired in large part by
+We propose to add powerful type-level introspection and construction
+facilities to the type system, inspired in large part by
 TypeScript's conditional and mapped types, but adapted to the quite
 different conditions of Python typing.
 
@@ -38,8 +38,8 @@ was considered common enough that a special-case
 ``@dataclass_transform`` decorator was added specifically to cover
 that case (:pep:`681`).
 
-We are proposing to add to the type system type manipulation
-facilities that are more capable of keeping up with dynamic Python
+We are proposing to add type manipulation facilities to the type
+system that are more capable of keeping up with dynamic Python
 code.
 
 There does seem to be demand for this. In the analysis of the
@@ -105,7 +105,7 @@ with a schema defined like::
         content: Property[str]
 
         comments: MultiLink[Comment]
-        author: Link[Comment]
+        author: Link[User]
 
 
     class User:
@@ -117,7 +117,7 @@ with a schema defined like::
 
 (In Prisma, a code generator generates type definitions based on a
 prisma schema in its own custom format; you could imagine something
-similar here, or that the definitions were hand written)
+similar here, or that the definitions were hand-written)
 
 and a call like::
 
@@ -267,7 +267,7 @@ More powerful decorator typing
 ------------------------------
 
 The typing of decorator functions has long been a pain point in Python
-typing. The situation was substantially improved by the introducing of
+typing. The situation was substantially improved by the introduction of
 ``ParamSpec`` in :pep:`612`, but a number of patterns remain
 unsupported:
 
@@ -289,7 +289,7 @@ arrays, such as::
   x: Array[float, L[480], L[640]] = Array()
 
 The example in that PEP shows how ``TypeVarTuple`` can be used to
-make sure that both sides of an arithmetic operation having matching
+make sure that both sides of an arithmetic operation have matching
 shapes. Most multi-dimensional array libraries, however, also support
 broadcasting [#broadcasting]_, which allows the mixing of differently
 shaped data.  With this PEP, we can define a ``Broadcast[A, B]`` type
@@ -350,7 +350,7 @@ Here ``BaseTypedDict`` is defined as::
     class BaseTypedDict(typing.TypedDict):
         pass
 
-But any typeddict would be allowed there.
+But any TypedDict would be allowed there.
 
 Then, if we had a call like::
 
@@ -391,7 +391,7 @@ support processing ``**kwargs`` with type level computation.
 Extended Callables, take 2
 --------------------------
 
-We introduce a ``Param`` type the contains all the information about a function param::
+We introduce a ``Param`` type that contains all the information about a function param::
 
     class Param[N: str | None, T, Q: ParamQuals = typing.Never]:
         pass
@@ -1258,7 +1258,7 @@ we encounter a variable.)
 
 The reason we suggest restricting the use of ``GenericCallable`` to
 the type argument of ``Member`` is because impredicative
-polymorphism (where you you can instantiate type variables with other
+polymorphism (where you can instantiate type variables with other
 generic types) and rank-N types (where generics can be bound in nested
 positions deep inside function types) are cans of worms when combined
 with type inference [#undecidable]_.  While it would be nice to support,

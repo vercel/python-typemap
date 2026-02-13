@@ -141,7 +141,7 @@ class Post:
     content: Property[str]
 
     comments: MultiLink[Comment]
-    author: Link[Comment]
+    author: Link[User]
 
 
 class User:
@@ -232,5 +232,5 @@ def test_qblike2_3():
         class select[...]:
             title: str
             comments: list[tests.test_qblike_2.PropsOnly[tests.test_qblike_2.Comment]]
-            author: tests.test_qblike_2.PropsOnly[tests.test_qblike_2.Comment]
+            author: tests.test_qblike_2.PropsOnly[tests.test_qblike_2.User]
         """)
