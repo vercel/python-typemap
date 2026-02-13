@@ -399,7 +399,7 @@ def get_local_defns(
                         )
                         sig = _resolved_function_signature(fn, args)
                         return _function_type_from_sig(
-                            sig, o, receiver_type=cls
+                            sig, type(o), receiver_type=cls
                         )
 
                     return lam

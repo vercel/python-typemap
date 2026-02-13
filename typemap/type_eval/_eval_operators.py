@@ -679,7 +679,7 @@ def _callable_type_to_method(name, typ, ctx):
     return head(func)
 
 
-def _function_type_from_sig(sig, func, *, receiver_type):
+def _function_type_from_sig(sig, func_type, *, receiver_type):
     empty = inspect.Parameter.empty
 
     def _ann(x):
@@ -691,12 +691,12 @@ def _function_type_from_sig(sig, func, *, receiver_type):
     for i, p in enumerate(sig.parameters.values()):
         ann = p.annotation
         # Special handling for first argument on methods.
-        if i == 0 and receiver_type and not isinstance(func, staticmethod):
+        if i == 0 and receiver_type and func_type is not staticmethod:
             if ann is empty:
                 ann = receiver_type
             else:
                 if (
-                    isinstance(func, classmethod)
+                    func_type is classmethod
                     and typing.get_origin(ann) is type
                     and (receiver_args := typing.get_args(ann))
                 ):
@@ -729,9 +729,9 @@ def _function_type_from_sig(sig, func, *, receiver_type):
     # TODO: Is doing the tuple for staticmethod/classmethod legit?
     # Putting a list in makes it unhashable...
     f: typing.Any  # type: ignore[annotation-unchecked]
-    if isinstance(func, staticmethod):
+    if func_type is staticmethod:
         f = staticmethod[tuple[*params], ret]
-    elif isinstance(func, classmethod):
+    elif func_type is classmethod:
         f = classmethod[specified_receiver, tuple[*params[1:]], ret]
     else:
         f = typing.Callable[params, ret]
@@ -744,7 +744,7 @@ def _function_type(
 ) -> type[typing.Callable | classmethod | staticmethod | GenericCallable]:
     root = inspect.unwrap(func)
     sig = inspect.signature(root)
-    f = _function_type_from_sig(sig, func, receiver_type=receiver_type)
+    f = _function_type_from_sig(sig, type(func), receiver_type=receiver_type)
 
     if root.__type_params__:
         # Must store a lambda that performs type variable substitution
