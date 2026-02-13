@@ -318,8 +318,10 @@ def _resolved_function_signature(
         sig = sig.replace(
             parameters=params, return_annotation=return_annotation
         )
+        return sig
 
-    return sig
+    else:
+        return None
 
 
 def get_local_defns(
@@ -359,26 +361,15 @@ def get_local_defns(
             # TODO: This annos_ok thing is a hack because processing
             # __annotations__ on methods broke stuff and I didn't want
             # to chase it down yet.
-            stuck = False
+            resolved_sig = None
             try:
-                rr = get_annotations(
-                    stuff, boxed.str_args, cls=boxed.cls, annos_ok=False
+                resolved_sig = _resolved_function_signature(
+                    stuff,
+                    boxed.str_args,
+                    definition_cls=boxed.cls,
                 )
             except _eval_typing.StuckException:
-                stuck = True
-                rr = None
-
-            resolved_sig = None
-            if rr is not None:
-                resolved_sig = _resolved_function_signature(
-                    stuff, boxed.str_args, definition_cls=boxed.cls
-                )
-            elif not stuck and getattr(stuff, "__annotations__", None):
-                # XXX: This is totally wrong; we still need to do
-                # substitute in class vars
-                resolved_sig = _resolved_function_signature(
-                    stuff, boxed.str_args, definition_cls=boxed.cls
-                )
+                pass
             overloads = typing.get_overloads(stuff)
 
             # If the method has type params, we build a GenericCallable
