@@ -15,6 +15,7 @@ from . import _typing_inspect
 
 if typing.TYPE_CHECKING:
     from typing import Any, Mapping
+    from typemap.typing import GenericCallable, Overloaded
 
 
 @dataclasses.dataclass(frozen=True)
@@ -324,10 +325,18 @@ def get_local_defns(
 ) -> tuple[
     dict[str, Any],
     dict[
-        str, types.FunctionType | classmethod | staticmethod | WrappedOverloads
+        str,
+        type[
+            typing.Callable
+            | classmethod
+            | staticmethod
+            | GenericCallable
+            | Overloaded
+        ],
     ],
 ]:
-    from typemap.typing import GenericCallable
+    from typemap.typing import GenericCallable, Overloaded
+    from ._eval_operators import _function_type
 
     annos: dict[str, Any] = {}
     dct: dict[str, Any] = {}
@@ -337,6 +346,9 @@ def get_local_defns(
 
     for name, orig in boxed.cls.__dict__.items():
         if name in EXCLUDED_ATTRIBUTES:
+            continue
+
+        if orig is typing._no_init_or_replace_init:  # type: ignore[attr-defined]
             continue
 
         stuff = inspect.unwrap(orig)
@@ -405,7 +417,36 @@ def get_local_defns(
                 elif orig.__class__ is staticmethod:
                     local_fn = staticmethod(local_fn)
 
-                dct[name] = local_fn
+                if isinstance(
+                    local_fn,
+                    (
+                        types.FunctionType,
+                        types.MethodType,
+                        staticmethod,
+                        classmethod,
+                    ),
+                ):
+                    dct[name] = _function_type(
+                        local_fn, receiver_type=boxed.alias_type()
+                    )
+
+                elif isinstance(local_fn, WrappedOverloads):
+                    overload_types: typing.Sequence[
+                        type[
+                            typing.Callable
+                            | classmethod
+                            | staticmethod
+                            | GenericCallable
+                        ]
+                    ] = [
+                        _function_type(
+                            _eval_typing.eval_typing(of),
+                            receiver_type=boxed.alias_type(),
+                        )
+                        for of in local_fn.functions
+                    ]
+
+                    dct[name] = Overloaded[*overload_types]  # type: ignore[valid-type]
 
     return annos, dct
 

@@ -41,7 +41,6 @@ from typemap.typing import (
     Member,
     Members,
     NewProtocol,
-    Overloaded,
     Param,
     RaiseError,
     Slice,
@@ -154,35 +153,12 @@ def get_annotated_method_hints(cls, *, ctx):
 
         _, dct = _apply_generic.get_local_defns(abox)
         for name, attr in dct.items():
-            if isinstance(
+            hints[name] = (
                 attr,
-                (
-                    types.FunctionType,
-                    types.MethodType,
-                    staticmethod,
-                    classmethod,
-                ),
-            ):
-                if attr is typing._no_init_or_replace_init:
-                    continue
-
-                hints[name] = (
-                    _function_type(attr, receiver_type=acls),
-                    ("ClassVar",),
-                    object,
-                    acls,
-                )
-            elif isinstance(attr, _apply_generic.WrappedOverloads):
-                overloads = [
-                    _function_type(_eval_types(of, ctx), receiver_type=acls)
-                    for of in attr.functions
-                ]
-                hints[name] = (
-                    Overloaded[*overloads],
-                    ("ClassVar",),
-                    object,
-                    acls,
-                )
+                ("ClassVar",),
+                object,
+                acls,
+            )
 
     return hints
 
@@ -763,7 +739,9 @@ def _function_type_from_sig(sig, func, *, receiver_type):
     return f
 
 
-def _function_type(func, *, receiver_type):
+def _function_type(
+    func, *, receiver_type
+) -> type[typing.Callable | classmethod | staticmethod | GenericCallable]:
     root = inspect.unwrap(func)
     sig = inspect.signature(root)
     f = _function_type_from_sig(sig, func, receiver_type=receiver_type)
@@ -772,7 +750,7 @@ def _function_type(func, *, receiver_type):
         # Must store a lambda that performs type variable substitution
         type_params = root.__type_params__
         callable_lambda = _create_generic_callable_lambda(f, type_params)
-        f = GenericCallable[tuple[*type_params], callable_lambda]
+        f = GenericCallable[tuple[*type_params], callable_lambda]  # type: ignore[misc,valid-type]
     return f
 
 
