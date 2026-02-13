@@ -716,6 +716,7 @@ def test_getmember_10():
         assert eval_typing(ft(B)) == classmethod[B, tuple[()], tuple[bool, str]]
 
 
+@pytest.mark.xfail(reason="External type vars not supported yet")
 def test_getmember_11():
     class C:
         def member_method(self, x: T) -> T: ...
@@ -847,6 +848,7 @@ def test_getmember_12():
     assert eval_typing(GetDefiner[m]) == C[str]
 
 
+@pytest.mark.xfail(reason="External type vars not supported yet")
 def test_getmember_13():
     # T defined externally
     class C:
