@@ -510,7 +510,8 @@ imported qualified or with some other name)
 
    <variadic-type-arg> =
          <type> ,
-       | * [ <type-for-iter> ] ,
+       | * [ <type-for> ] ,
+       | * <tuple-type>
 
 
    <type-for> = <type> <type-for-iter>+ <type-for-if>*
@@ -523,6 +524,9 @@ imported qualified or with some other name)
 
 (``<type-bool-for>`` is identical to ``<type-for>`` except that the
 result type is a ``<type-bool>`` instead of a ``<type>``.)
+
+(``<tuple-type>`` is any type which when evaluated resolves to a tuple
+type eg. ``tuple[int, str]``.)
 
 There are three core syntactic features introduced: type booleans,
 conditional types and unpacked comprehension types.
