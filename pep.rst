@@ -1,8 +1,6 @@
 PEP: 9999
 Title: Type Manipulation
 Author: Michael J. Sullivan <sully@msully.net>, Daniel W. Park <dnwpark@protonmail.com>, Yury Selivanov <yury@edgedb.com>
-Sponsor: <name of sponsor>
-PEP-Delegate: <PEP delegate's name>
 Discussions-To: Pending
 Status: Draft
 Type: Standards Track
@@ -10,7 +8,6 @@ Topic: Typing
 Created: <date created on, in dd-mmm-yyyy format>
 Python-Version: 3.15
 Post-History: Pending
-Resolution: <url>
 
 
 Abstract
