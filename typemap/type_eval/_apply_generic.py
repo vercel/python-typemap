@@ -357,20 +357,6 @@ def get_local_defns(
         stuff = inspect.unwrap(orig)
 
         if isinstance(stuff, types.FunctionType):
-            # TODO: This annos_ok thing is a hack because processing
-            # __annotations__ on methods broke stuff and I didn't want
-            # to chase it down yet.
-            resolved_sig = None
-            try:
-                resolved_sig = _resolved_function_signature(
-                    stuff,
-                    boxed.str_args,
-                    definition_cls=boxed.cls,
-                )
-            except _eval_typing.StuckException:
-                pass
-            overloads = typing.get_overloads(stuff)
-
             # If the method has type params, we build a GenericCallable
             # (in annos only) so that [Z] etc. are preserved in output.
             if stuff.__type_params__:
@@ -410,13 +396,9 @@ def get_local_defns(
                     ),
                 ]
                 dct[name] = gc
-            elif resolved_sig is not None:
-                dct[name] = _function_type_from_sig(
-                    resolved_sig,
-                    type(orig),
-                    receiver_type=boxed.alias_type(),
-                )
-            elif overloads:
+
+            elif overloads := typing.get_overloads(stuff):
+                # If the method is overloaded, build an Overloaded type.
                 overload_types: typing.Sequence[
                     type[
                         typing.Callable
@@ -433,6 +415,29 @@ def get_local_defns(
                 ]
 
                 dct[name] = Overloaded[*overload_types]  # type: ignore[valid-type]
+                continue
+
+            else:
+                # Try to resolve the signature as a normal function.
+                resolved_sig = None
+                try:
+                    resolved_sig = _resolved_function_signature(
+                        stuff,
+                        boxed.str_args,
+                        definition_cls=boxed.cls,
+                    )
+                except _eval_typing.StuckException:
+                    # We can get stuck if the signature has external type vars.
+                    # Just fallback to the original signature for now.
+                    resolved_sig = inspect.signature(stuff)
+
+                if resolved_sig is not None:
+                    dct[name] = _function_type_from_sig(
+                        resolved_sig,
+                        type(orig),
+                        receiver_type=boxed.alias_type(),
+                    )
+                    continue
 
     return annos, dct
 
