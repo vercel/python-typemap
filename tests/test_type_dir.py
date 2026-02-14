@@ -7,9 +7,6 @@ from typemap_extensions import (
     Attrs,
     FromUnion,
     GetArg,
-    GetName,
-    GetQuals,
-    GetType,
     InitField,
     IsAssignable,
     Iter,
@@ -86,40 +83,34 @@ type BaseArg[T] = (
 
 
 type AllOptional[T] = NewProtocol[
-    *[
-        Member[GetName[p], GetType[p] | None, GetQuals[p]]
-        for p in Iter[Attrs[T]]
-    ]
+    *[Member[p.name, p.type | None, p.quals] for p in Iter[Attrs[T]]]
 ]
 
 type OptionalFinal = AllOptional[Final]
 
 
 type Capitalize[T] = NewProtocol[
-    *[
-        Member[Uppercase[GetName[p]], GetType[p], GetQuals[p]]
-        for p in Iter[Attrs[T]]
-    ]
+    *[Member[Uppercase[p.name], p.type, p.quals] for p in Iter[Attrs[T]]]
 ]
 
 type Prims[T] = NewProtocol[
-    *[p for p in Iter[Attrs[T]] if IsAssignable[GetType[p], int | str]]
+    *[p for p in Iter[Attrs[T]] if IsAssignable[p.type, int | str]]
 ]
 
 type NoLiterals1[T] = NewProtocol[
     *[
         Member[
-            GetName[p],
+            p.name,
             Union[
                 *[
                     t
-                    for t in Iter[FromUnion[GetType[p]]]
+                    for t in Iter[FromUnion[p.type]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     if not IsAssignable[t, Literal]
                 ]
             ],
-            GetQuals[p],
+            p.quals,
         ]
         for p in Iter[Attrs[T]]
     ]
@@ -144,18 +135,18 @@ type IsLiteral[T] = (
 type NoLiterals2[T] = NewProtocol[
     *[
         Member[
-            GetName[p],
+            p.name,
             Union[
                 *[
                     t
-                    for t in Iter[FromUnion[GetType[p]]]
+                    for t in Iter[FromUnion[p.type]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     # if not IsAssignabletype[t, Literal]
                     if not IsAssignable[IsLiteral[t], Literal[True]]
                 ]
             ],
-            GetQuals[p],
+            p.quals,
         ]
         for p in Iter[Attrs[T]]
     ]
@@ -459,4 +450,22 @@ def test_type_dir_inits_1():
         class Inited:
             foo: int = 10
             bar: bool = Field(foo=False)
+    """)
+
+
+class AnnoyingProjection:
+    def foo[T: typing.Member](self, a: T) -> T.name:
+        pass
+
+    def bar[T: typing.Member](self, a: T) -> 'T.name':
+        pass
+
+
+def test_type_dir_dot_projection_1():
+    d = eval_typing(AnnoyingProjection)
+
+    assert format_helper.format_class(d) == textwrap.dedent("""\
+         class AnnoyingProjection:
+             foo: typing.ClassVar[typemap.typing.GenericCallable[tuple[T], <...>]]
+             bar: typing.ClassVar[typemap.typing.GenericCallable[tuple[T], <...>]]
     """)

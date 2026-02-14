@@ -689,13 +689,14 @@ Object inspection
   of classes.  Its type parameters encode the information about each
   member.
 
-  * ``N`` is the name, as a literal string type
-  * ``T`` is the type
-  * ``Q`` is a union of qualifiers (see ``MemberQuals`` below)
+  * ``N`` is the name, as a literal string type. Accessable with ``.name``.
+  * ``T`` is the type. Accessable with ``.type``.
+  * ``Q`` is a union of qualifiers (see ``MemberQuals`` below). Accessable with ``.quals``.
   * ``Init`` is the literal type of the attribute initializer in the
-    class (see :ref:`InitField <init-field>`)
+    class (see :ref:`InitField <init-field>`). Accessable with ``.init``.
   * ``D`` is the defining class of the member. (That is, which class
-    the member is inherited from. Always ``Never``, for a ``TypedDict``)
+    the member is inherited from. Always ``Never``, for a ``TypedDict``).
+    Accessable with ``.definer``.
 
 * ``MemberQuals = Literal['ClassVar', 'Final', 'NotRequired', 'ReadOnly']`` -
   ``MemberQuals`` is the type of "qualifiers" that can apply to a
@@ -708,16 +709,6 @@ extended callables, and carrying the ``ClassVar``
 qualifier. ``staticmethod`` and ``classmethod`` will return
 ``staticmethod`` and ``classmethod`` types, which are subscriptable as
 of 3.14.
-
-We also have helpers for extracting the fields of ``Members``; they
-are all definable in terms of ``GetArg``. (Some of them are shared
-with ``Param``, discussed below.)
-
-* ``GetName[T: Member | Param]``
-* ``GetType[T: Member | Param]``
-* ``GetQuals[T: Member | Param]``
-* ``GetInit[T: Member]``
-* ``GetDefiner[T: Member]``
 
 All of the operators in this section are :ref:`lifted over union types
 <lifting>`.
@@ -810,10 +801,10 @@ Callable inspection and creation
 ``Callable`` types always have their arguments exposed in the extended
 Callable format discussed above.
 
-The names, type, and qualifiers share getter operations with
-``Member``.
+The names, type, and qualifiers share associated type names with
+``Member`` (``.name``, ``.type``, and ``.quals``).
 
-TODO: Should we make ``GetInit`` be literal types of default parameter
+TODO: Should we make ``.init`` be literal types of default parameter
 values too?
 
 .. _generic-callable:
@@ -962,8 +953,7 @@ those cases, we add a new hook to ``typing``:
   it before being returned.
 
   If set to ``None`` (the default), the boolean operators will return
-  ``False`` while ``Iter`` will evaluate to
-  ``iter(typing.TypeVarTuple("_IterDummy"))``.
+  ``False`` while ``Iter`` will evaluate to ``iter(())``.
 
 
 There has been some discussion of adding a ``Format.AST`` mode for
@@ -1012,7 +1002,7 @@ The ``**kwargs: Unpack[K]`` is part of this proposal, and allows
 type-annotated attribute of ``K``, while calling ``NewProtocol`` with
 ``Member`` arguments constructs a new structural type.
 
-``GetName`` is a getter operator that fetches the name of a ``Member``
+``c.name`` fetches the name of the ``Member`` bound to the variable ``c``
 as a literal type--all of these mechanisms lean very heavily on literal types.
 ``GetMemberType`` gets the type of an attribute from a class.
 
@@ -1026,8 +1016,8 @@ as a literal type--all of these mechanisms lean very heavily on literal types.
         typing.NewProtocol[
             *[
                 typing.Member[
-                    typing.GetName[c],
-                    ConvertField[typing.GetMemberType[ModelT, typing.GetName[c]]],
+                    c.name,
+                    ConvertField[typing.GetMemberType[ModelT, c.name]],
                 ]
                 for c in typing.Iter[typing.Attrs[K]]
             ]
@@ -1081,9 +1071,9 @@ contains all the ``Property`` attributes of ``T``.
 
     type PropsOnly[T] = typing.NewProtocol[
         *[
-            typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
+            typing.Member[p.name, PointerArg[p.type]]
             for p in typing.Iter[typing.Attrs[T]]
-            if typing.IsAssignable[typing.GetType[p], Property]
+            if typing.IsAssignable[p.type, Property]
         ]
     ]
 
@@ -1113,15 +1103,15 @@ suite, but here is a possible implementation of just ``Public``
     type Create[T] = typing.NewProtocol[
         *[
             typing.Member[
-                typing.GetName[p],
-                typing.GetType[p],
-                typing.GetQuals[p],
-                GetDefault[typing.GetInit[p]],
+                p.name,
+                p.type,
+                p.quals,
+                GetDefault[p.init],
             ]
             for p in typing.Iter[typing.Attrs[T]]
             if not typing.IsAssignable[
                 Literal[True],
-                GetFieldItem[typing.GetInit[p], Literal["primary_key"]],
+                GetFieldItem[p.init, Literal["primary_key"]],
             ]
         ]
     ]
@@ -1153,13 +1143,13 @@ dataclasses-style method generation
                 typing.Param[Literal["self"], Self],
                 *[
                     typing.Param[
-                        typing.GetName[p],
-                        typing.GetType[p],
+                        p.name,
+                        p.type,
                         # All arguments are keyword-only
                         # It takes a default if a default is specified in the class
                         Literal["keyword"]
                         if typing.IsAssignable[
-                            GetDefault[typing.GetInit[p]],
+                            GetDefault[p.init],
                             Never,
                         ]
                         else Literal["keyword", "default"],

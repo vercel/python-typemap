@@ -45,7 +45,7 @@ The ``**kwargs: Unpack[K]`` is part of this proposal, and allows
 type-annotated attribute of ``K``, while calling ``NewProtocol`` with
 ``Member`` arguments constructs a new structural type.
 
-``GetName`` is a getter operator that fetches the name of a ``Member``
+``c.name`` fetches the name of the ``Member`` bound to the variable ``c``
 as a literal type--all of these mechanisms lean very heavily on literal types.
 ``GetMemberType`` gets the type of an attribute from a class.
 
@@ -60,8 +60,8 @@ def select[ModelT, K: typing.BaseTypedDict](
     typing.NewProtocol[
         *[
             typing.Member[
-                typing.GetName[c],
-                ConvertField[typing.GetMemberType[ModelT, typing.GetName[c]]],
+                c.name,
+                ConvertField[typing.GetMemberType[ModelT, c.name]],
             ]
             for c in typing.Iter[typing.Attrs[K]]
         ]
@@ -113,9 +113,9 @@ contains all the ``Property`` attributes of ``T``.
 """
 type PropsOnly[T] = typing.NewProtocol[
     *[
-        typing.Member[typing.GetName[p], PointerArg[typing.GetType[p]]]
+        typing.Member[p.name, PointerArg[p.type]]
         for p in typing.Iter[typing.Attrs[T]]
-        if typing.IsAssignable[typing.GetType[p], Property]
+        if typing.IsAssignable[p.type, Property]
     ]
 ]
 

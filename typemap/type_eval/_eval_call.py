@@ -1,3 +1,4 @@
+import annotationlib
 import enum
 import inspect
 import types
@@ -38,7 +39,12 @@ def _get_bound_type_args(
     arg_types: tuple[RtType, ...],
     kwarg_types: dict[str, RtType],
 ) -> dict[str, RtType]:
-    sig = inspect.signature(func)
+    # Run in ForwardRef mode so that if one of the arguments or if the
+    # return value crashes due to a bad attribution projection or
+    # something, the others will survive it.
+    sig = inspect.signature(
+        func, annotation_format=annotationlib.Format.FORWARDREF
+    )
 
     bound = sig.bind(*arg_types, **kwarg_types)
 

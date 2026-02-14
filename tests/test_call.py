@@ -8,7 +8,6 @@ from typemap_extensions import (
     BaseTypedDict,
     NewProtocol,
     Member,
-    GetName,
     Iter,
 )
 
@@ -18,7 +17,7 @@ from . import format_helper
 def func[*T, K: BaseTypedDict](
     *args: Unpack[T],
     **kwargs: Unpack[K],
-) -> NewProtocol[*[Member[GetName[c], int] for c in Iter[Attrs[K]]]]: ...
+) -> NewProtocol[*[Member[c.name, int] for c in Iter[Attrs[K]]]]: ...
 
 
 def test_call_1():

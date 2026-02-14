@@ -6,8 +6,6 @@ from typemap.type_eval import eval_call_with_types
 from typemap_extensions import (
     GenericCallable,
     GetArg,
-    GetName,
-    GetType,
     IsAssignable,
     Iter,
     Members,
@@ -263,13 +261,13 @@ def test_eval_call_with_types_bind_error_05():
 type GetCallableMember[T, N: str] = GetArg[
     tuple[
         *[
-            GetType[m]
+            m.type
             for m in Iter[Members[T]]
             if (
-                IsAssignable[GetType[m], Callable]
-                or IsAssignable[GetType[m], GenericCallable]
+                IsAssignable[m.type, Callable]
+                or IsAssignable[m.type, GenericCallable]
             )
-            and IsAssignable[GetName[m], N]
+            and IsAssignable[m.name, N]
         ]
     ],
     tuple,

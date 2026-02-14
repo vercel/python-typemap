@@ -1,4 +1,5 @@
 import annotationlib
+import contextlib
 import dataclasses
 import inspect
 import sys
@@ -204,6 +205,17 @@ def make_func(
 EXCLUDED_ATTRIBUTES = typing.EXCLUDED_ATTRIBUTES - {'__init__'}  # type: ignore[attr-defined]
 
 
+@contextlib.contextmanager
+def _make_typevar_getattr_stuck():
+    """Catch AttributeError on typing.TypeVar and turn it into StuckError."""
+    try:
+        yield
+    except AttributeError as e:
+        if str(e).startswith("'typing.TypeVar'"):
+            raise _eval_typing.StuckException
+        raise
+
+
 def get_annotations(
     obj: object,
     args: Mapping[str, object],
@@ -227,7 +239,8 @@ def get_annotations(
 
         globs = af.__globals__
         ff = types.FunctionType(af.__code__, globs, af.__name__, None, closure)
-        rr = ff(annotationlib.Format.VALUE)
+        with _make_typevar_getattr_stuck():
+            rr = ff(annotationlib.Format.VALUE)
     elif annos_ok and (rr := getattr(obj, "__annotations__", None)):
         globs = {}
         if mod := sys.modules.get(obj.__module__):
@@ -258,13 +271,15 @@ def get_annotations(
         for k, v in rr.items():
             # Eval strings
             if isinstance(v, str):
-                v = eval(v, globs, args)
+                with _make_typevar_getattr_stuck():
+                    v = eval(v, globs, args)
                 # Handle cases where annotation is explicitly a string,
                 # e.g.:
                 #   class Foo[X]:
                 #       x: "Foo[X | None]"
                 if isinstance(v, str):
-                    v = eval(v, globs, args)
+                    with _make_typevar_getattr_stuck():
+                        v = eval(v, globs, args)
             rr[k] = v
 
     return rr
@@ -275,9 +290,18 @@ def _resolved_function_signature(func, args):
 
     import typemap.typing as nt
 
+    # We need to grab the signature and don't care about annotations,
+    # since we will be replacing those immediately.
+    # We use format=FORWARDREF to swallow all problems, and we disable
+    # the special_form_evaluator on top of that mostly for performance.
+    #
+    # (Before we added dot notation for Member, disabling the
+    # special_form_evaluator was sufficient.)
     token = nt.special_form_evaluator.set(None)
     try:
-        sig = inspect.signature(func)
+        sig = inspect.signature(
+            func, annotation_format=annotationlib.Format.FORWARDREF
+        )
     finally:
         nt.special_form_evaluator.reset(token)
 

@@ -9,8 +9,6 @@ from typemap_extensions import (
     BaseTypedDict,
     Bool,
     GetArg,
-    GetName,
-    GetType,
     IsAssignable,
     Iter,
     IsEquivalent,
@@ -139,8 +137,8 @@ type IsNumericAssignable[L, R] = (
     or Bool[IsEquivalent[L, complex] and Bool[IsComplex[R]]]
 )
 type VarIsPresent[V: VarArg, K: BaseTypedDict] = any(
-    IsEquivalent[VarArgName[V], GetName[x]]
-    and Bool[IsNumericAssignable[VarArgType[V], GetType[x]]]
+    IsEquivalent[VarArgName[V], x.name]
+    and Bool[IsNumericAssignable[VarArgType[V], x.type]]
     for x in Iter[Attrs[K]]
 )
 type AllVarsPresent[Vs: tuple[VarArg, ...], K: BaseTypedDict] = all(

@@ -13,9 +13,7 @@ from typemap_extensions import (
     Iter,
     Attrs,
     IsAssignable,
-    GetType,
     Member,
-    GetName,
     GetMemberType,
     GetArg,
 )
@@ -32,7 +30,7 @@ class Link[T]:
 
 
 type PropsOnly[T] = NewProtocol[
-    *[p for p in Iter[Attrs[T]] if IsAssignable[GetType[p], Property]]
+    *[p for p in Iter[Attrs[T]] if IsAssignable[p.type, Property]]
 ]
 
 # Conditional type alias!
@@ -48,8 +46,8 @@ def select[K: BaseTypedDict](
 ) -> NewProtocol[
     *[
         Member[
-            GetName[c],
-            FilterLinks[GetMemberType[A, GetName[c]]],
+            c.name,
+            FilterLinks[GetMemberType[A, c.name]],
         ]
         for c in Iter[Attrs[K]]
     ]

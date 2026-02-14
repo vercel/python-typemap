@@ -18,12 +18,8 @@ from typemap_extensions import (
     Bool,
     Length,
     GetArg,
-    GetInit,
     GetMemberType,
-    GetName,
-    GetQuals,
     GetSpecialAttr,
-    GetType,
     InitField,
     IsAssignable,
     Iter,
@@ -142,19 +138,19 @@ class Table[name: str]:
     ) -> UpdateClass[
         *[
             Member[
-                GetName[m],
+                m.name,
                 _Field[
-                    GetArg[GetType[m], Field, Literal[0]],
+                    GetArg[m.type, Field, Literal[0]],
                     T,
-                    GetName[m],
+                    m.name,
                 ],
-                GetQuals[m],
-                GetInit[m],
+                m.quals,
+                m.init,
             ]
             for m in Iter[Members[T]]
-            if IsAssignable[GetType[m], Field]
+            if IsAssignable[m.type, Field]
         ],
-        *[m for m in Iter[Members[T]] if not IsAssignable[GetType[m], Field]],
+        *[m for m in Iter[Members[T]] if not IsAssignable[m.type, Field]],
     ]:
         super().__init_subclass__()
 
@@ -196,13 +192,11 @@ type ColumnInitHasDefault[Init] = not IsAssignable[
 ]
 
 type ReadValueNeverNull[M] = (
-    not Bool[ColumnInitIsNullable[GetInit[M]]]
-    or Bool[ColumnInitIsAutoincrement[GetInit[M]]]
+    not Bool[ColumnInitIsNullable[M.init]]
+    or Bool[ColumnInitIsAutoincrement[M.init]]
     or (
-        IsAssignable[FieldPyType[GetType[M]], list]
-        and IsAssignable[
-            GetArg[FieldPyType[GetType[M]], list, Literal[0]], Table
-        ]
+        IsAssignable[FieldPyType[M.type], list]
+        and IsAssignable[GetArg[FieldPyType[M.type], list, Literal[0]], Table]
     )
 )
 
@@ -247,7 +241,7 @@ type EntryFieldMembers[T: Table, FieldNames: tuple[Literal[str], ...]] = tuple[
     *[
         m
         for m in Iter[Attrs[T]]
-        if any(IsAssignable[GetName[m], f] for f in Iter[FieldNames])
+        if any(IsAssignable[m.name, f] for f in Iter[FieldNames])
     ]
 ]
 
@@ -258,13 +252,7 @@ type EntriesHasTable[Es: tuple[QueryEntry, ...], T: Table] = any(
 
 type MakeQueryEntryAllFields[T: Table] = QueryEntry[
     T,
-    tuple[
-        *[
-            GetName[m]
-            for m in Iter[Attrs[T]]
-            if IsAssignable[GetType[m], _Field]
-        ],
-    ],
+    tuple[*[m.name for m in Iter[Attrs[T]] if IsAssignable[m.type, _Field]],],
 ]
 type MakeQueryEntryNamedFields[
     T: Table,
@@ -273,11 +261,11 @@ type MakeQueryEntryNamedFields[
     T,
     tuple[
         *[
-            GetName[m]
+            m.name
             for m in Iter[Attrs[T]]
-            if IsAssignable[GetType[m], _Field]
+            if IsAssignable[m.type, _Field]
             and any(
-                IsAssignable[FieldName[GetType[m]], f] for f in Iter[FieldNames]
+                IsAssignable[FieldName[m.type], f] for f in Iter[FieldNames]
             )
         ],
     ],
@@ -337,11 +325,11 @@ class Query[Es: tuple[QueryEntry[Table, tuple[Member]], ...]]:
 type Select[T: Table, FieldNames: tuple[Literal[str], ...]] = NewProtocol[
     *[
         Member[
-            GetName[m],
+            m.name,
             (
-                FieldPyType[GetType[m]]
+                FieldPyType[m.type]
                 if Bool[ReadValueNeverNull[m]]
-                else FieldPyType[GetType[m]] | None
+                else FieldPyType[m.type] | None
             ),
         ]
         for m in Iter[EntryFieldMembers[T, FieldNames]]
@@ -422,7 +410,7 @@ class Comment(Table[Literal["comments"]]):
 # Tests
 
 
-type AttrNames[T] = tuple[*[GetName[f] for f in Iter[Attrs[T]]]]
+type AttrNames[T] = tuple[*[f.name for f in Iter[Attrs[T]]]]
 
 
 def test_qblike_3_select_01():

@@ -16,9 +16,6 @@ from typemap_extensions import (
     GetAnnotations,
     DropAnnotations,
     FromUnion,
-    GetType,
-    GetName,
-    GetQuals,
     Member,
     Members,
     Param,
@@ -54,12 +51,12 @@ type InitFnType[T] = Member[
             Param[Literal["self"], Self],
             *[
                 Param[
-                    GetName[p],
-                    DropAnnotations[GetType[p]],
+                    p.name,
+                    DropAnnotations[p.type],
                     Literal["keyword", "default"]
                     if IsAssignable[
                         Literal[PropQuals.HAS_DEFAULT],
-                        GetAnnotations[GetType[p]],
+                        GetAnnotations[p.type],
                     ]
                     else Literal["keyword"],
                 ]
@@ -95,22 +92,18 @@ type FixPublicType[T] = DropAnnotations[
 # from the DB, so we don't need default values.
 type Public[T] = NewProtocol[
     *[
-        Member[GetName[p], FixPublicType[GetType[p]], GetQuals[p]]
+        Member[p.name, FixPublicType[p.type], p.quals]
         for p in Iter[Attrs[T]]
-        if not IsAssignable[
-            Literal[PropQuals.HIDDEN], GetAnnotations[GetType[p]]
-        ]
+        if not IsAssignable[Literal[PropQuals.HIDDEN], GetAnnotations[p.type]]
     ]
 ]
 
 # Create takes everything but the primary key and preserves defaults
 type Create[T] = NewProtocol[
     *[
-        Member[GetName[p], GetType[p], GetQuals[p]]
+        Member[p.name, p.type, p.quals]
         for p in Iter[Attrs[T]]
-        if not IsAssignable[
-            Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]
-        ]
+        if not IsAssignable[Literal[PropQuals.PRIMARY], GetAnnotations[p.type]]
     ]
 ]
 
@@ -120,14 +113,12 @@ type Create[T] = NewProtocol[
 type Update[T] = NewProtocol[
     *[
         Member[
-            GetName[p],
-            HasDefault[DropAnnotations[GetType[p]] | None, None],
-            GetQuals[p],
+            p.name,
+            HasDefault[DropAnnotations[p.type] | None, None],
+            p.quals,
         ]
         for p in Iter[Attrs[T]]
-        if not IsAssignable[
-            Literal[PropQuals.PRIMARY], GetAnnotations[GetType[p]]
-        ]
+        if not IsAssignable[Literal[PropQuals.PRIMARY], GetAnnotations[p.type]]
     ]
 ]
 

@@ -31,13 +31,9 @@ from typemap_extensions import (
     GenericCallable,
     GetArg,
     GetArgs,
-    GetDefiner,
     GetMember,
     GetMemberType,
-    GetName,
-    GetQuals,
     GetSpecialAttr,
-    GetType,
     GetAnnotations,
     IsAssignable,
     Iter,
@@ -79,9 +75,9 @@ type ConcatTuples[A, B] = tuple[
 type MapRecursive[A] = NewProtocol[
     *[
         (
-            Member[GetName[p], OrGotcha[GetType[p]]]
-            if not IsAssignable[GetType[p], A]
-            else Member[GetName[p], OrGotcha[MapRecursive[A]]]
+            Member[p.name, OrGotcha[p.type]]
+            if not IsAssignable[p.type, A]
+            else Member[p.name, OrGotcha[MapRecursive[A]]]
         )
         for p in Iter[tuple[*Attrs[A], *Attrs[F_int]]]
     ],
@@ -427,11 +423,11 @@ def test_getmember_02():
         def f[TX](self, x: TX) -> OnlyIntToSet[TX]: ...
 
     m = eval_typing(GetMember[C, Literal["f"]])
-    assert eval_typing(GetName[m]) == Literal["f"]
-    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
-    assert eval_typing(GetDefiner[m]) == C
+    assert eval_typing(m.name) == Literal["f"]
+    assert eval_typing(m.quals) == Literal["ClassVar"]
+    assert eval_typing(m.definer) == C
 
-    t = eval_typing(GetType[m])
+    t = eval_typing(m.type)
     Vs = get_args(get_args(t)[0])
     L = get_args(t)[1]
     f = L(*Vs)
@@ -451,11 +447,11 @@ def test_getmember_03():
     type P = IndirectProtocol[C]
 
     m = eval_typing(GetMember[P, Literal["f"]])
-    assert eval_typing(GetName[m]) == Literal["f"]
-    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
-    assert eval_typing(GetDefiner[m]) != C  # eval typing generates a new class
+    assert eval_typing(m.name) == Literal["f"]
+    assert eval_typing(m.quals) == Literal["ClassVar"]
+    assert eval_typing(m.definer) != C  # eval typing generates a new class
 
-    t = eval_typing(GetType[m])
+    t = eval_typing(m.type)
     Vs = get_args(get_args(t)[0])
     L = get_args(t)[1]
     f = L(*Vs)
@@ -479,7 +475,7 @@ def test_getmember_04():
         def f(self, x): ...
 
     m = eval_typing(GetMember[C, Literal["f"]])
-    mt = eval_typing(GetType[m])
+    mt = eval_typing(m.type)
     assert mt.__origin__ is Overloaded
     assert len(mt.__args__) == 2
 
@@ -520,10 +516,10 @@ def test_getmember_05():
         x: str
 
     m = eval_typing(GetMember[A, Literal["member_method"]])
-    assert eval_typing(GetName[m]) == Literal["member_method"]
-    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
-    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
-    assert eval_typing(GetDefiner[m]) == A
+    assert eval_typing(m.name) == Literal["member_method"]
+    assert eval_typing(IsAssignable[m.type, GenericCallable])
+    assert eval_typing(m.quals) == Literal["ClassVar"]
+    assert eval_typing(m.definer) == A
 
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
@@ -548,10 +544,10 @@ def test_getmember_06():
         x: str
 
     m = eval_typing(GetMember[A, Literal["member_method"]])
-    assert eval_typing(GetName[m]) == Literal["member_method"]
-    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
-    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
-    assert eval_typing(GetDefiner[m]) == A
+    assert eval_typing(m.name) == Literal["member_method"]
+    assert eval_typing(IsAssignable[m.type, GenericCallable])
+    assert eval_typing(m.quals) == Literal["ClassVar"]
+    assert eval_typing(m.definer) == A
 
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
@@ -588,10 +584,10 @@ def test_getmember_07():
         x: str
 
     m = eval_typing(GetMember[A, Literal["class_method"]])
-    assert eval_typing(GetName[m]) == Literal["class_method"]
-    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
-    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
-    assert eval_typing(GetDefiner[m]) == A
+    assert eval_typing(m.name) == Literal["class_method"]
+    assert eval_typing(IsAssignable[m.type, GenericCallable])
+    assert eval_typing(m.quals) == Literal["ClassVar"]
+    assert eval_typing(m.definer) == A
 
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
@@ -615,10 +611,10 @@ def test_getmember_08():
         x: str
 
     m = eval_typing(GetMember[A, Literal["class_method"]])
-    assert eval_typing(GetName[m]) == Literal["class_method"]
-    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
-    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
-    assert eval_typing(GetDefiner[m]) == A
+    assert eval_typing(m.name) == Literal["class_method"]
+    assert eval_typing(IsAssignable[m.type, GenericCallable])
+    assert eval_typing(m.quals) == Literal["ClassVar"]
+    assert eval_typing(m.definer) == A
 
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
@@ -643,10 +639,10 @@ def test_getmember_09():
             self: T,
         ) -> tuple[
             *[
-                GetType[m]
+                m.type
                 for m in Iter[Attrs[T]]
                 if not IsAssignable[
-                    Slice[GetName[m], None, Literal[1]], Literal["_"]
+                    Slice[m.name, None, Literal[1]], Literal["_"]
                 ]
             ]
         ]: ...
@@ -658,10 +654,10 @@ def test_getmember_09():
         _d: float
 
     m = eval_typing(GetMember[A, Literal["f"]])
-    assert eval_typing(GetName[m]) == Literal["f"]
-    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
-    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
-    assert eval_typing(GetDefiner[m]) == A
+    assert eval_typing(m.name) == Literal["f"]
+    assert eval_typing(IsAssignable[m.type, GenericCallable])
+    assert eval_typing(m.quals) == Literal["ClassVar"]
+    assert eval_typing(m.definer) == A
 
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
@@ -683,10 +679,10 @@ def test_getmember_10():
             cls: type[T],
         ) -> tuple[
             *[
-                GetType[m]
+                m.type
                 for m in Iter[Attrs[T]]
                 if not IsAssignable[
-                    Slice[GetName[m], None, Literal[1]], Literal["_"]
+                    Slice[m.name, None, Literal[1]], Literal["_"]
                 ]
             ]
         ]: ...
@@ -698,10 +694,10 @@ def test_getmember_10():
         _y: float
 
     m = eval_typing(GetMember[B, Literal["f"]])
-    assert eval_typing(GetName[m]) == Literal["f"]
-    assert eval_typing(IsAssignable[GetType[m], GenericCallable])
-    assert eval_typing(GetQuals[m]) == Literal["ClassVar"]
-    assert eval_typing(GetDefiner[m]) == A
+    assert eval_typing(m.name) == Literal["f"]
+    assert eval_typing(IsAssignable[m.type, GenericCallable])
+    assert eval_typing(m.quals) == Literal["ClassVar"]
+    assert eval_typing(m.definer) == A
 
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
@@ -820,15 +816,15 @@ type IndirectProtocol[T] = NewProtocol[*[m for m in Iter[Members[T]]],]
 type GetMethodLike[T, Name] = GetArg[
     tuple[
         *[
-            GetType[p]
+            p.type
             for p in Iter[Members[T]]
             if (
-                IsAssignable[GetType[p], Callable]
-                or IsAssignable[GetType[p], staticmethod]
-                or IsAssignable[GetType[p], classmethod]
-                or IsAssignable[GetType[p], GenericCallable]
+                IsAssignable[p.type, Callable]
+                or IsAssignable[p.type, staticmethod]
+                or IsAssignable[p.type, classmethod]
+                or IsAssignable[p.type, GenericCallable]
             )
-            and IsAssignable[Name, GetName[p]]
+            and IsAssignable[Name, p.name]
         ],
     ],
     tuple,
@@ -2010,7 +2006,7 @@ type MembersExceptInitSubclass[T] = tuple[
     *[
         m
         for m in Iter[Members[T]]
-        if not IsAssignable[GetName[m], Literal["__init_subclass__"]]
+        if not IsAssignable[m.name, Literal["__init_subclass__"]]
     ]
 ]
 
@@ -2085,7 +2081,7 @@ def test_update_class_members_02():
 
 
 type AttrsAsSets[T] = UpdateClass[
-    *[Member[GetName[m], set[GetType[m]]] for m in Iter[Attrs[T]]]
+    *[Member[m.name, set[m.type]] for m in Iter[Attrs[T]]]
 ]
 
 
@@ -2504,7 +2500,7 @@ def test_update_class_inheritance_02():
         def __init_subclass__[T](
             cls: type[T],
         ) -> UpdateClass[
-            *[Member[GetName[m], list[GetType[m]]] for m in Iter[Attrs[T]]]
+            *[Member[m.name, list[m.type]] for m in Iter[Attrs[T]]]
         ]:
             super().__init_subclass__()
 
@@ -2514,7 +2510,7 @@ def test_update_class_inheritance_02():
         def __init_subclass__[T](
             cls: type[T],
         ) -> UpdateClass[
-            *[Member[GetName[m], tuple[GetType[m]]] for m in Iter[Attrs[T]]]
+            *[Member[m.name, tuple[m.type]] for m in Iter[Attrs[T]]]
         ]:
             super().__init_subclass__()
 

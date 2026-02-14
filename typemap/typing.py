@@ -323,7 +323,7 @@ class _IterGenericAlias(_GenericAlias, _root=True):
         if evaluator:
             return evaluator(self)
         else:
-            return iter(typing.TypeVarTuple("_IterDummy"))
+            return iter(())
 
 
 @_SpecialForm

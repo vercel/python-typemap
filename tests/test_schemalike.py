@@ -7,8 +7,6 @@ from typemap_extensions import (
     NewProtocol,
     Iter,
     Attrs,
-    GetType,
-    GetName,
     Member,
     NamedParam,
     Param,
@@ -46,13 +44,13 @@ type Schemaify[T] = NewProtocol[
     *[p for p in Iter[Attrs[T]]],
     *[
         Member[
-            StrConcat[Literal["get_"], GetName[p]],
+            StrConcat[Literal["get_"], p.name],
             Callable[
                 [
                     Param[Literal["self"], Schemaify[T]],
                     NamedParam[Literal["schema"], Schema, Literal["keyword"]],
                 ],
-                GetType[p],
+                p.type,
             ],
             Literal["ClassVar"],
         ]
