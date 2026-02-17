@@ -5,7 +5,7 @@ export LANG=C.utf8
 mkdir -p build
 cd build
 if [ ! -d peps ]; then
-    git clone --depth=1 https://github.com/python/peps/
+    git clone --depth=1 -b emails https://github.com/msullivan/peps/
 fi
 cd peps/peps
 if [ ! -s pep-9999.rst ]; then
