@@ -1,6 +1,6 @@
 PEP: 9999
 Title: Type Manipulation
-Author: Michael J. Sullivan <sully@msully.net>, Daniel W. Park <dnwpark@protonmail.com>, Yury Selivanov <yury@edgedb.com>
+Author: Michael J. Sullivan <sully@vercel.com>, Daniel W. Park <daniel.park@vercel.com>, Yury Selivanov <yury@vercel.com>
 Discussions-To: Pending
 Status: Draft
 Type: Standards Track
