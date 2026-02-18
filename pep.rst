@@ -345,7 +345,7 @@ Extended Callables, take 2
 We introduce a new extended callable proposal for expressing arbitrary
 complex callable types. The goal here is not really to produce a new
 syntax to write in annotations (it seems less pleasant to write than
-callback protocols are), but to provide a way of contructing the types
+callback protocols are), but to provide a way of constructing the types
 that is amenable to creating and introspecting callable types using
 the other features of this PEP.
 
@@ -512,7 +512,7 @@ The type ``true_typ if bool_typ else false_typ`` is a conditional
 type, which resolves to ``true_typ`` if ``bool_typ`` is equivalent to
 ``Literal[True]`` and to ``false_typ`` otherwise.
 
-``bool_typ`` is a type, but it needs syntactically be a type boolean,
+``bool_typ`` is a type, but it needs to syntactically be a type boolean,
 defined above.
 
 .. _unpacked:
@@ -628,7 +628,7 @@ Object inspection
 * ``Members[T]``: produces a ``tuple`` of ``Member`` types describing
   the members (attributes and methods) of class or typed dict ``T``.
 
-  In order to allow typechecking time and runtime evaluation coincide
+  In order to allow typechecking time and runtime evaluation to coincide
   more closely, **only members with explicit type annotations are included**.
 
 * ``Attrs[T]``: like ``Members[T]`` but only returns attributes (not
@@ -642,14 +642,14 @@ Object inspection
   of classes.  Its type parameters encode the information about each
   member.
 
-  * ``N`` is the name, as a literal string type. Accessable with ``.name``.
-  * ``T`` is the type. Accessable with ``.type``.
-  * ``Q`` is a union of qualifiers (see ``MemberQuals`` below). Accessable with ``.quals``.
+  * ``N`` is the name, as a literal string type. Accessible with ``.name``.
+  * ``T`` is the type. Accessible with ``.type``.
+  * ``Q`` is a union of qualifiers (see ``MemberQuals`` below). Accessible with ``.quals``.
   * ``Init`` is the literal type of the attribute initializer in the
-    class (see :ref:`InitField <init-field>`). Accessable with ``.init``.
+    class (see :ref:`InitField <init-field>`). Accessible with ``.init``.
   * ``D`` is the defining class of the member. (That is, which class
     the member is inherited from. Always ``Never``, for a ``TypedDict``).
-    Accessable with ``.definer``.
+    Accessible with ``.definer``.
 
 * ``MemberQuals = Literal['ClassVar', 'Final', 'NotRequired', 'ReadOnly']`` -
   ``MemberQuals`` is the type of "qualifiers" that can apply to a
@@ -842,7 +842,7 @@ base classes and type decorators that do ``dataclass`` like things.
   When a class is declared, if one or more of its ancestors have an
   ``__init_subclass__`` with an ``UpdateClass`` return type, they are
   applied in reverse MRO order. N.B: If the ``cls`` param is
-  parameterized by ``type[T]]``, then the class type should
+  parameterized by ``type[T]``, then the class type should be
   substituted in for ``T``.
 
 One snag here: it introduces type-evaluation-order dependence; if the
@@ -1079,7 +1079,7 @@ The ``Create`` type alias creates a new type (via ``NewProtocol``) by
 iterating over the attributes of the original type.  It has access to
 names, types, qualifiers, and the literal types of initializers (in
 part through new facilities to handle the extremely common
-``= Field(...)`` like pattern used here.
+``= Field(...)``-like pattern used here).
 
 Here, we filter out attributes that have ``primary_key=True`` in their
 ``Field`` as well as extracting default arguments (which may be either
@@ -1172,7 +1172,7 @@ Consider a method with the following signature::
 
 The type of the method is generic, and the generic is bound at the
 **method**, not the class. We need a way to represent such a generic
-function both as a programmer might write it for a ``NewProtocol``.
+function as a programmer might write it for a ``NewProtocol``.
 
 One option that is somewhat appealing but doesn't work would be to use
 unbound type variables and let them be generalized::
@@ -1353,7 +1353,7 @@ The main proposal is currently silent about exactly *how* ``Member``
 and ``Param`` will have associated types for ``.name`` and ``.type``.
 
 We could just make it work for those particular types, or we could
-introduce a general mechansim that might look something like::
+introduce a general mechanism that might look something like::
 
     @typing.has_associated_types
     class Member[
@@ -1538,7 +1538,7 @@ types would be quite a bit *more* complicated.
 
 It would require a well-defined and safe-to-run subset of the language
 (and standard library) to be defined that could be run from within
-typecheckers. Subsets like this have been defined in other system
+typecheckers. Subsets like this have been defined in other systems
 (see `Starlark <#starlark_>`_, the configuration language for Bazel),
 but it's still a lot of surface area, and programmers would need to
 keep in mind the boundaries of it.
