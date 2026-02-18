@@ -1,6 +1,16 @@
-# Computed Types in Python
+# Type Manipulation in Python
 
-See [pep.rst](pep.rst) for the PEP draft.
+This is the development repository for a PEP to add
+TypeScript-inspired type-level introspection and construction
+facilities to the Python type system.
+
+There is [a rendered PEP draft](https://python-typemap.labs.vercel.dev).
+
+See [pep.rst](pep.rst) for the PEP draft source code.
+
+This repository also contains an implementation of the proposed
+additions to ``typing`` ([typemap/typing.py](typemap/typing.py)), as well as a
+**prototype** runtime evaluator ([typemap/type_eval](typemap/type_eval)).
 
 ## Development
 
