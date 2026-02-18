@@ -1237,8 +1237,8 @@ tricks for building a string do not work for loops and
 conditionals.
 
 This could be mitigated by doing one of:
- 1. The ["Just store the
-    strings"](https://peps.python.org/pep-0649/#just-store-the-strings)
+ 1. The `"Just store the
+    strings" <https://peps.python.org/pep-0649/#just-store-the-strings>`_
     option from :pep:`649`, which would allow always extracting
     unevaluated strings.
  2. Adding a ``Format.AST`` mode for
