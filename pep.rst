@@ -916,9 +916,9 @@ those cases, we add a new hook to ``typing``:
 
 
 There has been some discussion of adding a ``Format.AST`` mode for
-fetching annotations. That would combine extremely well with this
-proposal, as it would make it easy to still fetch fully unevaluated
-annotations.
+fetching annotations (see this `PEP draft <#ast_format_>`_). That
+would combine extremely well with this proposal, as it would make it
+easy to still fetch fully unevaluated annotations.
 
 Examples / Tutorial
 ===================
@@ -1213,7 +1213,45 @@ up with a new approach.
 Backwards Compatibility
 =======================
 
-[Describe potential impact and severity on pre-existing code.]
+In the most strict sense, this PEP only proposes new features, and so
+shouldn't have backward compatibility issues.
+
+More loosely speaking, though, the use of ``if`` and ``for`` in type
+annotations can cause trouble for tools that want to extract type
+annotations.
+
+Tools that want to fully evaluate the annotations will need to either
+implement an evaluator or use a library for it (the PEP authors are
+planning to produce such a library).
+
+Tools that want to extract the annotations unevaluated and process
+them in some way are possibly in more trouble. Currently, this is
+doable if ``from __future__ import annotations`` is specified, because
+the string annotation could be parsed with ``ast.parse`` and then handled
+in arbitrary ways.
+
+Absent that, as things currently stand, things get trickier, since
+there is currently no way to get useful info out of the
+``__annotate__`` functions without running the annotation, and its
+tricks for building a string do not work for loops and
+conditionals.
+
+This could be mitigated by doing one of:
+ 1. The ["Just store the
+    strings"](https://peps.python.org/pep-0649/#just-store-the-strings)
+    option from :pep:`649`, which would allow always extracting
+    unevaluated strings.
+ 2. Adding a ``Format.AST`` mode for
+    fetching annotations (see this `PEP draft <#ast_format_>`_)
+
+If neither of those options are taken, then tools that want to process
+unevaluated type manipulation expressions will probably need to
+reparse the source code and extract annotations from there.
+
+Note that all of these snags only come up *if* the new syntax is being
+used, so this is arguably less of a backward compatibility hazard than
+it is that supporting the new feature may be somewhat annoying for
+certain tools.
 
 
 Security Implications
@@ -1619,6 +1657,7 @@ Footnotes
 .. _#prisma-example: https://github.com/prisma/prisma-examples/tree/latest/orm/express
 .. _#qb-test: https://github.com/vercel/python-typemap/blob/main/tests/test_qblike_2.py
 .. _#starlark: https://starlark-lang.org/
+.. _#ast_format: https://imogenbits-peps.readthedocs.io/en/ast_format/pep-9999/
 
 .. [#ref-impl] https://github.com/msullivan/mypy/tree/typemap
 .. [#runtime] https://github.com/vercel/python-typemap/
