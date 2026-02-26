@@ -759,8 +759,7 @@ Callable format discussed above.
 The names, type, and qualifiers share associated type names with
 ``Member`` (``.name``, ``.type``, and ``.quals``).
 
-TODO: Should we make ``.init`` be literal types of default parameter
-values too?
+.. TODO: Should we make ``.init`` be literal types of default parameter values too?
 
 .. _generic-callable:
 
@@ -773,16 +772,13 @@ Generic Callable
   variables in ``Vs`` via the bound variables in ``<vs>``.
 
 For now, we restrict the use of ``GenericCallable`` to
-the type argument of ``Member`` (that is, to disallow its use for
+the type argument of ``Member``, to disallow its use for
 locals, parameter types, return types, nested inside other types,
-etc).
+etc.  Rationale discussed :ref:`below <generic-callable-rationale>`.
 
-(This is a little unsatisfying. Rationale discussed :ref:`below
-<generic-callable-rationale>`.)
-
-TODO: Decide if we have any mechanisms to inspect/destruct
-``GenericCallable``. Maybe can fetch the variable information and
-maybe can apply it to concrete types?
+.. TODO: Decide if we have any mechanisms to inspect/destruct
+.. ``GenericCallable``. Maybe can fetch the variable information and
+.. maybe can apply it to concrete types?
 
 Overloaded function types
 '''''''''''''''''''''''''
