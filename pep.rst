@@ -684,6 +684,9 @@ Object creation
   items specified by the ``Member`` arguments.
 
   .. TODO: Do we want a way to specify ``extra_items``?
+  
+Note that we are not currently proposing any way to create *nominal* classes
+or any way to make new *generic* types.
 
 
 .. _init-field:
