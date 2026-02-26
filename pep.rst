@@ -498,13 +498,13 @@ Operators <boolean-ops>`, defined below, potentially combined with
 ``any``, the argument is a comprehension of type booleans, evaluated
 in the same way as the :ref:`unpacked comprehensions <unpacked>`.
 
-When evaluated, they will evaluate to ``Literal[True]`` or
-``Literal[False]``.
+When evaluated in type annotation context, they will evaluate to
+``Literal[True]`` or ``Literal[False]``.
 
-(We want to restrict what operators may be used in a conditional
+We restrict what operators may be used in a conditional
 so that at runtime, we can have those operators produce "type" values
 with appropriate behavior, without needing to change the behavior of
-existing ``Literal[False]`` values and the like.)
+existing ``Literal[False]`` values and the like.
 
 
 Conditional types
@@ -580,14 +580,12 @@ Basic operators
 
   Negative indexes work in the usual way.
 
-  N.B: Runtime evaluation will only be able to support proper classes
+  Note that runtime evaluation will only be able to support proper classes
   as ``Base``, *not* protocols. So, for example, ``GetArg[Ty,
-  Iterable, 0]`` to get the type of something iterable will need to
-  fail in a runtime evaluator. We should be able to allow it
-  statically though.
+  Iterable, 0]`` to get the type of something iterable will
+  fail in the runtime evaluator.
 
-  Special forms unfortunately
-  require some special handling: the arguments list of a ``Callable``
+  Special forms require special handling: the arguments list of a ``Callable``
   will be packed in a tuple, and a ``...`` will become
   ``SpecialFormEllipsis``.
 
@@ -683,12 +681,9 @@ Object creation
   something of a new concept.)
 
 * ``NewTypedDict[*Ps: Member]`` - Creates a new ``TypedDict`` with
-  items specified by the ``Member`` arguments. TODO: Do we want a way
-  to specify ``extra_items``?
+  items specified by the ``Member`` arguments.
 
-
-N.B: Currently we aren't proposing any way to create nominal classes
-or any way to make new *generic* types.
+  .. TODO: Do we want a way to specify ``extra_items``?
 
 
 .. _init-field:
