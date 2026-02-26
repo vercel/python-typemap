@@ -107,7 +107,7 @@ The ``Create`` type alias creates a new type (via ``NewProtocol``) by
 iterating over the attributes of the original type.  It has access to
 names, types, qualifiers, and the literal types of initializers (in
 part through new facilities to handle the extremely common
-``= Field(...)`` like pattern used here.
+``= Field(...)``-like pattern used here).
 
 Here, we filter out attributes that have ``primary_key=True`` in their
 ``Field`` as well as extracting default arguments (which may be either
@@ -137,8 +137,6 @@ type Update[T] = typing.NewProtocol[
 ]
 
 ##
-
-# Begin PEP section: dataclass like __init__
 
 # Generate the Member field for __init__ for a class
 type InitFnType[T] = typing.Member[
@@ -170,9 +168,6 @@ type AddInit[T] = typing.NewProtocol[
     InitFnType[T],
     *[x for x in typing.Iter[typing.Members[T]]],
 ]
-
-
-# End PEP section
 
 
 ####

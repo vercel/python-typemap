@@ -1073,6 +1073,25 @@ dataclasses-style method generation
         *[x for x in typing.Iter[typing.Members[T]]],
     ]
 
+    # TODO more exposition
+
+    class Model:
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> typing.UpdateClass[
+            # Add the computed __init__ function
+            InitFnType[T],
+        ]:
+            super().__init_subclass__()
+
+    def dataclass_ish[T](
+        cls: type[T],
+    ) -> typing.UpdateClass[
+        # Add the computed __init__ function
+        InitFnType[T],
+    ]:
+        pass
+
 
 NumPy-style broadcasting
 ------------------------
