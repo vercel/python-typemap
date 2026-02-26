@@ -429,14 +429,9 @@ forms of valid types, but much of the power comes from type level
 Grammar specification of the extensions to the type language
 ------------------------------------------------------------
 
-Note first that no changes to the **Python** grammar are being
-proposed, only to the grammar of what Python expressions are
-considered as valid types.
+No changes to the **Python** grammar are being proposed, only
+to the grammar of what Python expressions are considered as valid types.
 
-(It's also slightly imprecise to call this a grammar:
-``<bool-operator>`` refers to any of the names defined in the
-:ref:`Boolean Operators <boolean-ops>` section, which might be
-imported qualified or with some other name)
 
 ::
 
@@ -478,9 +473,14 @@ imported qualified or with some other name)
    <type-for-if> =
          if <type-bool>
 
+Where:
 
-(``<type-bool-for>`` is identical to ``<type-for>`` except that the
-result type is a ``<type-bool>`` instead of a ``<type>``.)
+* ``<bool-operator>`` refers to any of the names defined in the
+  :ref:`Boolean Operators <boolean-ops>` section, whether used directly,
+  qualified, or under another name.
+
+* ``<type-bool-for>`` is identical to ``<type-for>`` except that the
+  result type is a ``<type-bool>`` instead of a ``<type>``.
 
 There are three and a half core syntactic features introduced: type booleans,
 conditional types, unpacked comprehension types, and type member access.
