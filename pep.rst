@@ -790,8 +790,8 @@ String manipulation
 '''''''''''''''''''
 
 String manipulation operations for string ``Literal`` types.
-We can put more in, but this is what typescript has.
-``Slice`` and ``Concat`` are a poor man's literal template.
+
+``Slice`` and ``Concat`` allow for basic literal template-like manipulation.
 We can actually implement the case functions in terms of them and a
 bunch of conditionals, but shouldn't (especially if we want it to work
 for all unicode!).
