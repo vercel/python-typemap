@@ -693,7 +693,7 @@ InitField
 
 We want to be able to support transforming types based on
 dataclasses/attrs/pydantic style field descriptors.  In order to do
-that, we need to be able to consume things like calls to ``Field``.
+that, we need to be able to consume operations like calls to ``Field``.
 
 Our strategy for this is to introduce a new type
 ``InitField[KwargDict]`` that collects arguments defined by a
@@ -725,14 +725,14 @@ that would be made available as the ``Init`` field of the ``Member``.
 Annotated
 '''''''''
 
-TODO: This could maybe be dropped if it doesn't seem implementable?
+.. TODO: This could maybe be dropped if it doesn't seem implementable?
 
 Libraries like FastAPI use annotations heavily, and we would like to
 be able to use annotations to drive type-level computation decision
 making.
 
-We understand that this may be controversial, as currently ``Annotated``
-may be fully ignored by typecheckers. The operations proposed are:
+Note that currently ``Annotated`` may be fully ignored by typecheckers.
+The operations proposed are:
 
 * ``GetAnnotations[T]`` - Fetch the annotations of a potentially
   Annotated type, as Literals. Examples::
