@@ -140,7 +140,7 @@ would have a dynamically computed return type ``list[<User>]`` where::
         title: str
         content: str
 
-Even further, the IDE would offer code completion for
+Even further, an IDE could offer code completion for
 all arguments of the ``db.select()`` call, recursively.
 
 (Example code for implementing this :ref:`below <qb-impl>`.)
