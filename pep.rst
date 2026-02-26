@@ -599,15 +599,18 @@ Basic operators
   member named ``S`` from the class ``T``.
 
 
-* ``GetSpecialAttr[T: type, Attr: Literal[str]]``: Extracts the value
-  of the special attribute named ``Attr`` from the class ``T``. Valid
-  attributes are ``__name__``, ``__module__``, and ``__qualname__``.
-  Returns the value as a ``Literal[str]``.
-
-
 * ``Length[T: tuple]`` - Gets the length of a tuple as an int literal
   (or ``Literal[None]`` if it is unbounded)
 
+
+* ``Slice[S: tuple, Start: Literal[int | None], End: Literal[int | None]]``:
+  Slices a tuple type.
+
+
+* ``GetSpecialAttr[T, Attr: Literal[str]]``: Extracts the value
+  of the special attribute named ``Attr`` from the class ``T``. Valid
+  attributes are ``__name__``, ``__module__``, and ``__qualname__``.
+  Returns the value as a ``Literal[str]``.
 
 All of the operators in this section are :ref:`lifted over union types
 <lifting>`.
@@ -684,7 +687,7 @@ Object creation
   items specified by the ``Member`` arguments.
 
   .. TODO: Do we want a way to specify ``extra_items``?
-  
+
 Note that we are not currently proposing any way to create *nominal* classes
 or any way to make new *generic* types.
 
@@ -725,34 +728,6 @@ Literal[0], 'kw_only': Literal[True]})]`` for the initializer, and
 that would be made available as the ``Init`` field of the ``Member``.
 
 
-Annotated
-'''''''''
-
-.. TODO: This could maybe be dropped if it doesn't seem implementable?
-
-Libraries like FastAPI use annotations heavily, and we would like to
-be able to use annotations to drive type-level computation decision
-making.
-
-Note that currently ``Annotated`` may be fully ignored by typecheckers.
-The operations proposed are:
-
-* ``GetAnnotations[T]`` - Fetch the annotations of a potentially
-  Annotated type, as Literals. Examples::
-
-    GetAnnotations[Annotated[int, 'xxx']] = Literal['xxx']
-    GetAnnotations[Annotated[int, 'xxx', 5]] = Literal['xxx', 5]
-    GetAnnotations[int] = Never
-
-
-* ``DropAnnotations[T]`` - Drop the annotations of a potentially
-  Annotated type. Examples::
-
-    DropAnnotations[Annotated[int, 'xxx']] = int
-    DropAnnotations[Annotated[int, 'xxx', 5]] = int
-    DropAnnotations[int] = int
-
-
 Callable inspection and creation
 ''''''''''''''''''''''''''''''''
 
@@ -789,29 +764,6 @@ Overloaded function types
 * ``Overloaded[*Callables]`` - An overloaded function type, with the
   underlying types in order.
 
-String manipulation
-'''''''''''''''''''
-
-String manipulation operations for string ``Literal`` types.
-
-``Slice`` and ``Concat`` allow for basic literal template-like manipulation.
-We can actually implement the case functions in terms of them and a
-bunch of conditionals, but shouldn't (especially if we want it to work
-for all unicode!).
-
-
-* ``Slice[S: Literal[str] | tuple, Start: Literal[int | None], End: Literal[int | None]]``:
-  Slices a ``str`` or a tuple type.
-
-* ``Concat[S1: Literal[str], S2: Literal[str]]``: concatenate two strings
-
-* ``Uppercase[S: Literal[str]]``: uppercase a string literal
-* ``Lowercase[S: Literal[str]]``: lowercase a string literal
-* ``Capitalize[S: Literal[str]]``: capitalize a string literal
-* ``Uncapitalize[S: Literal[str]]``: uncapitalize a string literal
-
-All of the operators in this section are :ref:`lifted over union types
-<lifting>`.
 
 Raise error
 '''''''''''
@@ -1120,6 +1072,8 @@ dataclasses-style method generation
         InitFnType[T],
         *[x for x in typing.Iter[typing.Members[T]]],
     ]
+
+XXX: Update this test to have UpdateClass
 
 
 Rationale
@@ -1613,10 +1567,77 @@ We could do potentially better but it would require more machinery.
 * We would also need to do context sensitive type bound inference
 
 
+Potential Future Extensions
+===========================
+
+Support Manipulating Annotated
+------------------------------
+
+Libraries like FastAPI use annotations heavily, and we would like to
+be able to use annotations to drive type-level computation decision
+making.
+
+Note that currently ``Annotated`` may be fully ignored by
+typecheckers, and so supporting inspection and manipulation of it
+could end up being fraught.
+
+One potential API for this might be:
+
+* ``GetAnnotations[T]`` - Fetch the annotations of a potentially
+  Annotated type, as Literals. Examples::
+
+    GetAnnotations[Annotated[int, 'xxx']] = Literal['xxx']
+    GetAnnotations[Annotated[int, 'xxx', 5]] = Literal['xxx', 5]
+    GetAnnotations[int] = Never
+
+
+* ``DropAnnotations[T]`` - Drop the annotations of a potentially
+  Annotated type. Examples::
+
+    DropAnnotations[Annotated[int, 'xxx']] = int
+    DropAnnotations[Annotated[int, 'xxx', 5]] = int
+    DropAnnotations[int] = int
+
+String manipulation
+'''''''''''''''''''
+
+TypeScript has "template literal" types for strings that allow both
+concatenating string literal types and decomposing them. They also
+have a suite of capitalization related operations.
+
+Supporting concatenation would allow use-cases such as generating new
+method names based on attributes: for every attribute ``foo`` we could
+generate a ``get_foo`` method.
+
+Supporting slicing would allow doing more in-depth string traversals,
+and supporting capitalization would allow operations like transforming
+a name from ``snake_case`` to ``CapitalizedWords``.
+
+We can actually implement the case functions in terms of them and a
+bunch of conditionals, but shouldn't (especially if we want it to work
+for all unicode!).
+
+It would definitely be possible to take just slicing and
+concatenation, also.
+
+
+* ``Slice[S: Literal[str], Start: Literal[int | None], End: Literal[int | None]]``:
+  Also support slicing string types. (Currently tuples are supported.)
+
+* ``Concat[S1: Literal[str], S2: Literal[str]]``: concatenate two strings
+
+* ``Uppercase[S: Literal[str]]``: uppercase a string literal
+* ``Lowercase[S: Literal[str]]``: lowercase a string literal
+* ``Capitalize[S: Literal[str]]``: capitalize a string literal
+* ``Uncapitalize[S: Literal[str]]``: uncapitalize a string literal
+
+All of the operators in this section are :ref:`lifted over union types
+<lifting>`.
+
+.. * Should we support building new nominal types??
+
 Open Issues
 ===========
-
-* Should we support building new nominal types??
 
 * What invalid operations should be errors and what should return ``Never``?
 
