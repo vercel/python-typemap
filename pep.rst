@@ -1547,7 +1547,7 @@ Another advantage is not needing any notion of a special
 ``<type-bool>`` class of types.
 
 The disadvantage is that the syntax seems a *lot*
-worse. Supporting filtering while mapping would make it even worse
+worse. Supporting filtering while mapping would make it even more bad
 (maybe an extra argument for a filter?).
 
 We can explore other options too if needed.
