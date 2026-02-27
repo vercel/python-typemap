@@ -1310,13 +1310,13 @@ None are expected.
 How to Teach This
 =================
 
-I think some inspiration can be taken from how TypeScript teaches
-their equivalent features.
+I think much inspiration can be taken from how TypeScript teaches
+their equivalent features, since they have similar complexity.  We
+will want high-level example-driven documentation, similar to what
+TypeScript does.
 
-(Though not complete inspiration---some important subtleties of things
-like mapped types are unmentioned in current documentation
-("homomorphic mappings").)
-
+Where we will need to do better than TypeScript is to *also* have more
+complete documentation of the important details.
 
 Reference Implementation
 ========================
