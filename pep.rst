@@ -1788,18 +1788,15 @@ Open Issues
   rejected. This does actually exactly mirror a potential **runtime**
   evaluation-order dependence, though.
 
-What exactly are the subtyping (etc) rules for unevaluated types
-----------------------------------------------------------------
+* Because of generic functions, there will be plenty of cases where we
+  can't evaluate a type operator (because it's applied to an unresolved
+  type variable), and exactly what the type evaluation rules should be
+  in those cases is somewhat unclear.
 
-Because of generic functions, there will be plenty of cases where we
-can't evaluate a type operator (because it's applied to an unresolved
-type variable), and exactly what the type evaluation rules should be
-in those cases is somewhat unclear.
-
-Currently, in the proof of concept implementation in mypy, stuck type
-evaluations implement subtype checking fully invariantly: we check
-that the operators match and that every operand matches in both
-arguments invariantly.
+  Currently, in the proof of concept implementation in mypy, stuck type
+  evaluations implement subtype checking fully invariantly: we check
+  that the operators match and that every operand matches in both
+  arguments invariantly.
 
 
 Acknowledgements
