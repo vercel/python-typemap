@@ -543,8 +543,15 @@ and we want typechecking to match.
 Type operators
 --------------
 
-Note that in some sections below we write things like ``Literal[int]`` to mean
-"a literal that is of type ``int``".
+Many of the operators specified have type bounds listed for some of
+their operands. These should be interpreted more as documentation than
+as exact type bounds. Trying to evaluate operators with invalid
+arguments will produce ``Never`` as the return. (There is some
+discussion of potential alternatives :ref:`below <strict-kinds>`.)
+
+Note that in some of these bounds below we write things like
+``Literal[int]`` to mean "a literal that is of type ``int``".
+We don't propose to add that as actula syntax yet.
 
 .. _boolean-ops:
 
@@ -1644,6 +1651,8 @@ not yet integrated into the main proposal) would improve the syntactic
 situation at lower cost.
 
 
+.. _strict-kinds:
+
 Make the type-level operations more "strictly-typed"
 ----------------------------------------------------
 
@@ -1651,9 +1660,11 @@ This proposal is less "strictly-typed" than TypeScript
 (strictly-kinded, maybe?).
 
 TypeScript has better typechecking at the alias definition site:
-For ``P[K]``, ``K`` needs to have ``keyof P``...
+For ``P[K]``, ``K`` needs to have ``keyof P``. The ``extends``
+conditional type operator narrows the type to help spuport this.
 
-We could do potentially better but it would require more machinery.
+We could do potentially better but it would require quite a bit more
+machinery.
 
 * ``KeyOf[T]`` - literal keys of ``T``
 * ``Member[T]``, when statically checking a type alias, could be
