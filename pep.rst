@@ -1204,7 +1204,7 @@ computation. (They probably could be made to work, but it would
 require a separate facility for creating and introspecting *methods*,
 which wouldn't be any simpler.)
 
-I am proposing a fully new extended callable syntax because:
+We are proposing a fully new extended callable syntax because:
  1. The ``mypy_extensions`` functions are full no-ops, and we need
     real runtime objects
  2. They use parentheses and not brackets, which really goes against
@@ -1278,7 +1278,9 @@ Tools that want to fully evaluate the annotations will need to either
 implement an evaluator or use a library for it (the PEP authors are
 planning to produce such a library).
 
-Tools that want to extract the annotations unevaluated and process
+Tools that specifically rely on introspecting annotations at runtime
+(tools tha parse Python files are obviously unaffected) that want
+to extract the annotations unevaluated and process
 them in some way are possibly in more trouble. Currently, this is
 doable if ``from __future__ import annotations`` is specified, because
 the string annotation could be parsed with ``ast.parse`` and then handled
@@ -1300,12 +1302,8 @@ This could be mitigated by doing one of:
 
 If neither of those options is taken, then tools that want to process
 unevaluated type manipulation expressions will probably need to
-reparse the source code and extract annotations from there.
-
-Note that all of these snags only come up *if* the new syntax is being
-used, so this is arguably less of a backward compatibility hazard than
-it is that supporting the new feature may be somewhat annoying for
-certain tools.
+reparse the source code and extract annotations from there. Which we
+expect is what most tools do anyway.
 
 
 Security Implications
@@ -1317,13 +1315,16 @@ None are expected.
 How to Teach This
 =================
 
-I think much inspiration can be taken from how TypeScript teaches
+We think much inspiration can be taken from how TypeScript teaches
 their equivalent features, since they have similar complexity.  We
 will want high-level example-driven documentation, similar to what
 TypeScript does.
 
-Where we will need to do better than TypeScript is to *also* have more
-complete documentation of the important details.
+It is also important to note that the expected audience that will use
+the new syntax and APIs are framework and library maintainers who
+will be impementing type manipulation to support the advanced patterns
+and APIs they introduce.
+
 
 Reference Implementation
 ========================
@@ -1423,9 +1424,13 @@ If people are having a bad time in Bracket City, we could also
 consider making the built-in type operators use parens instead of
 brackets.
 
-Obviously this has some consistency issues but also maybe signals a
-difference? Combined with dictionary-comprehensions and dot notation
-(but not dictionary destructuring), it could look like::
+Using a mix of ``[]`` and ``()`` would introduce consistency issues and
+will force users to remember which APIs use square brackets and which
+use parentheses. Given that the current Python typing revolves around
+using brackets we feel strongly that continuing on that path will lead
+to a better developer experience.
+
+As an example, here is how mixing ``()`` and ``[]`` could look like::
 
     type PropsOnly[T] = typing.NewProtocol(
         {
@@ -1484,8 +1489,8 @@ limited set of ``<type-bool>`` expressions that can appear in
 conditional types.
 
 For better or worse, though, runtime use of type annotations is
-widespread, and one of our motivating examples (automatically deriving
-FastAPI CRUD models) depends on it.
+widespread, e.g. ``pydantic`` depends on it, and one of our motivating 
+examples (automatically derivin FastAPI CRUD models) depends on it too.
 
 Support TypeScript style pattern matching in subtype checking
 -------------------------------------------------------------
@@ -1572,8 +1577,6 @@ look like::
         ]
     ]
 
-Everyone hated how this looked a lot.
-
 .. _less_syntax:
 
 
@@ -1609,7 +1612,7 @@ Another advantage is not needing any notion of a special
 
 The disadvantage is that the syntax seems a *lot*
 worse. Supporting filtering while mapping would make it even more bad
-(maybe an extra argument for a filter?).
+(maybe an extra argument for a filter?)
 
 We can explore other options too if needed.
 
@@ -1645,7 +1648,7 @@ If runtime use is desired, then either the type representation would
 need to be made compatible with how ``typing`` currently works or we'd
 need to have two different runtime type representations.
 
-Whether it would improve the syntax is more up for debate; I think
+Whether it would improve the syntax is more up for debate; we think
 that adopting some of the syntactic cleanup ideas discussed above (but
 not yet integrated into the main proposal) would improve the syntactic
 situation at lower cost.
