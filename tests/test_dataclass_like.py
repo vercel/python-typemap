@@ -40,6 +40,15 @@ type GetDefault[Init] = (
 
 # Begin PEP section: dataclass like __init__
 
+"""
+
+``InitFnType`` generates a ``Member`` for a new `__init__` function
+based on iterating over all attributes.
+
+``GetDefault`` here is borrowed from our FastAPI-like example above.
+
+"""
+
 # Generate the Member field for __init__ for a class
 type InitFnType[T] = typing.Member[
     Literal["__init__"],
@@ -71,9 +80,28 @@ type AddInit[T] = typing.NewProtocol[
     *[x for x in typing.Iter[typing.Members[T]]],
 ]
 
-# TODO more exposition about UpdateClass
+
+"""
+
+``UpdateClass`` can then be used to create a
+class decorator (a-la `@dataclass`) adds a new `__init__`` method to a
+class.
+
+"""
+def dataclass_ish[T](
+    cls: type[T],
+) -> typing.UpdateClass[
+    # Add the computed __init__ function
+    InitFnType[T],
+]:
+    pass
 
 
+"""
+
+Or to create a base class (a-la Pydantic) that does.
+
+"""
 class Model:
     def __init_subclass__[T](
         cls: type[T],
@@ -84,13 +112,6 @@ class Model:
         super().__init_subclass__()
 
 
-def dataclass_ish[T](
-    cls: type[T],
-) -> typing.UpdateClass[
-    # Add the computed __init__ function
-    InitFnType[T],
-]:
-    pass
 
 
 # End PEP section

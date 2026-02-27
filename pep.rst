@@ -1040,6 +1040,11 @@ initializer).
 dataclasses-style method generation
 -----------------------------------
 
+``InitFnType`` generates a ``Member`` for a new `__init__` function
+based on iterating over all attributes.
+
+``GetDefault`` here is borrowed from our FastAPI-like example above.
+
 ::
 
     # Generate the Member field for __init__ for a class
@@ -1073,7 +1078,23 @@ dataclasses-style method generation
         *[x for x in typing.Iter[typing.Members[T]]],
     ]
 
-    # TODO more exposition
+``UpdateClass`` can then be used to create a
+class decorator (a-la `@dataclass`) adds a new `__init__`` method to a
+class.
+
+::
+
+    def dataclass_ish[T](
+        cls: type[T],
+    ) -> typing.UpdateClass[
+        # Add the computed __init__ function
+        InitFnType[T],
+    ]:
+        pass
+
+Or to create a base class (a-la Pydantic) that does.
+
+::
 
     class Model:
         def __init_subclass__[T](
@@ -1083,14 +1104,6 @@ dataclasses-style method generation
             InitFnType[T],
         ]:
             super().__init_subclass__()
-
-    def dataclass_ish[T](
-        cls: type[T],
-    ) -> typing.UpdateClass[
-        # Add the computed __init__ function
-        InitFnType[T],
-    ]:
-        pass
 
 
 NumPy-style broadcasting
