@@ -8,8 +8,8 @@ if [ ! -d peps ]; then
     git clone --depth=1 -b emails https://github.com/msullivan/peps/
 fi
 cd peps/peps
-if [ ! -s pep-9999.rst ]; then
-    ln -s ../../../pep.rst pep-9999.rst
+if [ ! -s pep-0827.rst ]; then
+    ln -s ../../../pep.rst pep-0827.rst
 fi
 cd ..
 
@@ -19,7 +19,7 @@ cd ..
 make html || true
 
 # Copy the pep we care about over the index
-cp build/pep-9999.html build/index.html
+cp build/pep-0827.html build/index.html
 
 rm -rf ../html
 cp -r build ../html
