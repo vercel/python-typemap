@@ -1802,10 +1802,7 @@ Open Issues
 Acknowledgements
 ================
 
-Jukka Lehtosalo, etc
-
-[Thank anyone who has helped with the PEP.]
-
+We'd like to thank Jukka Lehtosalo, for many discussions about the design.
 
 Footnotes
 =========
