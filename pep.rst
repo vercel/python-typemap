@@ -675,14 +675,6 @@ Object creation
 * ``NewProtocol[*Ms: Member]``: Create a new structural protocol with members
   specified by ``Member`` arguments
 
-* ``NewProtocolWithBases[Bases: tuple[type], *Ms: Member]`` - A variant that
-  allows specifying bases too. The idea is that a type would satisfy
-  this protocol if it extends all of the given bases and has the
-  specified members. (TODO: Is this something we actually
-  want? It would be a potentially powerful feature for dealing
-  with things like Pydantic models, but protocol-with-bases would be
-  something of a new concept.)
-
 * ``NewTypedDict[*Ps: Member]`` - Creates a new ``TypedDict`` with
   items specified by the ``Member`` arguments.
 
@@ -1765,6 +1757,25 @@ concatenation, also.
 
 All of the operators in this section are :ref:`lifted over union types
 <lifting>`.
+
+NewProtocolWithBases
+''''''''''''''''''''
+
+It would sometimes be useful to support something like
+``NewProtocolWithBases``, with a specification like:
+
+* ``NewProtocolWithBases[Bases: tuple[type], *Ms: Member]``
+
+The idea is that a type would satisfy this protocol if it extends all
+of the given bases and has the specified members.
+
+This would be useful in situations where we want to do something like
+creating a new Pydantic model.
+
+We are holding off from fully proposing this at this time because
+protocol-with-bases would be an addition to what protocols can be that
+we don't want to tangle with yet, and because many use cases can be
+simulated in other ways.
 
 .. * Should we support building new nominal types??
 
