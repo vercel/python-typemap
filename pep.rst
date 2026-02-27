@@ -29,8 +29,8 @@ perform complex metaprogramming, especially in libraries and
 frameworks. The type system typically cannot model metaprogramming.
 
 To bridge the gap between metaprogramming and the type
-system, some libraries come with custom mypy plugins (though then
-other typecheckers suffer). The case of dataclass-like transformations
+system, some libraries come with custom mypy plugins.
+The case of dataclass-like transformations
 was considered common enough that a special-case
 ``@dataclass_transform`` decorator was added specifically to cover
 that case (:pep:`681`). The problem with this approach is that many
@@ -62,7 +62,9 @@ Prisma-style ORMs
 
 `Prisma <#prisma_>`_, a popular ORM for TypeScript, allows writing
 database queries in TypeScript like
-(adapted from `this example <#prisma-example_>`_)::
+(adapted from `this example <#prisma-example_>`_):
+
+.. code-block:: typescript
 
   const user = await prisma.user.findMany({
     select: {
@@ -72,7 +74,9 @@ database queries in TypeScript like
     },
   });
 
-for which the inferred type of ``user`` will be something like::
+for which the inferred type of ``user`` will be something like:
+
+.. code-block:: typescript
 
     {
         email: string;
@@ -88,7 +92,7 @@ for which the inferred type of ``user`` will be something like::
 Here, the output type is an intersection of the existing information
 about the type of ``prisma.user`` (a TypeScript type reflected from
 the database ``user`` table) and the type of the argument to
-the ``findMany`` method. It returns an array of objects containing
+the ``findMany()`` method. It returns an array of objects containing
 the properties of ``user`` that were explicitly requested;
 where ``posts`` is a "relation" referencing another type.
 
@@ -141,7 +145,8 @@ would have a dynamically computed return type ``list[<User>]`` where::
         content: str
 
 Even further, an IDE could offer code completion for
-all arguments of the ``db.select()`` call, recursively.
+all arguments of the ``db.select()`` call (matching the
+actual database column names), recursively.
 
 (Example code for implementing this :ref:`below <qb-impl>`.)
 
@@ -152,7 +157,7 @@ Automatically deriving FastAPI CRUD models
 In the `FastAPI tutorial <#fastapi-tutorial_>`_, they show how to
 build CRUD endpoints for a simple ``Hero`` type.  At its heart is a
 series of class definitions used both to define the database interface
-and to perform validation/filtering of the data in the endpoint::
+and to perform validation and filtering of the data in the endpoint::
 
     class HeroBase(SQLModel):
         name: str = Field(index=True)
@@ -251,9 +256,8 @@ dataclasses-style method generation
 
 We would additionally like to be able to generate method signatures
 based on the attributes of an object. The most well-known example of
-this is probably generating ``__init__`` methods for dataclasses,
-which we present a simplified example of. (In our test suites, this is
-merged with the FastAPI-style example above, but it need not be).
+this is generating ``__init__`` methods for dataclasses,
+which we present a simplified example of.
 
 This kind of pattern is widespread enough that :pep:`PEP 681 <681>`
 was created to represent a lowest-common denominator subset of what
@@ -345,9 +349,8 @@ Extended Callables
 ------------------
 
 We introduce a new extended callable proposal for expressing arbitrarily
-complex callable types. The goal here is not really to produce a new
-syntax to write in annotations (it seems less pleasant to write than
-callback protocols are), but to provide a way of constructing the types
+complex callable types. The goal here is not to have a new
+syntax to write in annotations, but to provide a way of constructing the types
 that is amenable to creating and introspecting callable types using
 the other features of this PEP.
 
@@ -538,16 +541,15 @@ members and function params have "associated" type members, which can
 be accessed by dot notation: ``m.name``, ``m.type``, etc.
 
 This operation is not lifted over union types. Using it on the wrong
-sort of type will be an error. (At least, it must be that way at
-runtime, and we probably want typechecking to match.)
+sort of type will be an error. It must be that way at runtime,
+and we want typechecking to match.
 
 
 Type operators
 --------------
 
-In some sections below we write things like ``Literal[int]`` to mean
-"a literal that is of type ``int``". I don't think I'm really
-proposing to add that as a notion, but we could.
+Note that in some sections below we write things like ``Literal[int]`` to mean
+"a literal that is of type ``int``".
 
 .. _boolean-ops:
 
@@ -557,8 +559,8 @@ Boolean operators
 * ``IsAssignable[T, S]``: Returns a boolean literal type indicating whether
   ``T`` is assignable to ``S``.
 
-   (That is, it is a "consistent subtype". This is subtyping extended
-   to gradual types.)
+   That is, it is a "consistent subtype". This is subtyping extended
+   to gradual types.
 
 * ``IsEquivalent[T, S]``:
   Equivalent to ``IsAssignable[T, S] and IsAssignable[S, T]``.
@@ -678,8 +680,6 @@ Object creation
 * ``NewTypedDict[*Ps: Member]`` - Creates a new ``TypedDict`` with
   items specified by the ``Member`` arguments.
 
-  .. TODO: Do we want a way to specify ``extra_items``?
-
 Note that we are not currently proposing any way to create *nominal* classes
 or any way to make new *generic* types.
 
@@ -766,9 +766,6 @@ Raise error
 
 Update class
 ''''''''''''
-
-N.B: This is kind of sketchy but it is I think needed for defining
-base classes and type decorators that do ``dataclass`` like things.
 
 * ``UpdateClass[*Ps: Member]``: A special form that *updates* an
   existing nominal class with new members (possibly overriding old
