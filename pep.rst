@@ -1294,7 +1294,7 @@ tricks for building a string do not work for loops and
 conditionals.
 
 This could be mitigated by doing one of:
- 1. The :pep:`"Just store the strings" <649#just-store-the-strings>`_
+ 1. The :pep:`"Just store the strings" <649#just-store-the-strings>`
     option from :pep:`649`, which would allow always extracting
     unevaluated strings.
  2. Adding a ``Format.AST`` mode for
