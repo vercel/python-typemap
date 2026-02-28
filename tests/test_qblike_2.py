@@ -70,7 +70,7 @@ def select[ModelT, K: typing.BaseTypedDict](
     raise NotImplementedError
 
 
-"""ConvertField is our first type helper, and it is a conditional type
+"""``ConvertField`` is our first type helper, and it is a conditional type
 alias, which decides between two types based on a (limited)
 subtype-ish check.
 

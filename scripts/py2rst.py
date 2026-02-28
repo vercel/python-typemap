@@ -34,8 +34,12 @@ def convert_py_to_rst(source: str) -> str:
             code_buffer.pop()
 
         if code_buffer:
-            result.append('::')
-            result.append('')
+            last_nonempty = next((l for l in reversed(result) if l.strip()), None)
+            if last_nonempty is not None and last_nonempty.rstrip().endswith('::'):
+                pass  # preceding text already ends with ::
+            else:
+                result.append('::')
+                result.append('')
             for line in code_buffer:
                 result.append('    ' + line if line.strip() else '')
             result.append('')
