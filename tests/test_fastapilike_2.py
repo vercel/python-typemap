@@ -73,7 +73,7 @@ type Public[T] = typing.NewProtocol[
 # Begin PEP section: Automatically deriving FastAPI CRUD models
 """
 We have a more `fully-worked example <#fastapi-test_>`_ in our test
-suite, but here is a possible implementation of just ``Public``::
+suite, but here is a possible implementation of just ``Create``::
 """
 
 # Extract the default type from an Init field.
