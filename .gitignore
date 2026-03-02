@@ -24,3 +24,4 @@ debug/
 
 .dmypy.json
 *~
+.vercel
