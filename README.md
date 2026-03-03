@@ -1,12 +1,12 @@
 # Type Manipulation in Python
 
-This is the development repository for a PEP to add
-TypeScript-inspired type-level introspection and construction
-facilities to the Python type system.
+This is the development repository for
+[PEP 827 – Type Manipulation](https://peps.python.org/pep-0827/),
+which proposes TypeScript-inspired type-level introspection and construction
+facilities for the Python type system.
 
-There is [a rendered PEP draft](https://python-typemap.labs.vercel.dev).
-
-See [pep.rst](pep.rst) for the PEP draft source code.
+Discussion of the PEP is at the
+[PEP 827 discussion thread](https://discuss.python.org/t/pep-827-type-manipulation/106353).
 
 This repository also contains an implementation of the proposed
 additions to ``typing`` ([typemap/typing.py](typemap/typing.py)), as well as a

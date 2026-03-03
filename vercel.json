@@ -1,4 +1,9 @@
 {
-  "buildCommand": "./scripts/build-peps.sh",
-  "outputDirectory": "build/html"
+  "redirects": [
+    {
+      "source": "/",
+      "destination": "https://peps.python.org/pep-0827/",
+      "permanent": true
+    }
+  ]
 }
