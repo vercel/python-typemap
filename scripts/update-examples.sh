@@ -14,3 +14,6 @@ scripts/py2rst.py tests/test_fastapilike_2.py --start "Begin PEP section: Automa
 
 scripts/py2rst.py tests/test_nplike.py --start "Begin PEP section" --end "End PEP section" \
   | scripts/rst_replace_section.py "$PEP" pep827-numpy-impl -i
+
+scripts/py2rst.py tests/test_ts_utility.py --start "Begin PEP section" --end "End PEP section" \
+  | scripts/rst_replace_section.py "$PEP" pep827-ts-utils -i
