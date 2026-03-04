@@ -109,6 +109,12 @@ def get_annotated_type_hints(cls, *, ctx, attrs_only=False, **kwargs):
 
     box = cached_box(cls, ctx=ctx)
 
+    # For TypedDicts with total=False, use __optional_keys__ to
+    # identify which fields are NotRequired. TypedDict's metaclass
+    # flattens parent annotations into subclasses, so we can't
+    # reliably check __total__ per-class in our own MRO walk.
+    td_optional_keys = getattr(cls, "__optional_keys__", frozenset())
+
     hints = {}
     for abox in reversed(box.mro):
         acls = abox.alias_type()
@@ -119,6 +125,7 @@ def get_annotated_type_hints(cls, *, ctx, attrs_only=False, **kwargs):
 
             # Strip ClassVar/Final/NotRequired/ReadOnly/Required from ty
             # and add them to quals
+            had_required_marker = False
             while True:
                 for form in [
                     typing.ClassVar,
@@ -128,6 +135,11 @@ def get_annotated_type_hints(cls, *, ctx, attrs_only=False, **kwargs):
                     typing.Required,
                 ]:
                     if _typing_inspect.is_special_form(ty, form):
+                        if form in (
+                            typing.Required,
+                            typing.NotRequired,
+                        ):
+                            had_required_marker = True
                         # Required is the default; strip but don't add a qual
                         if form is not typing.Required:
                             quals.add(form.__name__)
@@ -139,6 +151,11 @@ def get_annotated_type_hints(cls, *, ctx, attrs_only=False, **kwargs):
                         break
                 else:
                     break
+
+            # For TypedDict fields without explicit Required/NotRequired,
+            # check if they're optional (from total=False)
+            if not had_required_marker and k in td_optional_keys:
+                quals.add("NotRequired")
 
             # Skip method-like ClassVars when only attributes are wanted
             if attrs_only and "ClassVar" in quals and _is_method_like(ty):
