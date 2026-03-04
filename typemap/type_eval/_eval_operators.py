@@ -41,7 +41,6 @@ from typemap.typing import (
     Member,
     Members,
     NewProtocol,
-    Overloaded,
     Param,
     RaiseError,
     Slice,
@@ -154,35 +153,12 @@ def get_annotated_method_hints(cls, *, ctx):
 
         _, dct = _apply_generic.get_local_defns(abox)
         for name, attr in dct.items():
-            if isinstance(
+            hints[name] = (
                 attr,
-                (
-                    types.FunctionType,
-                    types.MethodType,
-                    staticmethod,
-                    classmethod,
-                ),
-            ):
-                if attr is typing._no_init_or_replace_init:
-                    continue
-
-                hints[name] = (
-                    _function_type(attr, receiver_type=acls),
-                    ("ClassVar",),
-                    object,
-                    acls,
-                )
-            elif isinstance(attr, _apply_generic.WrappedOverloads):
-                overloads = [
-                    _function_type(_eval_types(of, ctx), receiver_type=acls)
-                    for of in attr.functions
-                ]
-                hints[name] = (
-                    Overloaded[*overloads],
-                    ("ClassVar",),
-                    object,
-                    acls,
-                )
+                ("ClassVar",),
+                object,
+                acls,
+            )
 
     return hints
 
@@ -701,106 +677,6 @@ def _callable_type_to_method(name, typ, ctx):
     func = _signature_to_function(name, _callable_type_to_signature(typ))
     func.__type_params__ = type_params
     return head(func)
-
-
-def _function_type_from_sig(sig, func, *, receiver_type):
-    empty = inspect.Parameter.empty
-
-    def _ann(x):
-        return typing.Any if x is empty else None if x is type(None) else x
-
-    specified_receiver = receiver_type
-
-    params = []
-    for i, p in enumerate(sig.parameters.values()):
-        ann = p.annotation
-        # Special handling for first argument on methods.
-        if i == 0 and receiver_type and not isinstance(func, staticmethod):
-            if ann is empty:
-                ann = receiver_type
-            else:
-                if (
-                    isinstance(func, classmethod)
-                    and typing.get_origin(ann) is type
-                    and (receiver_args := typing.get_args(ann))
-                ):
-                    # The annotation for cls in a classmethod should be type[C]
-                    specified_receiver = receiver_args[0]
-                else:
-                    specified_receiver = ann
-
-        quals = []
-        if p.kind == inspect.Parameter.VAR_POSITIONAL:
-            quals.append("*")
-        if p.kind == inspect.Parameter.VAR_KEYWORD:
-            quals.append("**")
-        if p.kind == inspect.Parameter.KEYWORD_ONLY:
-            quals.append("keyword")
-        if p.kind == inspect.Parameter.POSITIONAL_ONLY:
-            quals.append("positional")
-        if p.default is not empty:
-            quals.append("default")
-        params.append(
-            Param[
-                typing.Literal[p.name],
-                _ann(ann),
-                typing.Literal[*quals] if quals else typing.Never,
-            ]
-        )
-
-    ret = _ann(sig.return_annotation)
-
-    # TODO: Is doing the tuple for staticmethod/classmethod legit?
-    # Putting a list in makes it unhashable...
-    f: typing.Any  # type: ignore[annotation-unchecked]
-    if isinstance(func, staticmethod):
-        f = staticmethod[tuple[*params], ret]
-    elif isinstance(func, classmethod):
-        f = classmethod[specified_receiver, tuple[*params[1:]], ret]
-    else:
-        f = typing.Callable[params, ret]
-
-    return f
-
-
-def _function_type(func, *, receiver_type):
-    root = inspect.unwrap(func)
-    sig = inspect.signature(root)
-    f = _function_type_from_sig(sig, func, receiver_type=receiver_type)
-
-    if root.__type_params__:
-        # Must store a lambda that performs type variable substitution
-        type_params = root.__type_params__
-        callable_lambda = _create_generic_callable_lambda(f, type_params)
-        f = GenericCallable[tuple[*type_params], callable_lambda]
-    return f
-
-
-def _create_generic_callable_lambda(
-    f: typing.Callable | classmethod | staticmethod,
-    type_params: tuple[typing.TypeVar, ...],
-):
-    if typing.get_origin(f) in (staticmethod, classmethod):
-        return lambda *vs: _apply_generic.substitute(
-            f, dict(zip(type_params, vs, strict=True))
-        )
-
-    else:
-        # Callable params are stored as a list
-        params, ret = typing.get_args(f)
-
-        return lambda *vs: typing.Callable[
-            [
-                _apply_generic.substitute(
-                    p,
-                    dict(zip(type_params, vs, strict=True)),
-                )
-                for p in params
-            ],
-            _apply_generic.substitute(
-                ret, dict(zip(type_params, vs, strict=True))
-            ),
-        ]
 
 
 def _hint_to_member(n, t, qs, init, d, *, ctx):
