@@ -6,7 +6,7 @@ See https://www.typescriptlang.org/docs/handbook/utility-types.html
 """
 
 import textwrap
-from typing import Literal, Never, NotRequired, Required, TypedDict
+from typing import Literal, Never, NotRequired, Required, TypedDict, Union
 
 import typemap_extensions as typing
 from typemap.type_eval import eval_typing
@@ -50,11 +50,33 @@ type Pick[T, Keys] = typing.NewProtocol[
 
 # Omit<T, Keys>
 # Constructs a type by picking all properties from T and then removing Keys.
+# Note that unlike in TS, our Omit does not depend on Exclude.
 type Omit[T, Keys] = typing.NewProtocol[
     *[
         p
         for p in typing.Iter[typing.Members[T]]
         if not typing.IsAssignable[p.name, Keys]
+    ]
+]
+
+# Exclude<T, U>
+# Constructs a type by excluding from T all union members assignable to U.
+type Exclude[T, U] = Union[
+    *[
+        x
+        for x in typing.Iter[typing.FromUnion[T]]
+        if not typing.IsAssignable[x, U]
+    ]
+]
+
+# Extract<T, U>
+# Constructs a type by extracting from T all union members assignable to U.
+type Extract[T, U] = Union[
+    *[
+        x
+        for x in typing.Iter[typing.FromUnion[T]]
+        # Just the inverse of Exclude, really
+        if typing.IsAssignable[x, U]
     ]
 ]
 
@@ -156,3 +178,28 @@ def test_td_total_false_inherited():
     assert quals["y"] is Never
     # z defined in total=True child -> no qual
     assert quals["z"] is Never
+
+
+def test_exclude():
+    # bool is assignable to int, so it gets excluded too
+    assert eval_typing(Exclude[str | int | bool, int]) is str
+
+    assert eval_typing(
+        Exclude[Literal["a"] | Literal["b"] | Literal["c"], Literal["a"]]
+    ) == (Literal["b"] | Literal["c"])
+
+    assert eval_typing(Exclude[str | int | float, str | int]) is float
+
+
+def test_extract():
+    # bool is assignable to int, so it gets extracted
+    assert eval_typing(Extract[str | int | bool, int]) == (int | bool)
+
+    assert (
+        eval_typing(
+            Extract[Literal["a"] | Literal["b"] | Literal["c"], Literal["a"]]
+        )
+        == Literal["a"]
+    )
+
+    assert eval_typing(Extract[str | int | float, str | int]) == (str | int)
