@@ -70,9 +70,9 @@ type Partial[T] = typing.NewProtocol[
 # PartialTD<T>
 # Like Partial, but for TypedDicts: wraps all fields in NotRequired
 # rather than making them T | None.
-type PartialTD[T] = typing.NewProtocol[
+type PartialTD[T] = typing.NewTypedDict[
     *[
-        typing.Member[p.name, NotRequired[p.type], p.quals]
+        typing.Member[p.name, p.type, p.quals | Literal["NotRequired"]]
         for p in typing.Iter[typing.Attrs[T]]
     ]
 ]
@@ -112,10 +112,10 @@ def test_partial():
 
 def test_partial_td():
     tgt = eval_typing(PartialTD[TodoTD])
-    fmt = format_helper.format_class(tgt)
-    assert fmt == textwrap.dedent("""\
-        class PartialTD[tests.test_ts_utility.TodoTD]:
-            title: typing.NotRequired[str]
-            description: typing.NotRequired[str]
-            completed: typing.NotRequired[bool]
-    """)
+    assert tgt.__required_keys__ == frozenset()
+    assert tgt.__optional_keys__ == {"title", "description", "completed"}
+    assert tgt.__annotations__ == {
+        "title": NotRequired[str],
+        "description": NotRequired[str],
+        "completed": NotRequired[bool],
+    }

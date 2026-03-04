@@ -292,6 +292,10 @@ class NewProtocol[*T]:
     pass
 
 
+class NewTypedDict[*T]:
+    pass
+
+
 class UpdateClass[*Ms]:
     pass
 

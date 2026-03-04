@@ -41,6 +41,7 @@ from typemap.typing import (
     Member,
     Members,
     NewProtocol,
+    NewTypedDict,
     Overloaded,
     Param,
     RaiseError,
@@ -116,11 +117,20 @@ def get_annotated_type_hints(cls, *, ctx, attrs_only=False, **kwargs):
         for k, ty in annos.items():
             quals = set()
 
-            # Strip ClassVar/Final from ty and add them to quals
+            # Strip ClassVar/Final/NotRequired/ReadOnly/Required from ty
+            # and add them to quals
             while True:
-                for form in [typing.ClassVar, typing.Final]:
+                for form in [
+                    typing.ClassVar,
+                    typing.Final,
+                    typing.NotRequired,
+                    typing.ReadOnly,
+                    typing.Required,
+                ]:
                     if _typing_inspect.is_special_form(ty, form):
-                        quals.add(form.__name__)
+                        # Required is the default; strip but don't add a qual
+                        if form is not typing.Required:
+                            quals.add(form.__name__)
                         ty = (
                             typing.get_args(ty)[0]
                             if typing.get_args(ty)
@@ -1280,5 +1290,41 @@ def _eval_NewProtocol(*etyps: Member, ctx):
     # Stick __init__ back in, since Protocol messes with it
     if '__init__' in dct:
         cls.__init__ = dct['__init__']
+
+    return cls
+
+
+def _add_td_quals(typ, quals):
+    for qual in (typing.NotRequired, typing.ReadOnly):
+        if type_eval.issubtype(typing.Literal[qual.__name__], quals):
+            typ = qual[typ]
+    return typ
+
+
+@type_eval.register_evaluator(NewTypedDict)
+@_lift_evaluated
+def _eval_NewTypedDict(*etyps: Member, ctx):
+    annos = {}
+
+    members = [typing.get_args(prop) for prop in etyps]
+    for tname, typ, quals, _init, _ in members:
+        name = _eval_literal(tname, ctx)
+        typ = _eval_types(typ, ctx)
+        tquals = _eval_types(quals, ctx)
+        annos[name] = _add_td_quals(typ, tquals)
+
+    td_name = "NewTypedDict"
+    module_name = __name__
+
+    ctx = type_eval._get_current_context()
+    if ctx.current_generic_alias:
+        if isinstance(ctx.current_generic_alias, types.GenericAlias):
+            td_name = str(ctx.current_generic_alias)
+        else:
+            td_name = f"{ctx.current_generic_alias.__name__}[...]"
+        module_name = ctx.current_generic_alias.__module__
+
+    cls = typing.TypedDict(td_name, annos)  # type: ignore[misc]
+    cls.__module__ = module_name
 
     return cls
