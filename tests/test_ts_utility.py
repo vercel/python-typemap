@@ -6,7 +6,7 @@ See https://www.typescriptlang.org/docs/handbook/utility-types.html
 """
 
 import textwrap
-from typing import Literal, NotRequired, TypedDict
+from typing import Literal, Never, NotRequired, Required, TypedDict
 
 import typemap_extensions as typing
 from typemap.type_eval import eval_typing
@@ -119,3 +119,40 @@ def test_partial_td():
         "description": NotRequired[str],
         "completed": NotRequired[bool],
     }
+
+
+class OptionalTD(TypedDict, total=False):
+    x: int
+    y: Required[str]
+
+
+class ChildTD(OptionalTD):
+    z: bool
+
+
+def _get_quals(cls):
+    """Return {name: quals} for all Attrs of cls."""
+    result = {}
+    for p in eval_typing(typing.Iter[typing.Attrs[cls]]):
+        name = eval_typing(p.name).__args__[0]
+        quals = eval_typing(p.quals)
+        result[name] = quals
+    return result
+
+
+def test_td_total_false():
+    quals = _get_quals(OptionalTD)
+    # x is bare in total=False -> NotRequired
+    assert quals["x"] == Literal["NotRequired"]
+    # y has explicit Required -> no qual
+    assert quals["y"] is Never
+
+
+def test_td_total_false_inherited():
+    quals = _get_quals(ChildTD)
+    # x inherited from total=False parent -> still NotRequired
+    assert quals["x"] == Literal["NotRequired"]
+    # y had explicit Required in parent -> no qual
+    assert quals["y"] is Never
+    # z defined in total=True child -> no qual
+    assert quals["z"] is Never
