@@ -59,6 +59,12 @@ type Omit[T, Keys] = typing.NewProtocol[
     ]
 ]
 
+# KeyOf[T]
+# Constructs a union of the names of every member of T.
+type KeyOf[T] = Union[
+    *[p.name for p in typing.Iter[typing.Members[T]]]
+]
+
 # Exclude<T, U>
 # Constructs a type by excluding from T all union members assignable to U.
 type Exclude[T, U] = Union[
@@ -203,3 +209,9 @@ def test_extract():
     )
 
     assert eval_typing(Extract[str | int | float, str | int]) == (str | int)
+
+
+def test_keyof():
+    assert eval_typing(KeyOf[Todo]) == (
+        Literal["title"] | Literal["description"] | Literal["completed"]
+    )
