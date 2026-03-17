@@ -61,9 +61,7 @@ type Omit[T, Keys] = typing.NewProtocol[
 
 # KeyOf[T]
 # Constructs a union of the names of every member of T.
-type KeyOf[T] = Union[
-    *[p.name for p in typing.Iter[typing.Members[T]]]
-]
+type KeyOf[T] = Union[*[p.name for p in typing.Iter[typing.Members[T]]]]
 
 # Exclude<T, U>
 # Constructs a type by excluding from T all union members assignable to U.
