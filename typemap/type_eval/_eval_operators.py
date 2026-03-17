@@ -547,6 +547,13 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
             # Standard callable (no Params wrapping) — build simple
             # positional parameters from the type list
             if isinstance(param_types, (list, tuple)):
+                # Error if someone passes Param types without Params wrapper
+                for t in param_types:
+                    if typing.get_origin(t) is Param:
+                        raise TypeError(
+                            f"Param types must be wrapped in Params[...], "
+                            f"got Callable[[{t}, ...], ...]"
+                        )
                 params = []
                 for i, t in enumerate(param_types):
                     params.append(
