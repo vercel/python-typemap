@@ -19,6 +19,7 @@ from typemap_extensions import (
     Member,
     Members,
     Param,
+    Params,
 )
 
 from . import format_helper
@@ -47,7 +48,7 @@ type HasDefault[T, default] = Annotated[
 type InitFnType[T] = Member[
     Literal["__init__"],
     Callable[
-        [
+        Params[
             Param[Literal["self"], Self],
             *[
                 Param[

@@ -458,7 +458,10 @@ def test_getmember_03():
     assert (
         f
         == Callable[
-            Params[Param[Literal["self"], Self], Param[Literal["x"], Vs[0]]],
+            Params[
+                Param[Literal["self"], Self],
+                Param[Literal["x"], Vs[0]],
+            ],
             OnlyIntToSet[Vs[0]],
         ]
     )
@@ -1283,7 +1286,7 @@ def test_eval_getarg_custom_08():
 def test_eval_getargs_generic_callable_01():
     T = TypeVar("T")
     t = GenericCallable[
-        tuple[T], lambda T: Callable[[Param[Literal["x"], T]], int]
+        tuple[T], lambda T: Callable[Params[Param[Literal["x"], T]], int]
     ]
     args = eval_typing(GetArgs[t, GenericCallable])
     assert args == tuple[tuple[T]]
@@ -1802,7 +1805,7 @@ def test_callable_to_signature_01():
     #     **kwargs: int
     # ) -> int:
     callable_type = Callable[
-        [
+        Params[
             Param[None, int],
             Param[Literal["b"], int],
             Param[Literal["c"], int, Literal["default"]],
@@ -2451,14 +2454,20 @@ def test_update_class_members_11():
             Member[Literal["b"], str, Never, Never, B],
             Member[
                 Literal["f"],
-                Callable[Params[Param[Literal["self"], Self]], int],
+                Callable[
+                    Params[Param[Literal["self"], Self]],
+                    int,
+                ],
                 Literal["ClassVar"],
                 object,
                 B,
             ],
             Member[
                 Literal["g"],
-                Callable[Params[Param[Literal["self"], Self]], str],
+                Callable[
+                    Params[Param[Literal["self"], Self]],
+                    str,
+                ],
                 Literal["ClassVar"],
                 object,
                 B,

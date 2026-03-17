@@ -142,7 +142,7 @@ type Update[T] = typing.NewProtocol[
 type InitFnType[T] = typing.Member[
     Literal["__init__"],
     Callable[
-        [
+        typing.Params[
             typing.Param[Literal["self"], Self],
             *[
                 typing.Param[

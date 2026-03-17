@@ -493,22 +493,13 @@ _DUMMY_DEFAULT = _DummyDefault()
 
 
 def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
-    """Convert a Callable type with Param specs to an inspect.Signature.
+    """Convert a Callable type to an inspect.Signature.
 
-    The callable_type should be of the form:
-        Callable[
-            [
-                Param[name, type, quals],
-                ...
-            ],
-            return_type,
-        ]
+    Extended callables use the form:
+        Callable[Params[Param[name, type, quals], ...], return_type]
 
-    Where:
-        - name is None for positional-only or variadic params, or a string
-        - type is the parameter type annotation
-        - quals is a Literal with any of: "*", "**", "keyword", "default"
-          or Never if no qualifiers
+    Standard callables use the form:
+        Callable[[type, ...], return_type]
     """
     args = typing.get_args(callable_type)
     if (
@@ -552,6 +543,28 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
         # Unwrap Params wrapper
         if typing.get_origin(param_types) is Params:
             param_types = list(typing.get_args(param_types))
+        else:
+            # Standard callable (no Params wrapping) — build simple
+            # positional parameters from the type list
+            if isinstance(param_types, (list, tuple)):
+                params = []
+                for i, t in enumerate(param_types):
+                    params.append(
+                        inspect.Parameter(
+                            f"_arg{i}",
+                            kind=inspect.Parameter.POSITIONAL_ONLY,
+                            annotation=t,
+                        )
+                    )
+                if return_type is type(None):
+                    return_type = None
+                return inspect.Signature(
+                    parameters=params,
+                    return_annotation=return_type,
+                )
+            raise TypeError(
+                f"Expected Params[...] or list of types, got {param_types}"
+            )
 
     # Handle the case where param_types is a list of Param types
     if not isinstance(param_types, (list, tuple)):
@@ -698,10 +711,10 @@ def _callable_type_to_method(name, typ, ctx):
         else:
             cls_typ = type[typing.Self]  # type: ignore[name-defined]
         cls_param = Param[typing.Literal["cls"], cls_typ, quals]
-        typ = typing.Callable[[cls_param] + list(typing.get_args(params)), ret]
+        typ = typing.Callable[Params[cls_param, *typing.get_args(params)], ret]
     elif head is staticmethod:
         params, ret = typing.get_args(typ)
-        typ = typing.Callable[list(typing.get_args(params)), ret]
+        typ = typing.Callable[Params[*typing.get_args(params)], ret]
     else:
         params, ret = typing.get_args(typ)
         # Unwrap Params wrapper if present
@@ -729,7 +742,7 @@ def _callable_type_to_method(name, typ, ctx):
             for p in param_list
         ]
         ret = type(None) if name == "__init__" else ret
-        typ = typing.Callable[param_list, ret]
+        typ = typing.Callable[Params[*param_list], ret]
         head = lambda x: x
 
     func = _signature_to_function(name, _callable_type_to_signature(typ))

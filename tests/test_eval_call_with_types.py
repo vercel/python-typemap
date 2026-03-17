@@ -10,6 +10,7 @@ from typemap_extensions import (
     Iter,
     Members,
     Param,
+    Params,
 )
 
 
@@ -19,13 +20,16 @@ def test_eval_call_with_types_callable_01():
 
 
 def test_eval_call_with_types_callable_02():
-    res = eval_call_with_types(Callable[[Param[Literal["x"], int]], int], int)
+    res = eval_call_with_types(
+        Callable[Params[Param[Literal["x"], int]], int], int
+    )
     assert res is int
 
 
 def test_eval_call_with_types_callable_03():
     res = eval_call_with_types(
-        Callable[[Param[Literal["x"], int, Literal["keyword"]]], int], x=int
+        Callable[Params[Param[Literal["x"], int, Literal["keyword"]]], int],
+        x=int,
     )
     assert res is int
 
@@ -33,14 +37,18 @@ def test_eval_call_with_types_callable_03():
 def test_eval_call_with_types_callable_04():
     class C: ...
 
-    res = eval_call_with_types(Callable[[Param[Literal["self"], Self]], int], C)
+    res = eval_call_with_types(
+        Callable[Params[Param[Literal["self"], Self]], int], C
+    )
     assert res is int
 
 
 def test_eval_call_with_types_callable_05():
     class C: ...
 
-    res = eval_call_with_types(Callable[[Param[Literal["self"], Self]], C], C)
+    res = eval_call_with_types(
+        Callable[Params[Param[Literal["self"], Self]], C], C
+    )
     assert res is C
 
 
@@ -48,7 +56,10 @@ def test_eval_call_with_types_callable_06():
     class C: ...
 
     res = eval_call_with_types(
-        Callable[[Param[Literal["self"], Self], Param[Literal["x"], int]], int],
+        Callable[
+            Params[Param[Literal["self"], Self], Param[Literal["x"], int]],
+            int,
+        ],
         C,
         int,
     )
@@ -60,7 +71,7 @@ def test_eval_call_with_types_callable_07():
 
     res = eval_call_with_types(
         Callable[
-            [
+            Params[
                 Param[Literal["self"], Self],
                 Param[Literal["x"], int, Literal["keyword"]],
             ],
@@ -74,13 +85,15 @@ def test_eval_call_with_types_callable_07():
 
 def test_eval_call_with_types_callable_08():
     T = TypeVar("T")
-    res = eval_call_with_types(Callable[[Param[Literal["x"], T]], str], int)
+    res = eval_call_with_types(
+        Callable[Params[Param[Literal["x"], T]], str], int
+    )
     assert res is str
 
 
 def test_eval_call_with_types_callable_09():
     T = TypeVar("T")
-    res = eval_call_with_types(Callable[[Param[Literal["x"], T]], T], int)
+    res = eval_call_with_types(Callable[Params[Param[Literal["x"], T]], T], int)
     assert res is int
 
 
@@ -89,7 +102,9 @@ def test_eval_call_with_types_callable_10():
 
     class C(Generic[T]): ...
 
-    res = eval_call_with_types(Callable[[Param[Literal["x"], C[T]]], T], C[int])
+    res = eval_call_with_types(
+        Callable[Params[Param[Literal["x"], C[T]]], T], C[int]
+    )
     assert res is int
 
 
@@ -102,9 +117,13 @@ def test_eval_call_with_types_callable_11():
 
     class E(D): ...
 
-    res = eval_call_with_types(Callable[[Param[Literal["x"], C[T]]], T], D)
+    res = eval_call_with_types(
+        Callable[Params[Param[Literal["x"], C[T]]], T], D
+    )
     assert res is int
-    res = eval_call_with_types(Callable[[Param[Literal["x"], C[T]]], T], E)
+    res = eval_call_with_types(
+        Callable[Params[Param[Literal["x"], C[T]]], T], E
+    )
     assert res is int
 
 
@@ -206,7 +225,10 @@ def test_eval_call_with_types_bind_error_01():
         ValueError, match="Type variable T is already bound to int, but got str"
     ):
         eval_call_with_types(
-            Callable[[Param[Literal["x"], T], Param[Literal["y"], T]], T],
+            Callable[
+                Params[Param[Literal["x"], T], Param[Literal["y"], T]],
+                T,
+            ],
             int,
             str,
         )
@@ -230,7 +252,10 @@ def test_eval_call_with_types_bind_error_03():
         ValueError, match="Type variable T is already bound to int, but got str"
     ):
         eval_call_with_types(
-            Callable[[Param[Literal["x"], C[T]], Param[Literal["y"], C[T]]], T],
+            Callable[
+                Params[Param[Literal["x"], C[T]], Param[Literal["y"], C[T]]],
+                T,
+            ],
             C[int],
             C[str],
         )

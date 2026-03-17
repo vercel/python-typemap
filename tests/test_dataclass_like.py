@@ -53,7 +53,7 @@ based on iterating over all attributes.
 type InitFnType[T] = typing.Member[
     Literal["__init__"],
     Callable[
-        [
+        typing.Params[
             typing.Param[Literal["self"], Self],
             *[
                 typing.Param[
