@@ -44,6 +44,7 @@ from typemap.typing import (
     NewTypedDict,
     Overloaded,
     Param,
+    Params,
     RaiseError,
     Slice,
     SpecialFormEllipsis,
@@ -526,7 +527,7 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
                 receiver,  # type: ignore[valid-type]
                 typing.Literal["positional"],
             ],
-            *param_types.__args__,
+            *typing.get_args(param_types),
         ]
 
     elif (
@@ -539,9 +540,7 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
             )
 
         param_types, return_type = typing.get_args(callable_type)
-        param_types = [
-            *param_types.__args__,
-        ]
+        param_types = list(typing.get_args(param_types))
 
     else:
         if len(args) != 2:
@@ -550,6 +549,9 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
             )
 
         param_types, return_type = args
+        # Unwrap Params wrapper
+        if typing.get_origin(param_types) is Params:
+            param_types = list(typing.get_args(param_types))
 
     # Handle the case where param_types is a list of Param types
     if not isinstance(param_types, (list, tuple)):
@@ -702,6 +704,11 @@ def _callable_type_to_method(name, typ, ctx):
         typ = typing.Callable[list(typing.get_args(params)), ret]
     else:
         params, ret = typing.get_args(typ)
+        # Unwrap Params wrapper if present
+        if typing.get_origin(params) is Params:
+            param_list = list(typing.get_args(params))
+        else:
+            param_list = list(params)
         # Override the annotations for methods
         # - use Self for the "self" param, otherwise the fully qualified cls
         #   name gets used. This ends up being long and annoying to handle.
@@ -709,7 +716,7 @@ def _callable_type_to_method(name, typ, ctx):
         # - __init__ should return None regardless of what the user says.
         #   The default return type for methods is Any, so this also handles
         #   the un-annotated case.
-        params = [
+        param_list = [
             (
                 p
                 if typing.get_args(p)[0] != typing.Literal["self"]
@@ -719,10 +726,10 @@ def _callable_type_to_method(name, typ, ctx):
                     typing.get_args(p)[2],
                 ]
             )
-            for p in params
+            for p in param_list
         ]
         ret = type(None) if name == "__init__" else ret
-        typ = typing.Callable[params, ret]
+        typ = typing.Callable[param_list, ret]
         head = lambda x: x
 
     func = _signature_to_function(name, _callable_type_to_signature(typ))
@@ -777,15 +784,13 @@ def _function_type_from_sig(sig, func, *, receiver_type):
 
     ret = _ann(sig.return_annotation)
 
-    # TODO: Is doing the tuple for staticmethod/classmethod legit?
-    # Putting a list in makes it unhashable...
     f: typing.Any  # type: ignore[annotation-unchecked]
     if isinstance(func, staticmethod):
-        f = staticmethod[tuple[*params], ret]
+        f = staticmethod[Params[*params], ret]
     elif isinstance(func, classmethod):
-        f = classmethod[specified_receiver, tuple[*params[1:]], ret]
+        f = classmethod[specified_receiver, Params[*params[1:]], ret]
     else:
-        f = typing.Callable[params, ret]
+        f = typing.Callable[Params[*params], ret]
 
     return f
 
@@ -813,17 +818,14 @@ def _create_generic_callable_lambda(
         )
 
     else:
-        # Callable params are stored as a list
+        # Callable params are stored as Params[...]
         params, ret = typing.get_args(f)
 
         return lambda *vs: typing.Callable[
-            [
-                _apply_generic.substitute(
-                    p,
-                    dict(zip(type_params, vs, strict=True)),
-                )
-                for p in params
-            ],
+            _apply_generic.substitute(
+                params,
+                dict(zip(type_params, vs, strict=True)),
+            ),
             _apply_generic.substitute(
                 ret, dict(zip(type_params, vs, strict=True))
             ),
@@ -917,8 +919,8 @@ def _fix_callable_args(base, args):
         return args
     args = list(args)
     special = _fix_type(args[idx])
-    if typing.get_origin(special) is tuple:
-        args[idx] = tuple[
+    if typing.get_origin(special) is Params:
+        args[idx] = Params[
             *[
                 (
                     t
@@ -966,12 +968,14 @@ def _get_args(tp, base, ctx) -> typing.Any:
 def _fix_type(tp):
     """Fix up a type getting returned from GetArg
 
-    In particular, this means turning a list into a tuple of the
-    Paramified list elements and turning ... into SpecialFormEllipsis.
+    In particular, this means turning a list into Params (for
+    Callable parameter lists) or a tuple, and turning ... into
+    SpecialFormEllipsis.
 
     """
-    if isinstance(tp, (tuple, list)):
-        # XXX: Can we always do this or is it a problem
+    if isinstance(tp, list):
+        return Params[*tp]
+    elif isinstance(tp, tuple):
         return tuple[*tp]
     elif tp is ...:
         return SpecialFormEllipsis

@@ -22,7 +22,7 @@ from typing import (
 import pytest
 
 from typemap.type_eval import _ensure_context, eval_typing
-from typemap.typing import _BoolLiteral
+from typemap.typing import _BoolLiteral, Params
 
 from typemap_extensions import (
     Attrs,
@@ -236,11 +236,11 @@ def test_getmembertype_classmethod_01():
         def h(cls: type[Self], x: int) -> int: ...
 
     d = eval_typing(GetMemberType[C, Literal["f"]])
-    assert d == classmethod[C, tuple[Param[Literal["x"], int]], int]
+    assert d == classmethod[C, Params[Param[Literal["x"], int]], int]
     d = eval_typing(GetMemberType[C, Literal["g"]])
-    assert d == classmethod[C, tuple[Param[Literal["x"], int]], int]
+    assert d == classmethod[C, Params[Param[Literal["x"], int]], int]
     d = eval_typing(GetMemberType[C, Literal["h"]])
-    assert d == classmethod[Self, tuple[Param[Literal["x"], int]], int]
+    assert d == classmethod[Self, Params[Param[Literal["x"], int]], int]
 
 
 def test_type_strings_1():
@@ -434,7 +434,7 @@ def test_getmember_02():
     assert (
         f
         == Callable[
-            [Param[Literal["self"], C], Param[Literal["x"], Vs[0]]],
+            Params[Param[Literal["self"], C], Param[Literal["x"], Vs[0]]],
             OnlyIntToSet[Vs[0]],
         ]
     )
@@ -458,7 +458,7 @@ def test_getmember_03():
     assert (
         f
         == Callable[
-            [Param[Literal["self"], Self], Param[Literal["x"], Vs[0]]],
+            Params[Param[Literal["self"], Self], Param[Literal["x"], Vs[0]]],
             OnlyIntToSet[Vs[0]],
         ]
     )
@@ -487,7 +487,8 @@ def test_getmember_04():
     assert (
         mt.__args__[0]
         == Callable[
-            [Param[Literal["self"], C], Param[Literal["x"], int]], set[int]
+            Params[Param[Literal["self"], C], Param[Literal["x"], int]],
+            set[int],
         ]
     )
 
@@ -500,7 +501,9 @@ def test_getmember_04():
     )
     assert (
         eval_typing(mt.__args__[1].__args__[1](int))
-        == Callable[[Param[Literal["self"], C], Param[Literal["x"], int]], int]
+        == Callable[
+            Params[Param[Literal["self"], C], Param[Literal["x"], int]], int
+        ]
     )
 
 
@@ -524,10 +527,17 @@ def test_getmember_05():
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
         assert (
-            eval_typing(ft(A)) == Callable[[Param[Literal["self"], A]], Never]
+            eval_typing(ft(A))
+            == Callable[Params[Param[Literal["self"], A]], Never]
         )
-        assert eval_typing(ft(B)) == Callable[[Param[Literal["self"], B]], int]
-        assert eval_typing(ft(C)) == Callable[[Param[Literal["self"], C]], str]
+        assert (
+            eval_typing(ft(B))
+            == Callable[Params[Param[Literal["self"], B]], int]
+        )
+        assert (
+            eval_typing(ft(C))
+            == Callable[Params[Param[Literal["self"], C]], str]
+        )
 
 
 def test_getmember_06():
@@ -554,19 +564,22 @@ def test_getmember_06():
         assert (
             eval_typing(ft(A))
             == Callable[
-                [Param[Literal["self"], A], Param[Literal["x"], Never]], None
+                Params[Param[Literal["self"], A], Param[Literal["x"], Never]],
+                None,
             ]
         )
         assert (
             eval_typing(ft(B))
             == Callable[
-                [Param[Literal["self"], B], Param[Literal["x"], int]], None
+                Params[Param[Literal["self"], B], Param[Literal["x"], int]],
+                None,
             ]
         )
         assert (
             eval_typing(ft(C))
             == Callable[
-                [Param[Literal["self"], C], Param[Literal["x"], str]], None
+                Params[Param[Literal["self"], C], Param[Literal["x"], str]],
+                None,
             ]
         )
 
@@ -591,9 +604,9 @@ def test_getmember_07():
 
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
-        assert eval_typing(ft(A)) == classmethod[A, tuple[()], Never]
-        assert eval_typing(ft(B)) == classmethod[B, tuple[()], int]
-        assert eval_typing(ft(C)) == classmethod[C, tuple[()], str]
+        assert eval_typing(ft(A)) == classmethod[A, Params[()], Never]
+        assert eval_typing(ft(B)) == classmethod[B, Params[()], int]
+        assert eval_typing(ft(C)) == classmethod[C, Params[()], str]
 
 
 def test_getmember_08():
@@ -620,15 +633,15 @@ def test_getmember_08():
     with _ensure_context():
         assert (
             eval_typing(ft(A))
-            == classmethod[A, tuple[Param[Literal["x"], Never]], None]
+            == classmethod[A, Params[Param[Literal["x"], Never]], None]
         )
         assert (
             eval_typing(ft(B))
-            == classmethod[B, tuple[Param[Literal["x"], int]], None]
+            == classmethod[B, Params[Param[Literal["x"], int]], None]
         )
         assert (
             eval_typing(ft(C))
-            == classmethod[C, tuple[Param[Literal["x"], str]], None]
+            == classmethod[C, Params[Param[Literal["x"], str]], None]
         )
 
 
@@ -663,11 +676,11 @@ def test_getmember_09():
     with _ensure_context():
         assert (
             eval_typing(ft(A))
-            == Callable[[Param[Literal["self"], A]], tuple[()]]
+            == Callable[Params[Param[Literal["self"], A]], tuple[()]]
         )
         assert (
             eval_typing(ft(B))
-            == Callable[[Param[Literal["self"], B]], tuple[bool, str]]
+            == Callable[Params[Param[Literal["self"], B]], tuple[bool, str]]
         )
 
 
@@ -701,8 +714,10 @@ def test_getmember_10():
 
     ft = m.__args__[1].__args__[1]
     with _ensure_context():
-        assert eval_typing(ft(A)) == classmethod[A, tuple[()], tuple[()]]
-        assert eval_typing(ft(B)) == classmethod[B, tuple[()], tuple[bool, str]]
+        assert eval_typing(ft(A)) == classmethod[A, Params[()], tuple[()]]
+        assert (
+            eval_typing(ft(B)) == classmethod[B, Params[()], tuple[bool, str]]
+        )
 
 
 def test_getarg_never():
@@ -752,20 +767,15 @@ def test_eval_getarg_callable_old():
 def test_eval_getarg_callable_01():
     t = Callable[[int, str], str]
     args = eval_typing(GetArg[t, Callable, Literal[0]])
-    assert (
-        args
-        == tuple[
-            Param[Literal[None], int, Never], Param[Literal[None], str, Never]
-        ]
-    )
+    assert args == Params[Param[Literal[None], int], Param[Literal[None], str]]
 
     t = Callable[int, str]
     args = eval_typing(GetArg[t, Callable, Literal[0]])
-    assert args == tuple[Param[Literal[None], int, Never]]
+    assert args == Params[Param[Literal[None], int]]
 
     t = Callable[[], str]
     args = eval_typing(GetArg[t, Callable, Literal[0]])
-    assert args == tuple[()]
+    assert args == Params[()]
 
     # XXX: Is this what we want? Or should it be *args, **kwargs
     t = Callable[..., str]
@@ -841,7 +851,7 @@ def test_eval_getarg_callable_03():
     t = eval_typing(GetArg[f, Callable, Literal[0]])
     assert (
         t
-        == tuple[
+        == Params[
             Param[Literal["self"], C, Literal["positional"]],
             Param[Literal["x"], int, Literal["positional"]],
             Param[Literal["y"], int],
@@ -855,7 +865,7 @@ def test_eval_getarg_callable_03():
     t = eval_typing(GetArg[f, Callable, Literal[0]])
     assert (
         t
-        == tuple[
+        == Params[
             Param[Literal["self"], Self, Literal["positional"]],
             Param[Literal["x"], int, Literal["positional"]],
             Param[Literal["y"], int],
@@ -878,7 +888,7 @@ def test_eval_getarg_callable_04():
     t = eval_typing(GetArg[f, classmethod, Literal[1]])
     assert (
         t
-        == tuple[
+        == Params[
             Param[Literal["x"], int, Literal["positional"]],
             Param[Literal["y"], int],
             Param[Literal["z"], int, Literal["keyword"]],
@@ -892,7 +902,7 @@ def test_eval_getarg_callable_04():
     t = eval_typing(GetArg[f, classmethod, Literal[1]])
     assert (
         t
-        == tuple[
+        == Params[
             Param[Literal["x"], int, Literal["positional"]],
             Param[Literal["y"], int],
             Param[Literal["z"], int, Literal["keyword"]],
@@ -912,7 +922,7 @@ def test_eval_getarg_callable_05():
     t = eval_typing(GetArg[f, staticmethod, Literal[0]])
     assert (
         t
-        == tuple[
+        == Params[
             Param[Literal["x"], int, Literal["positional"]],
             Param[Literal["y"], int],
             Param[Literal["z"], int, Literal["keyword"]],
@@ -925,7 +935,7 @@ def test_eval_getarg_callable_05():
     t = eval_typing(GetArg[f, staticmethod, Literal[0]])
     assert (
         t
-        == tuple[
+        == Params[
             Param[Literal["x"], int, Literal["positional"]],
             Param[Literal["y"], int],
             Param[Literal["z"], int, Literal["keyword"]],
@@ -942,7 +952,7 @@ def test_eval_getarg_callable_06():
 
     f = eval_typing(GetMethodLike[IndirectProtocol[C], Literal["f"]])
     t = eval_typing(GetArg[f, Callable, Literal[0]])
-    assert t == tuple[Param[Literal[None], int, Never],]
+    assert t == Params[Param[Literal[None], int]]
     t = eval_typing(GetArg[f, Callable, Literal[1]])
     assert t is int
 
@@ -1892,18 +1902,19 @@ def test_new_protocol_with_methods_02():
         Member[
             Literal["member_method"],
             Callable[
-                [Param[Literal["self"], Self], Param[Literal["x"], int]], int
+                Params[Param[Literal["self"], Self], Param[Literal["x"], int]],
+                int,
             ],
             Literal["ClassVar"],
         ],
         Member[
             Literal["class_method"],
-            classmethod[Self, tuple[Param[Literal["x"], int]], int],
+            classmethod[Self, Params[Param[Literal["x"], int]], int],
             Literal["ClassVar"],
         ],
         Member[
             Literal["static_method"],
-            staticmethod[tuple[Param[Literal["x"], int]], int],
+            staticmethod[Params[Param[Literal["x"], int]], int],
             Literal["ClassVar"],
         ],
     ]
@@ -1966,7 +1977,7 @@ def test_update_class_members_01():
                 Literal["__init_subclass__"],
                 classmethod[
                     A,
-                    tuple[()],
+                    Params[()],
                     UpdateClass[
                         Member[Literal["a2"], str],
                         Member[Literal["b1"], str],
@@ -1979,7 +1990,7 @@ def test_update_class_members_01():
             ],
             Member[
                 Literal["f"],
-                Callable[[Param[Literal["self"], A]], int],
+                Callable[Params[Param[Literal["self"], A]], int],
                 Literal["ClassVar"],
                 object,
                 A,
@@ -2058,7 +2069,7 @@ def test_update_class_members_02():
             Member[Literal["b2"], str, Never, Never, B],
             Member[
                 Literal["f"],
-                Callable[[Param[Literal["self"], A]], int],
+                Callable[Params[Param[Literal["self"], A]], int],
                 Literal["ClassVar"],
                 object,
                 A,
@@ -2121,7 +2132,7 @@ def test_update_class_members_03():
             Member[Literal["b"], set[str], Never, Never, B],
             Member[
                 Literal["f"],
-                Callable[[Param[Literal["self"], A]], int],
+                Callable[Params[Param[Literal["self"], A]], int],
                 Literal["ClassVar"],
                 object,
                 A,
@@ -2178,7 +2189,7 @@ def test_update_class_members_04():
                 Literal["__init_subclass__"],
                 classmethod[
                     A,
-                    tuple[()],
+                    Params[()],
                     None,
                 ],
                 Literal["ClassVar"],
@@ -2187,14 +2198,14 @@ def test_update_class_members_04():
             ],
             Member[
                 Literal["f"],
-                Callable[[Param[Literal["self"], A]], int],
+                Callable[Params[Param[Literal["self"], A]], int],
                 Literal["ClassVar"],
                 object,
                 A,
             ],
             Member[
                 Literal["g"],
-                Callable[[Param[Literal["self"], B]], int],
+                Callable[Params[Param[Literal["self"], B]], int],
                 Literal["ClassVar"],
                 object,
                 B,
@@ -2440,14 +2451,14 @@ def test_update_class_members_11():
             Member[Literal["b"], str, Never, Never, B],
             Member[
                 Literal["f"],
-                Callable[[Param[Literal["self"], Self]], int],
+                Callable[Params[Param[Literal["self"], Self]], int],
                 Literal["ClassVar"],
                 object,
                 B,
             ],
             Member[
                 Literal["g"],
-                Callable[[Param[Literal["self"], Self]], str],
+                Callable[Params[Param[Literal["self"], Self]], str],
                 Literal["ClassVar"],
                 object,
                 B,
