@@ -86,6 +86,8 @@ def substitute(ty, args):
         ty, (typing_GenericAlias, types.GenericAlias, types.UnionType)
     ):
         return ty.__origin__[*[substitute(t, args) for t in ty.__args__]]
+    elif isinstance(ty, list):
+        return [substitute(t, args) for t in ty]
     else:
         return ty
 

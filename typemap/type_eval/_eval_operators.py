@@ -492,90 +492,44 @@ class _DummyDefault:
 _DUMMY_DEFAULT = _DummyDefault()
 
 
-def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
-    """Convert a Callable type to an inspect.Signature.
+def _unwrap_params(param_types) -> list:
+    """Unwrap params into a list of Param types.
 
-    Extended callables use the form:
-        Callable[Params[Param[name, type, quals], ...], return_type]
-
-    Standard callables use the form:
-        Callable[[type, ...], return_type]
+    Accepts Params[...] (extended format), or a list/tuple of plain
+    types (standard format, converted to positional-only Params).
     """
-    args = typing.get_args(callable_type)
-    if (
-        isinstance(callable_type, types.GenericAlias)
-        and callable_type.__origin__ is classmethod
-    ):
-        if len(args) != 3:
-            raise TypeError(
-                f"Expected classmethod[cls, [...], ret], got {callable_type}"
-            )
+    if typing.get_origin(param_types) is Params:
+        return list(typing.get_args(param_types))
 
-        receiver, param_types, return_type = typing.get_args(callable_type)
-        param_types = [
-            Param[
-                typing.Literal["cls"],
-                receiver,  # type: ignore[valid-type]
-                typing.Literal["positional"],
-            ],
-            *typing.get_args(param_types),
-        ]
-
-    elif (
-        isinstance(callable_type, types.GenericAlias)
-        and callable_type.__origin__ is staticmethod
-    ):
-        if len(args) != 2:
-            raise TypeError(
-                f"Expected staticmethod[...], ret], got {callable_type}"
-            )
-
-        param_types, return_type = typing.get_args(callable_type)
-        param_types = list(typing.get_args(param_types))
-
+    if isinstance(param_types, (list, tuple)):
+        items = list(param_types)
     else:
-        if len(args) != 2:
+        raise TypeError(
+            f"Expected Params[...] or list of types, got {param_types}"
+        )
+    # Error if someone passes Param types without Params wrapper
+    for t in items:
+        if typing.get_origin(t) is Param:
             raise TypeError(
-                f"Expected Callable[[...], ret], got {callable_type}"
+                f"Param types must be wrapped in Params[...], got [{t}, ...]"
             )
+    # Convert standard types to positional-only Params
+    return [
+        Param[typing.Literal[None], t]  # type: ignore[valid-type]
+        for t in items
+    ]
 
-        param_types, return_type = args
-        # Unwrap Params wrapper
-        if typing.get_origin(param_types) is Params:
-            param_types = list(typing.get_args(param_types))
-        else:
-            # Standard callable (no Params wrapping) — build simple
-            # positional parameters from the type list
-            if isinstance(param_types, (list, tuple)):
-                # Error if someone passes Param types without Params wrapper
-                for t in param_types:
-                    if typing.get_origin(t) is Param:
-                        raise TypeError(
-                            f"Param types must be wrapped in Params[...], "
-                            f"got Callable[[{t}, ...], ...]"
-                        )
-                params = []
-                for i, t in enumerate(param_types):
-                    params.append(
-                        inspect.Parameter(
-                            f"_arg{i}",
-                            kind=inspect.Parameter.POSITIONAL_ONLY,
-                            annotation=t,
-                        )
-                    )
-                if return_type is type(None):
-                    return_type = None
-                return inspect.Signature(
-                    parameters=params,
-                    return_annotation=return_type,
-                )
-            raise TypeError(
-                f"Expected Params[...] or list of types, got {param_types}"
-            )
 
-    # Handle the case where param_types is a list of Param types
-    if not isinstance(param_types, (list, tuple)):
-        raise TypeError(f"Expected list of Param types, got {param_types}")
+def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
+    """Convert a Callable[Params[...], ret] type to an inspect.Signature."""
+    args = typing.get_args(callable_type)
+    if len(args) != 2:
+        raise TypeError(
+            f"Expected Callable[Params[...], ret], got {callable_type}"
+        )
+
+    raw_params, return_type = args
+    param_types = _unwrap_params(raw_params)
 
     parameters: list[inspect.Parameter] = []
     saw_keyword_only = False
@@ -706,10 +660,11 @@ def _callable_type_to_method(name, typ, ctx):
 
     if head is classmethod:
         # XXX: handle other amounts
-        cls, params, ret = typing.get_args(typ)
+        cls, raw_params, ret = typing.get_args(typ)
+        param_list = _unwrap_params(raw_params)
         # We have to make class positional only if there is some other
         # positional only argument. Annoying!
-        has_pos_only = any(_is_pos_only(p) for p in typing.get_args(params))
+        has_pos_only = any(_is_pos_only(p) for p in param_list)
         quals = typing.Literal["positional"] if has_pos_only else typing.Never
         # Override the receiver type with type[Self].
         if name == "__init_subclass__" and isinstance(cls, typing.TypeVar):
@@ -718,17 +673,14 @@ def _callable_type_to_method(name, typ, ctx):
         else:
             cls_typ = type[typing.Self]  # type: ignore[name-defined]
         cls_param = Param[typing.Literal["cls"], cls_typ, quals]
-        typ = typing.Callable[Params[cls_param, *typing.get_args(params)], ret]
+        typ = typing.Callable[Params[cls_param, *param_list], ret]
     elif head is staticmethod:
-        params, ret = typing.get_args(typ)
-        typ = typing.Callable[Params[*typing.get_args(params)], ret]
+        raw_params, ret = typing.get_args(typ)
+        param_list = _unwrap_params(raw_params)
+        typ = typing.Callable[Params[*param_list], ret]
     else:
-        params, ret = typing.get_args(typ)
-        # Unwrap Params wrapper if present
-        if typing.get_origin(params) is Params:
-            param_list = list(typing.get_args(params))
-        else:
-            param_list = list(params)
+        raw_params, ret = typing.get_args(typ)
+        param_list = _unwrap_params(raw_params)
         # Override the annotations for methods
         # - use Self for the "self" param, otherwise the fully qualified cls
         #   name gets used. This ends up being long and annoying to handle.

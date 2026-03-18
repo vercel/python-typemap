@@ -1828,58 +1828,6 @@ def test_callable_to_signature_01():
     )
 
 
-def test_callable_to_signature_02():
-    from typemap.type_eval._eval_operators import _callable_type_to_signature
-
-    class C:
-        pass
-
-    callable_type = classmethod[
-        C,
-        tuple[
-            Param[None, int],
-            Param[Literal["b"], int],
-            Param[Literal["c"], int, Literal["default"]],
-            Param[None, int, Literal["*"]],
-            Param[Literal["d"], int, Literal["keyword"]],
-            Param[Literal["e"], int, Literal["default", "keyword"]],
-            Param[None, int, Literal["**"]],
-        ],
-        int,
-    ]
-    sig = _callable_type_to_signature(callable_type)
-    assert str(sig) == (
-        '(cls: tests.test_type_eval.test_callable_to_signature_02.<locals>.C, '
-        '_arg1: int, /, b: int, c: int = ..., *args: int, '
-        'd: int, e: int = ..., **kwargs: int) -> int'
-    )
-
-
-def test_callable_to_signature_03():
-    from typemap.type_eval._eval_operators import _callable_type_to_signature
-
-    class C:
-        pass
-
-    callable_type = staticmethod[
-        tuple[
-            Param[None, int],
-            Param[Literal["b"], int],
-            Param[Literal["c"], int, Literal["default"]],
-            Param[None, int, Literal["*"]],
-            Param[Literal["d"], int, Literal["keyword"]],
-            Param[Literal["e"], int, Literal["default", "keyword"]],
-            Param[None, int, Literal["**"]],
-        ],
-        int,
-    ]
-    sig = _callable_type_to_signature(callable_type)
-    assert str(sig) == (
-        '(_arg0: int, /, b: int, c: int = ..., *args: int, '
-        'd: int, e: int = ..., **kwargs: int) -> int'
-    )
-
-
 def test_new_protocol_with_methods_01():
     class C:
         def member_method(self, x: int) -> int: ...
