@@ -24,7 +24,10 @@ def test_cqa_ruff_check(project_root):
     )
 
     if result.returncode != 0:
-        pytest.fail(f"ruff check failed:\n{result.stdout}\n{result.stderr}")
+        pytest.fail(
+            f"ruff check failed:\n{result.stdout}\n{result.stderr}",
+            pytrace=False,
+        )
 
 
 def test_cqa_ruff_format_check(project_root):
@@ -39,7 +42,8 @@ def test_cqa_ruff_format_check(project_root):
 
     if result.returncode != 0:
         pytest.fail(
-            f"ruff format check failed:\n{result.stdout}\n{result.stderr}"
+            f"ruff format check failed:\n{result.stdout}\n{result.stderr}",
+            pytrace=False,
         )
 
 
@@ -66,4 +70,4 @@ def test_cqa_mypy(project_root):
             output = result.stdout
             if result.stderr:
                 output += "\n\n" + result.stderr
-            pytest.fail(f"mypy validation failed:\n{output}")
+            pytest.fail(f"mypy validation failed:\n{output}", pytrace=False)
