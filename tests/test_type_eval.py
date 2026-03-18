@@ -46,7 +46,7 @@ from typemap_extensions import (
     Param,
     Slice,
     SpecialFormEllipsis,
-    StrConcat,
+    Concat,
     UpdateClass,
     Uppercase,
 )
@@ -254,12 +254,12 @@ def test_type_strings_2():
 
 
 def test_type_strings_3():
-    d = eval_typing(StrConcat[Literal["foo"], Literal["bar"]])
+    d = eval_typing(Concat[Literal["foo"], Literal["bar"]])
     assert d == Literal["foobar"]
 
 
 def test_type_strings_4():
-    d = eval_typing(StrConcat[Literal["a", "b"], Literal["c", "d"]])
+    d = eval_typing(Concat[Literal["a", "b"], Literal["c", "d"]])
     assert d == Literal["ac"] | Literal["ad"] | Literal["bc"] | Literal["bd"]
 
 

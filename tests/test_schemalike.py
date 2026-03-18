@@ -10,7 +10,7 @@ from typemap_extensions import (
     Member,
     NamedParam,
     Param,
-    StrConcat,
+    Concat,
 )
 
 from . import format_helper
@@ -44,7 +44,7 @@ type Schemaify[T] = NewProtocol[
     *[p for p in Iter[Attrs[T]]],
     *[
         Member[
-            StrConcat[Literal["get_"], p.name],
+            Concat[Literal["get_"], p.name],
             Callable[
                 [
                     Param[Literal["self"], Schemaify[T]],

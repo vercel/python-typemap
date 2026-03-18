@@ -47,7 +47,7 @@ from typemap.typing import (
     RaiseError,
     Slice,
     SpecialFormEllipsis,
-    StrConcat,
+    Concat,
     Uncapitalize,
     UpdateClass,
     Uppercase,
@@ -1198,7 +1198,7 @@ _string_literal_op(Uppercase, op=str.upper)
 _string_literal_op(Lowercase, op=str.lower)
 _string_literal_op(Capitalize, op=str.capitalize)
 _string_literal_op(Uncapitalize, op=lambda s: s[0:1].lower() + s[1:])
-_string_literal_op(StrConcat, op=lambda s, t: s + t)
+_string_literal_op(Concat, op=lambda s, t: s + t)
 
 
 ##################################################################

@@ -284,7 +284,7 @@ class Uncapitalize[S: str]:
     pass
 
 
-class StrConcat[S: str, T: str]:
+class Concat[S: str, T: str]:
     pass
 
 
