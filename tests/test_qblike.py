@@ -51,7 +51,8 @@ def select[K: BaseTypedDict](
         ]
         for c in Iter[Attrs[K]]
     ]
-]: ...
+]:
+    raise NotImplementedError
 
 
 # Basic filtering
