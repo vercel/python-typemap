@@ -756,11 +756,23 @@ def test_eval_getarg_callable_old():
 
     t = Callable[..., str]
     args = eval_typing(GetArg[t, Callable, 0])
-    assert args == SpecialFormEllipsis
+    assert (
+        args
+        == Params[
+            Param[Literal[None], Any, Literal["*"]],
+            Param[Literal[None], Any, Literal["**"]],
+        ]
+    )
 
     t = Callable
     args = eval_typing(GetArg[t, Callable, 0])
-    assert args == SpecialFormEllipsis
+    assert (
+        args
+        == Params[
+            Param[Literal[None], Any, Literal["*"]],
+            Param[Literal[None], Any, Literal["**"]],
+        ]
+    )
 
     t = Callable
     args = eval_typing(GetArg[t, Callable, 1])
@@ -780,14 +792,26 @@ def test_eval_getarg_callable_01():
     args = eval_typing(GetArg[t, Callable, Literal[0]])
     assert args == Params[()]
 
-    # XXX: Is this what we want? Or should it be *args, **kwargs
+    # ... becomes *args: Any, **kwargs: Any
     t = Callable[..., str]
     args = eval_typing(GetArg[t, Callable, Literal[0]])
-    assert args == SpecialFormEllipsis
+    assert (
+        args
+        == Params[
+            Param[Literal[None], Any, Literal["*"]],
+            Param[Literal[None], Any, Literal["**"]],
+        ]
+    )
 
     t = Callable
     args = eval_typing(GetArg[t, Callable, Literal[0]])
-    assert args == SpecialFormEllipsis
+    assert (
+        args
+        == Params[
+            Param[Literal[None], Any, Literal["*"]],
+            Param[Literal[None], Any, Literal["**"]],
+        ]
+    )
 
     t = Callable
     args = eval_typing(GetArg[t, Callable, Literal[1]])

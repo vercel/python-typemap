@@ -495,11 +495,18 @@ _DUMMY_DEFAULT = _DummyDefault()
 def _unwrap_params(param_types) -> list:
     """Unwrap params into a list of Param types.
 
-    Accepts Params[...] (extended format), or a list/tuple of plain
-    types (standard format, converted to positional-only Params).
+    Accepts Params[...] (extended format), Ellipsis (any params),
+    or a list/tuple of plain types (standard format, converted to
+    positional-only Params).
     """
     if typing.get_origin(param_types) is Params:
         return list(typing.get_args(param_types))
+
+    if param_types is ...:
+        return [
+            Param[typing.Literal[None], typing.Any, typing.Literal["*"]],
+            Param[typing.Literal[None], typing.Any, typing.Literal["**"]],
+        ]
 
     if isinstance(param_types, (list, tuple)):
         items = list(param_types)
@@ -890,18 +897,7 @@ def _fix_callable_args(base, args):
     if idx >= len(args):
         return args
     args = list(args)
-    special = _fix_type(args[idx])
-    if typing.get_origin(special) is Params:
-        args[idx] = Params[
-            *[
-                (
-                    t
-                    if typing.get_origin(t) is Param
-                    else Param[typing.Literal[None], t]
-                )
-                for t in typing.get_args(special)
-            ]
-        ]
+    args[idx] = Params[*_unwrap_params(args[idx])]
     return tuple(args)
 
 
@@ -1039,7 +1035,13 @@ def _get_defaults(base_head):
     # Callable and tuple need to produce a SpecialFormEllipsis for arg
     # 0 and 1, respectively.
     if base_head is collections.abc.Callable:
-        return (SpecialFormEllipsis, typing.Any)
+        return (
+            Params[
+                Param[typing.Literal[None], typing.Any, typing.Literal["*"]],
+                Param[typing.Literal[None], typing.Any, typing.Literal["**"]],
+            ],
+            typing.Any,
+        )
     elif base_head is tuple:
         return (typing.Any, SpecialFormEllipsis)
 
