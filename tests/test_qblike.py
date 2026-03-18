@@ -18,7 +18,7 @@ from typemap_extensions import (
     GetArg,
 )
 
-from . import format_helper
+from typemap.type_eval import format_helper
 
 
 class Property[T]:

@@ -219,7 +219,7 @@ if TYPE_CHECKING:
 import textwrap
 
 from typemap.type_eval import eval_typing
-from . import format_helper
+from typemap.type_eval import format_helper
 
 
 def test_fastapi_like_0():

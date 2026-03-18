@@ -11,7 +11,7 @@ from typing import Literal, Never, NotRequired, Required, TypedDict, Union
 import typemap_extensions as typing
 from typemap.type_eval import eval_typing
 
-from . import format_helper
+from typemap.type_eval import format_helper
 
 
 # The "Todo" type from the TypeScript utility-types examples

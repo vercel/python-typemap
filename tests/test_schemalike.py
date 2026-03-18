@@ -14,7 +14,7 @@ from typemap_extensions import (
     Concat,
 )
 
-from . import format_helper
+from typemap.type_eval import format_helper
 
 
 class Schema:

@@ -16,7 +16,7 @@ from typemap_extensions import (
     Uppercase,
 )
 
-from . import format_helper
+from typemap.type_eval import format_helper
 
 type OrGotcha[K] = K | Literal['gotcha!']
 

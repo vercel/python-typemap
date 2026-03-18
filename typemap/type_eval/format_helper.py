@@ -41,6 +41,6 @@ def format_class_basic(cls: type) -> str:
 
 
 def format_class(cls):
-    from typemap.type_eval import flatten_class
+    from . import flatten_class
 
     return format_class_basic(flatten_class(cls))

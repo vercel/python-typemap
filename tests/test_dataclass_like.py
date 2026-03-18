@@ -132,7 +132,7 @@ class Hero(Model):
 import textwrap
 
 from typemap.type_eval import eval_typing
-from . import format_helper
+from typemap.type_eval import format_helper
 
 
 @pytest.mark.xfail(reason="UpateClass currently drops things")

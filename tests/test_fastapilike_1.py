@@ -22,7 +22,7 @@ from typemap_extensions import (
     Params,
 )
 
-from . import format_helper
+from typemap.type_eval import format_helper
 
 
 class PropQuals(enum.Enum):

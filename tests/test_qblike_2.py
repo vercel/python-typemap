@@ -5,7 +5,7 @@ from typing import Literal, Unpack, TYPE_CHECKING
 from typemap.type_eval import eval_call, eval_typing
 import typemap_extensions as typing
 
-from . import format_helper
+from typemap.type_eval import format_helper
 
 
 # Begin PEP section: Prisma-style ORMs

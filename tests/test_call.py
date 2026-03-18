@@ -11,7 +11,7 @@ from typemap_extensions import (
     Iter,
 )
 
-from . import format_helper
+from typemap.type_eval import format_helper
 
 
 def func[*T, K: BaseTypedDict](
