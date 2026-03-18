@@ -22,7 +22,7 @@ from typing import (
 import pytest
 
 from typemap.type_eval import _ensure_context, eval_typing
-from typemap.typing import _BoolLiteral, Params
+from typemap.typing import _BoolLiteral
 
 from typemap_extensions import (
     Attrs,
@@ -44,6 +44,7 @@ from typemap_extensions import (
     NewProtocol,
     Overloaded,
     Param,
+    Params,
     Slice,
     SpecialFormEllipsis,
     Concat,
