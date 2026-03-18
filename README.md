@@ -19,6 +19,9 @@ A prototype typechecker implementation lives at
 https://github.com/msullivan/mypy-typemap and is a test dependency of
 this repo.
 
+There is an [example repo](https://github.com/msullivan/typemap-test)
+with a straightforward skeleton for playing around with the proposal.
+
 ## Development
 
 1. Clone the repo
