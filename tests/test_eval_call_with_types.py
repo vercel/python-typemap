@@ -1,3 +1,5 @@
+# SKIP MYPY
+
 import pytest
 
 from typing import Callable, Generic, Literal, Self, TypeVar

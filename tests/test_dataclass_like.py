@@ -4,7 +4,6 @@ from typing import (
     ReadOnly,
     TypedDict,
     Never,
-    Self,
 )
 
 import typemap_extensions as typing
@@ -54,7 +53,7 @@ type InitFnType[T] = typing.Member[
     Literal["__init__"],
     Callable[
         typing.Params[
-            typing.Param[Literal["self"], Self],
+            typing.Param[Literal["self"], T],
             *[
                 typing.Param[
                     p.name,
@@ -80,7 +79,6 @@ type AddInit[T] = typing.NewProtocol[
     *[x for x in typing.Iter[typing.Members[T]]],
 ]
 
-
 """
 
 ``UpdateClass`` can then be used to create a class decorator (a la
@@ -95,7 +93,7 @@ def dataclass_ish[T](
     # Add the computed __init__ function
     InitFnType[T],
 ]:
-    pass
+    raise NotImplementedError
 
 
 """
@@ -112,7 +110,7 @@ class Model:
         # Add the computed __init__ function
         InitFnType[T],
     ]:
-        super().__init_subclass__()
+        pass
 
 
 # End PEP section

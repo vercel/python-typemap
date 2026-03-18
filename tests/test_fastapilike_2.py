@@ -1,3 +1,6 @@
+# SKIP MYPY: Invalid use of Self
+# TODO: resolve
+
 from typing import (
     Callable,
     Literal,

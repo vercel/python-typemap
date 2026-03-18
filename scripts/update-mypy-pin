@@ -1,0 +1,19 @@
+#!/bin/bash
+set -e
+
+MYPY_DIR="${1:-../mypy}"
+
+if [ ! -d "$MYPY_DIR/.git" ]; then
+    echo "error: $MYPY_DIR is not a git repository" >&2
+    exit 1
+fi
+
+REV=$(git -C "$MYPY_DIR" rev-parse HEAD)
+echo "Pinning mypy to $REV (from $MYPY_DIR)"
+
+sed -i "s|mypy @ git+https://github.com/msullivan/mypy-typemap@[a-f0-9]*|mypy @ git+https://github.com/msullivan/mypy-typemap@$REV|" pyproject.toml
+
+uv sync
+
+git add pyproject.toml uv.lock
+git commit -m "Pin mypy to mypy-typemap@${REV:0:12}"

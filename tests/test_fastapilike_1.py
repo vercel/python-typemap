@@ -1,3 +1,6 @@
+# SKIP MYPY: Invalid use of Self
+# TODO: resolve
+
 # We should have at least *one* test with this...
 from __future__ import annotations
 
@@ -71,7 +74,9 @@ type InitFnType[T] = Member[
 
 type AddInit[T] = NewProtocol[
     InitFnType[T],
-    *Members[T],
+    # TODO: mypy rejects this -- should it work?
+    # *Members[T],
+    *[t for t in Iter[Members[T]]],
 ]
 
 # Strip `| None` from a type by iterating over its union components

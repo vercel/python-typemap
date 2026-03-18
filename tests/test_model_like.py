@@ -3,7 +3,7 @@
 
 import pytest
 
-from typing import _GenericAlias
+from typing import _GenericAlias  # type: ignore[attr-defined]
 
 import typemap_extensions as typing
 
@@ -44,7 +44,7 @@ class BaseModel:
         return f'{type(self).__name__}(**{self.__dict__})'
 
 
-class _BaseModelAlias(_GenericAlias, _root=True):
+class _BaseModelAlias(_GenericAlias, _root=True):  # type: ignore[call-arg]
     def __call__(self, *args, **kwargs):
         return self.__origin__(*args, **kwargs, _alias=self)
 

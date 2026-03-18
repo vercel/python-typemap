@@ -49,7 +49,7 @@ type Schemaify[T] = NewProtocol[
             Callable[
                 Params[
                     Param[Literal["self"], Schemaify[T]],
-                    NamedParam[Literal["schema"], Schema, Literal["keyword"]],
+                    NamedParam[Literal["schema"], Schema],
                 ],
                 p.type,
             ],

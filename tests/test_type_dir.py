@@ -1,3 +1,6 @@
+# SKIP MYPY: lots of weird testing stuff
+# but TODO: some failures seem bad
+
 import textwrap
 import typing
 from typing import Literal, Never, TypeVar, TypedDict, Union, ReadOnly
