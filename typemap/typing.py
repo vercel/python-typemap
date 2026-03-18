@@ -219,6 +219,20 @@ type ArgsParam[T] = Param[Literal[None], T, Literal["*"]]
 type KwargsParam[T] = Param[Literal[None], T, Literal["**"]]
 
 
+class Params:
+    """A concrete parameter specification for extended Callable types.
+
+    Params[Param[...], ...] can be used as the first argument to
+    Callable, like ParamSpec. It survives the typing.Callable round-trip
+    by using _ConcatenateGenericAlias internally.
+    """
+
+    def __class_getitem__(cls, params):
+        if not isinstance(params, tuple):
+            params = (params,)
+        return typing._ConcatenateGenericAlias(cls, params)
+
+
 type GetName[T: Member | Param] = T.name
 type GetType[T: Member | Param] = T.type
 type GetQuals[T: Member | Param] = T.quals

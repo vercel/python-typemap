@@ -10,6 +10,7 @@ from typemap_extensions import (
     Member,
     NamedParam,
     Param,
+    Params,
     Concat,
 )
 
@@ -46,7 +47,7 @@ type Schemaify[T] = NewProtocol[
         Member[
             Concat[Literal["get_"], p.name],
             Callable[
-                [
+                Params[
                     Param[Literal["self"], Schemaify[T]],
                     NamedParam[Literal["schema"], Schema, Literal["keyword"]],
                 ],
@@ -63,16 +64,17 @@ def test_schema_like_1():
     tgt = eval_typing(Schemaify[Property])
     fmt = format_helper.format_class(tgt)
 
-    assert fmt == textwrap.dedent("""\
+    getter_params = "self: Self, *, schema: tests.test_schemalike.Schema"
+    assert fmt == textwrap.dedent(f"""\
     class Schemaify[tests.test_schemalike.Property]:
         name: str
         required: bool
         multi: bool
         typ: tests.test_schemalike.Type
         expr: tests.test_schemalike.Expression | None
-        def get_name(self: Self, *, schema: tests.test_schemalike.Schema) -> str: ...
-        def get_required(self: Self, *, schema: tests.test_schemalike.Schema) -> bool: ...
-        def get_multi(self: Self, *, schema: tests.test_schemalike.Schema) -> bool: ...
-        def get_typ(self: Self, *, schema: tests.test_schemalike.Schema) -> tests.test_schemalike.Type: ...
-        def get_expr(self: Self, *, schema: tests.test_schemalike.Schema) -> tests.test_schemalike.Expression | None: ...
+        def get_name({getter_params}) -> str: ...
+        def get_required({getter_params}) -> bool: ...
+        def get_multi({getter_params}) -> bool: ...
+        def get_typ({getter_params}) -> tests.test_schemalike.Type: ...
+        def get_expr({getter_params}) -> tests.test_schemalike.Expression | None: ...
     """)
