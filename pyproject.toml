@@ -7,7 +7,7 @@ requires-python = ">=3.14"
 dependencies = []
 
 [tool.setuptools.packages.find]
-include = ["typemap", "typemap_extensions"]
+include = ["typemap", "typemap.*", "typemap_extensions"]
 
 [dependency-groups]
 test = [
