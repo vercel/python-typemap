@@ -170,7 +170,8 @@ def get_annotated_type_hints(cls, *, ctx, attrs_only=False, **kwargs):
 
             hints[k] = ty, tuple(sorted(quals)), init, acls
 
-    return hints
+    # A type of Never in UpdateClass removes the member
+    return {k: v for k, v in hints.items() if v[0] is not typing.Never}
 
 
 def get_annotated_method_hints(cls, *, ctx):
@@ -311,14 +312,18 @@ def _create_updated_class(
     # Copy the module
     dct["__module__"] = t.__module__
 
-    # Process the new members from UpdateClass
+    # Process UpdateClass members first to establish their ordering,
+    # then append non-overridden existing members.
     dct["__annotations__"] = annos = {}
+    update_names: set[str] = set()
+
     for m in ms:
         tname, typ, quals, init, _ = typing.get_args(m)
         member_name = _eval_literal(tname, ctx)
         typ = _eval_types(typ, ctx)
         tquals = _eval_types(quals, ctx)
 
+        update_names.add(member_name)
         if (
             type_eval.issubtype(typing.Literal["ClassVar"], tquals)
             and _is_method_like(typ)
@@ -329,6 +334,21 @@ def _create_updated_class(
             # Update/add the annotation
             annos[member_name] = _add_quals(typ, tquals)
             _unpack_init(dct, member_name, init)
+
+    # Append non-overridden existing annotations (preserving their order)
+    for name, typ in getattr(t, '__annotations__', {}).items():
+        if name not in update_names:
+            annos[name] = typ
+
+    # Append non-overridden existing methods and annotation defaults
+    existing_annos = getattr(t, '__annotations__', {})
+    for name, value in t.__dict__.items():
+        if name in update_names or name in _apply_generic.EXCLUDED_ATTRIBUTES:
+            continue
+        if isinstance(inspect.unwrap(value), types.FunctionType):
+            dct[name] = value
+        elif name in existing_annos:
+            dct[name] = value
 
     # Create the updated class
 

@@ -1927,19 +1927,20 @@ def test_update_class_members_01():
         def f(self) -> int: ...
 
     class B(A):
-        b0: int  # omitted
+        b0: int  # kept
         b1: int  # overridden
         # b2 added in UpdateClass
 
-        def g(self) -> int: ...  # omitted
+        def g(self) -> int: ...  # kept
 
-    # Attrs
+    # Attrs: UpdateClass members first (a2, b1, b2), then non-overridden (b0)
     attrs = eval_typing(Attrs[B])
     assert attrs.__args__ == (
         Member[Literal["a1"], int, Never, Never, A],
         Member[Literal["a2"], str, Never, Never, B],
         Member[Literal["b1"], str, Never, Never, B],
         Member[Literal["b2"], str, Never, Never, B],
+        Member[Literal["b0"], int, Never, Never, B],
     )
 
     # Members
@@ -1951,6 +1952,7 @@ def test_update_class_members_01():
             Member[Literal["a2"], str, Never, Never, B],
             Member[Literal["b1"], str, Never, Never, B],
             Member[Literal["b2"], str, Never, Never, B],
+            Member[Literal["b0"], int, Never, Never, B],
             Member[
                 Literal["__init_subclass__"],
                 classmethod[
@@ -1973,6 +1975,13 @@ def test_update_class_members_01():
                 object,
                 A,
             ],
+            Member[
+                Literal["g"],
+                Callable[Params[Param[Literal["self"], B]], int],
+                Literal["ClassVar"],
+                object,
+                B,
+            ],
         ]
     )
 
@@ -1983,12 +1992,12 @@ def test_update_class_members_01():
             GetMember[B, Literal["a2"]],
             GetMember[B, Literal["b1"]],
             GetMember[B, Literal["b2"]],
+            GetMember[B, Literal["b0"]],
             GetMember[B, Literal["__init_subclass__"]],
             GetMember[B, Literal["f"]],
+            GetMember[B, Literal["g"]],
         ]
     )
-    m = eval_typing(GetMember[B, Literal["g"]])
-    assert m == Never
 
 
 type MembersExceptInitSubclass[T] = tuple[
@@ -2018,13 +2027,13 @@ def test_update_class_members_02():
         def f(self) -> int: ...
 
     class B(A):
-        b0: int  # omitted
+        b0: int  # kept
         b1: int  # overridden
         # b2 added in UpdateClass
 
-        def g(self) -> int: ...  # omitted
+        def g(self) -> int: ...  # kept
 
-    # Attrs
+    # Attrs: UpdateClass members first (a2, b1, b2), then non-overridden (b0)
     attrs = eval_typing(Attrs[B])
     assert (
         attrs
@@ -2033,6 +2042,7 @@ def test_update_class_members_02():
             Member[Literal["a2"], str, Never, Never, B],
             Member[Literal["b1"], str, Never, Never, B],
             Member[Literal["b2"], str, Never, Never, B],
+            Member[Literal["b0"], int, Never, Never, B],
         ]
     )
 
@@ -2045,12 +2055,20 @@ def test_update_class_members_02():
             Member[Literal["a2"], str, Never, Never, B],
             Member[Literal["b1"], str, Never, Never, B],
             Member[Literal["b2"], str, Never, Never, B],
+            Member[Literal["b0"], int, Never, Never, B],
             Member[
                 Literal["f"],
                 Callable[Params[Param[Literal["self"], A]], int],
                 Literal["ClassVar"],
                 object,
                 A,
+            ],
+            Member[
+                Literal["g"],
+                Callable[Params[Param[Literal["self"], B]], int],
+                Literal["ClassVar"],
+                object,
+                B,
             ],
         ]
     )
@@ -2062,11 +2080,11 @@ def test_update_class_members_02():
             GetMember[B, Literal["a2"]],
             GetMember[B, Literal["b1"]],
             GetMember[B, Literal["b2"]],
+            GetMember[B, Literal["b0"]],
             GetMember[B, Literal["f"]],
+            GetMember[B, Literal["g"]],
         ]
     )
-    m = eval_typing(GetMember[B, Literal["g"]])
-    assert m == Never
 
 
 type AttrsAsSets[T] = UpdateClass[
@@ -2089,7 +2107,7 @@ def test_update_class_members_03():
     class B(A):
         b: str
 
-        def g(self) -> int: ...  # omitted
+        def g(self) -> int: ...  # kept
 
     # Attrs
     attrs = eval_typing(Attrs[B])
@@ -2115,6 +2133,13 @@ def test_update_class_members_03():
                 object,
                 A,
             ],
+            Member[
+                Literal["g"],
+                Callable[Params[Param[Literal["self"], B]], int],
+                Literal["ClassVar"],
+                object,
+                B,
+            ],
         ]
     )
 
@@ -2124,10 +2149,9 @@ def test_update_class_members_03():
             GetMember[B, Literal["a"]],
             GetMember[B, Literal["b"]],
             GetMember[B, Literal["f"]],
+            GetMember[B, Literal["g"]],
         ]
     )
-    m = eval_typing(GetMember[B, Literal["g"]])
-    assert m == Never
 
 
 def test_update_class_members_04():
@@ -2581,7 +2605,39 @@ def test_update_class_empty_01():
         b: int
 
     attrs = eval_typing(Attrs[B])
-    assert attrs == tuple[Member[Literal["a"], int, Never, Never, A]]
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a"], int, Never, Never, A],
+            Member[Literal["b"], int, Never, Never, B],
+        ]
+    )
+
+
+def test_update_class_never_removes():
+    # A member with type Never in UpdateClass removes it
+    class A:
+        a: int
+        b: str
+        c: float
+
+        def __init_subclass__[T](
+            cls: type[T],
+        ) -> UpdateClass[Member[Literal["b"], Never],]:
+            super().__init_subclass__()
+
+    class B(A):
+        d: bool
+
+    attrs = eval_typing(Attrs[B])
+    assert (
+        attrs
+        == tuple[
+            Member[Literal["a"], int, Never, Never, A],
+            Member[Literal["c"], float, Never, Never, A],
+            Member[Literal["d"], bool, Never, Never, B],
+        ]
+    )
 
 
 ##############

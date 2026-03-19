@@ -8,8 +8,6 @@ from typing import (
 
 import typemap_extensions as typing
 
-import pytest
-
 
 class FieldArgs(TypedDict, total=False):
     default: ReadOnly[object]
@@ -35,6 +33,9 @@ type GetDefault[Init] = (
     if typing.IsAssignable[Init, Field]
     else Init
 )
+
+
+# TODO: what could we do to make dataclass_ish work at runtime?
 
 
 # Begin PEP section: dataclass like __init__
@@ -133,30 +134,16 @@ from typemap.type_eval import eval_typing
 from typemap.type_eval import format_helper
 
 
-@pytest.mark.xfail(reason="UpateClass currently drops things")
 def test_dataclass_like_1():
     tgt = eval_typing(Hero)
     fmt = format_helper.format_class(tgt)
 
     assert fmt == textwrap.dedent("""\
         class Hero:
-            @classmethod
-            def __init_subclass__[T](cls: type[T]) -> typemap.typing.UpdateClass[InitFnType[T]]: ...
             id: int | None = None
             name: str
             age: int | None = Field(default=None)
             secret_name: str
-            def __init__(self: Self, *, id: int | None = ..., name: str, age: int | None = ..., secret_name: str) -> None: ...
-    """)
-
-
-# XXX: Delete this test once above passes
-def test_dataclass_like_1_temp():
-    tgt = eval_typing(Hero)
-    fmt = format_helper.format_class(tgt)
-
-    assert fmt == textwrap.dedent("""\
-        class Hero:
             @classmethod
             def __init_subclass__[T](cls: type[T]) -> typemap.typing.UpdateClass[InitFnType[T]]: ...
             def __init__(self: Self, *, id: int | None = ..., name: str, age: int | None = ..., secret_name: str) -> None: ...
