@@ -1,6 +1,6 @@
 import textwrap
 
-from typing import Literal, Unpack, TYPE_CHECKING
+from typing import assert_type, Literal, Unpack
 
 from typemap.type_eval import eval_call, eval_typing
 import typemap_extensions as typing
@@ -152,16 +152,31 @@ class User:
     posts: MultiLink[Post]
 
 
-def test_qblike_typing_only_1() -> None:
-    # Quick reveal_type test for running mypy against this
-    if TYPE_CHECKING:
-        _test_select = select(
-            Post,
-            title=True,
-            comments=True,
-            author=True,
-        )
-        reveal_type(_test_select)  # noqa
+def _check_select_user() -> None:
+    r = select(User, id=True, name=True)
+    assert_type(
+        r,
+        list[
+            typing.NewProtocol[
+                typing.Member[Literal["id"], int],
+                typing.Member[Literal["name"], str],
+            ]
+        ],
+    )
+
+
+def _check_select_post_with_links() -> None:
+    r = select(Post, title=True, comments=True, author=True)
+    assert_type(
+        r,
+        list[
+            typing.NewProtocol[
+                typing.Member[Literal["title"], str],
+                typing.Member[Literal["comments"], list[PropsOnly[Comment]]],
+                typing.Member[Literal["author"], PropsOnly[User]],
+            ]
+        ],
+    )
 
 
 def test_qblike2_1():

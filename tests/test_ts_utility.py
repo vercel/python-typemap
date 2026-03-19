@@ -1,4 +1,3 @@
-# mypy: ignore-errors
 """
 TypeScript-style utility type operators: Pick, Omit, Partial.
 
@@ -6,7 +5,15 @@ See https://www.typescriptlang.org/docs/handbook/utility-types.html
 """
 
 import textwrap
-from typing import Literal, Never, NotRequired, Required, TypedDict, Union
+from typing import (
+    assert_type,
+    Literal,
+    Never,
+    NotRequired,
+    Required,
+    TypedDict,
+    Union,
+)
 
 import typemap_extensions as typing
 from typemap.type_eval import eval_typing
@@ -103,6 +110,60 @@ type PartialTD[T] = typing.NewTypedDict[
     ]
 ]
 # End PEP section: Utility types
+
+
+def _check_exclude(x0: Exclude[str | int | bool, int]) -> None:
+    assert_type(x0, str)
+
+
+def _check_extract(x1: Extract[str | int | bool, int]) -> None:
+    assert_type(x1, int | bool)
+
+
+def _check_keyof(x2: KeyOf[Todo]) -> None:
+    assert_type(
+        x2, Literal["title"] | Literal["description"] | Literal["completed"]
+    )
+
+
+def _check_pick(
+    x3: Pick[Todo, Literal["title"] | Literal["completed"]],
+) -> None:
+    assert_type(x3.title, str)
+    assert_type(x3.completed, bool)
+    assert_type(
+        x3,
+        typing.NewProtocol[
+            typing.Member[Literal["title"], str],
+            typing.Member[Literal["completed"], bool],
+        ],
+    )
+
+
+def _check_omit(x4: Omit[Todo, Literal["description"]]) -> None:
+    assert_type(x4.title, str)
+    assert_type(x4.completed, bool)
+    assert_type(
+        x4,
+        typing.NewProtocol[
+            typing.Member[Literal["title"], str],
+            typing.Member[Literal["completed"], bool],
+        ],
+    )
+
+
+def _check_partial(x5: Partial[Todo]) -> None:
+    assert_type(x5.title, str | None)
+    assert_type(x5.description, str | None)
+    assert_type(x5.completed, bool | None)
+    assert_type(
+        x5,
+        typing.NewProtocol[
+            typing.Member[Literal["title"], str | None],
+            typing.Member[Literal["description"], str | None],
+            typing.Member[Literal["completed"], bool | None],
+        ],
+    )
 
 
 def test_pick():

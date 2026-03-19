@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import assert_type, Literal
 
 import typemap_extensions as typing
 
@@ -63,6 +63,21 @@ type GetElem[T] = typing.GetArg[T, Array, Literal[0]]
 type GetShape[T] = typing.Slice[typing.GetArgs[T, Array], Literal[1], None]
 
 type Apply[T, S] = Array[GetElem[T], *Broadcast[GetShape[T], GetShape[S]]]
+
+
+def _check_merge_one_broadcast(x: MergeOne[Literal[4], Literal[1]]) -> None:
+    assert_type(x, Literal[4])
+
+
+def _check_merge_one_equal(x: MergeOne[Literal[3], Literal[3]]) -> None:
+    assert_type(x, Literal[3])
+
+
+def _check_broadcast(
+    x: Broadcast[tuple[Literal[4], Literal[1]], tuple[Literal[3]]],
+) -> None:
+    assert_type(x, tuple[Literal[4], Literal[3]])
+
 
 ######
 from typemap.type_eval import eval_typing, TypeMapError

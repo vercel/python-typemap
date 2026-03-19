@@ -1,5 +1,4 @@
-# SKIP MYPY: Invalid use of Self
-# TODO: resolve
+# TODO: resolve the invalid Self use issue that is type: ignored
 
 from typing import (
     Callable,
@@ -9,7 +8,6 @@ from typing import (
     TypedDict,
     Never,
     Self,
-    TYPE_CHECKING,
 )
 
 import typemap_extensions as typing
@@ -146,7 +144,7 @@ type InitFnType[T] = typing.Member[
     Literal["__init__"],
     Callable[
         typing.Params[
-            typing.Param[Literal["self"], Self],
+            typing.Param[Literal["self"], Self],  # type: ignore[misc]
             *[
                 typing.Param[
                     p.name,
@@ -212,10 +210,44 @@ class Hero:
     secret_name: str = Field(hidden=True)
 
 
-# Quick reveal_type test for running mypy against this
-if TYPE_CHECKING:
-    pubhero: Public[Hero]
-    reveal_type(pubhero)  # noqa
+from typing import assert_type
+
+
+def _check_public(x: Public[Hero]) -> None:
+    # id becomes required int (primary_key strips | None), secret_name hidden
+    assert_type(
+        x,
+        typing.NewProtocol[
+            typing.Member[Literal["id"], int],
+            typing.Member[Literal["name"], str],
+            typing.Member[Literal["age"], int | None],
+        ],
+    )
+
+
+def _check_create(x: Create[Hero]) -> None:
+    # primary key excluded, rest preserved
+    assert_type(
+        x,
+        typing.NewProtocol[
+            typing.Member[Literal["name"], str],
+            typing.Member[Literal["age"], int | None],
+            typing.Member[Literal["secret_name"], str],
+        ],
+    )
+
+
+def _check_update(x: Update[Hero]) -> None:
+    # primary key excluded, all fields optional (| None)
+    assert_type(
+        x,
+        typing.NewProtocol[
+            typing.Member[Literal["name"], str | None],
+            typing.Member[Literal["age"], int | None],
+            typing.Member[Literal["secret_name"], str | None],
+        ],
+    )
+
 
 #######
 

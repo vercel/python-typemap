@@ -1,4 +1,5 @@
 from typing import (
+    assert_type,
     Callable,
     Literal,
     ReadOnly,
@@ -33,6 +34,15 @@ type GetDefault[Init] = (
     if typing.IsAssignable[Init, Field]
     else Init
 )
+
+
+def _check_hero_init() -> None:
+    # required only
+    h = Hero(name='test', secret_name='secret')
+    assert_type(h, Hero)
+    # all keyword args
+    h2 = Hero(id=1, name='test', age=25, secret_name='secret')
+    assert_type(h2, Hero)
 
 
 # TODO: what could we do to make dataclass_ish work at runtime?
