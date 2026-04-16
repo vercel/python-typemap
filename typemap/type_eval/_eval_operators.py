@@ -879,7 +879,7 @@ def _eval_GetMember(tp, prop, *, ctx):
     if name in hints:
         return _hint_to_member(name, *hints[name], ctx=ctx)
     else:
-        return typing.Never
+        raise TypeMapError(f"GetMember: {name!r} not found in {tp!r}")
 
 
 ##################################################################
@@ -1077,18 +1077,20 @@ def _eval_GetArg(tp, base, idx, *, ctx) -> typing.Any:
     base_head = _typing_inspect.get_head(base)
     args = _get_args(tp, base_head, ctx)
     if args is None:
-        return typing.Never
+        raise TypeMapError(f"GetArg: {tp!r} is not a subclass of {base!r}")
 
     try:
         idx_val = _eval_literal(idx, ctx)
 
         if base_head is GenericCallable and idx_val >= 1:
             # Disallow access to callable lambda
-            return typing.Never
+            raise TypeMapError(
+                f"GetArg: cannot access index {idx_val} of GenericCallable"
+            )
 
         return _fix_type(args[idx_val])
     except IndexError:
-        return typing.Never
+        raise TypeMapError(f"GetArg: index out of range for {tp!r} as {base!r}")
 
 
 @type_eval.register_evaluator(GetArgs)
@@ -1097,7 +1099,7 @@ def _eval_GetArgs(tp, base, *, ctx) -> typing.Any:
     base_head = _typing_inspect.get_head(base)
     args = _get_args(tp, base_head, ctx)
     if args is None:
-        return typing.Never
+        raise TypeMapError(f"GetArgs: {tp!r} is not a subclass of {base!r}")
 
     if base_head is GenericCallable:
         # Disallow access to callable lambda
@@ -1125,7 +1127,9 @@ def _eval_GetSpecialAttr(tp, attr, *, ctx) -> typing.Any:
     elif attr.__args__[0] == "__qualname__":
         return typing.Literal[tp.__qualname__]
     else:
-        return typing.Never
+        raise TypeMapError(
+            f"GetSpecialAttr: {attr.__args__[0]!r} is not a valid attribute"
+        )
 
 
 @type_eval.register_evaluator(GetAnnotations)
@@ -1178,7 +1182,7 @@ def _eval_Slice(tp, start, end, *, ctx):
     ):
         return tp.__origin__[tp.__args__[0][start:end]]
     else:
-        return typing.Never
+        raise TypeMapError(f"Slice: {tp!r} is not a tuple or string Literal")
 
 
 # String literals
