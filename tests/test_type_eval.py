@@ -24,6 +24,7 @@ from typing import (
 import pytest
 
 from typemap.type_eval import _ensure_context, eval_typing
+from typemap.type_eval._eval_operators import TypeMapError
 from typemap.typing import _BoolLiteral
 
 from typemap_extensions import (
@@ -414,8 +415,8 @@ def test_getmember_01():
         Member[Literal["x"], int, Never, Never, TA]
         | Member[Literal["x"], str, Never, Never, TB]
     )
-    d = eval_typing(GetMember[TA | TB, Literal[""]])
-    assert d == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetMember[TA | TB, Literal[""]])
 
 
 type OnlyIntToSet[T] = set[T] if IsAssignable[T, int] else T
@@ -727,6 +728,8 @@ def test_getmember_10():
 
 
 def test_getarg_never():
+    # Never decomposes to an empty union, so the operator never runs
+    # and _mk_union returns Never
     d = eval_typing(GetArg[Never, object, Literal[0]])
     assert d is Never
 
@@ -830,8 +833,8 @@ def test_eval_getarg_callable_02():
     gc = GenericCallable[tuple[T], f]
     t = eval_typing(GetArg[gc, GenericCallable, Literal[0]])
     assert t == tuple[T]
-    gc_f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    assert gc_f == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[gc, GenericCallable, Literal[1]])
 
     # Params wrapped
     f = Callable[
@@ -848,8 +851,8 @@ def test_eval_getarg_callable_02():
     ]
     t = eval_typing(GetArg[gc, GenericCallable, Literal[0]])
     assert t == tuple[T]
-    gc_f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    assert gc_f == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[gc, GenericCallable, Literal[1]])
 
 
 type IndirectProtocol[T] = NewProtocol[*[m for m in Iter[Members[T]]],]
@@ -996,8 +999,8 @@ def test_eval_getarg_callable_07():
     _T = eval_typing(
         GetArg[GetArg[gc, GenericCallable, Literal[0]], tuple, Literal[0]]
     )
-    f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    assert f is Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[gc, GenericCallable, Literal[1]])
 
 
 def test_eval_getarg_callable_08():
@@ -1010,8 +1013,8 @@ def test_eval_getarg_callable_08():
     _T = eval_typing(
         GetArg[GetArg[gc, GenericCallable, Literal[0]], tuple, Literal[0]]
     )
-    f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    assert f is Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[gc, GenericCallable, Literal[1]])
 
 
 def test_eval_getarg_callable_09():
@@ -1024,8 +1027,8 @@ def test_eval_getarg_callable_09():
     _T = eval_typing(
         GetArg[GetArg[gc, GenericCallable, Literal[0]], tuple, Literal[0]]
     )
-    f = eval_typing(GetArg[gc, GenericCallable, Literal[1]])
-    assert f is Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[gc, GenericCallable, Literal[1]])
 
 
 def test_eval_getarg_tuple():
@@ -1108,37 +1111,10 @@ def test_eval_getarg_list():
     assert arg == Any
 
     # indexing with 1 always fails
-    t = list[int]
-    arg = eval_typing(GetArg[t, list, Literal[1]])
-    assert arg == Never
-
-    t = List[int]
-    arg = eval_typing(GetArg[t, list, Literal[1]])
-    assert arg == Never
-
-    t = list
-    arg = eval_typing(GetArg[t, list, Literal[1]])
-    assert arg == Never
-
-    t = List
-    arg = eval_typing(GetArg[t, list, Literal[1]])
-    assert arg == Never
-
-    t = list[int]
-    arg = eval_typing(GetArg[t, List, Literal[1]])
-    assert arg == Never
-
-    t = List[int]
-    arg = eval_typing(GetArg[t, List, Literal[1]])
-    assert arg == Never
-
-    t = list
-    arg = eval_typing(GetArg[t, List, Literal[1]])
-    assert arg == Never
-
-    t = List
-    arg = eval_typing(GetArg[t, List, Literal[1]])
-    assert arg == Never
+    for t in [list[int], List[int], list, List]:
+        for base in [list, List]:
+            with pytest.raises(TypeMapError):
+                eval_typing(GetArg[t, base, Literal[1]])
 
 
 @pytest.mark.xfail(reason="Should this work?")
@@ -1160,12 +1136,14 @@ def test_eval_getarg_custom_01():
     t = A[int]
     assert eval_typing(GetArg[t, A, Literal[0]]) is int
     assert eval_typing(GetArg[t, A, Literal[-1]]) is int
-    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, A, Literal[1]])
 
     t = A
     assert eval_typing(GetArg[t, A, Literal[0]]) == Any
     assert eval_typing(GetArg[t, A, Literal[-1]]) == Any
-    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, A, Literal[1]])
 
 
 def test_eval_getarg_custom_02():
@@ -1177,12 +1155,14 @@ def test_eval_getarg_custom_02():
     t = A[int]
     assert eval_typing(GetArg[t, A, Literal[0]]) is int
     assert eval_typing(GetArg[t, A, Literal[-1]]) is int
-    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, A, Literal[1]])
 
     t = A
     assert eval_typing(GetArg[t, A, Literal[0]]) == Any
     assert eval_typing(GetArg[t, A, Literal[-1]]) == Any
-    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, A, Literal[1]])
 
 
 def test_eval_getarg_custom_03():
@@ -1192,12 +1172,14 @@ def test_eval_getarg_custom_03():
     t = A[int]
     assert eval_typing(GetArg[t, A, Literal[0]]) is int
     assert eval_typing(GetArg[t, A, Literal[-1]]) is int
-    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, A, Literal[1]])
 
     t = A
     assert eval_typing(GetArg[t, A, Literal[0]]) is str
     assert eval_typing(GetArg[t, A, Literal[-1]]) is str
-    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, A, Literal[1]])
 
 
 def test_eval_getarg_custom_04():
@@ -1209,12 +1191,14 @@ def test_eval_getarg_custom_04():
     t = A[int]
     assert eval_typing(GetArg[t, A, Literal[0]]) is int
     assert eval_typing(GetArg[t, A, Literal[-1]]) is int
-    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, A, Literal[1]])
 
     t = A
     assert eval_typing(GetArg[t, A, Literal[0]]) is str
     assert eval_typing(GetArg[t, A, Literal[-1]]) is str
-    assert eval_typing(GetArg[t, A, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, A, Literal[1]])
 
 
 TestTypeVar = TypeVar("TestTypeVar")
@@ -1228,12 +1212,14 @@ def test_eval_getarg_custom_05():
     t = ATree[int]
     assert eval_typing(GetArg[t, ATree, Literal[0]]) is int
     assert eval_typing(GetArg[t, ATree, Literal[-1]]) is int
-    assert eval_typing(GetArg[t, ATree, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, ATree, Literal[1]])
 
     t = ATree
     assert eval_typing(GetArg[t, ATree, Literal[0]]) is Any
     assert eval_typing(GetArg[t, ATree, Literal[-1]]) is Any
-    assert eval_typing(GetArg[t, ATree, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, ATree, Literal[1]])
 
 
 def test_eval_getarg_custom_06():
@@ -1246,12 +1232,14 @@ def test_eval_getarg_custom_06():
     t = ATree[int]
     assert eval_typing(GetArg[t, ATree, Literal[0]]) is int
     assert eval_typing(GetArg[t, ATree, Literal[-1]]) is int
-    assert eval_typing(GetArg[t, ATree, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, ATree, Literal[1]])
 
     t = ATree
     assert eval_typing(GetArg[t, ATree, Literal[0]]) is Any
     assert eval_typing(GetArg[t, ATree, Literal[-1]]) is Any
-    assert eval_typing(GetArg[t, ATree, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, ATree, Literal[1]])
 
 
 # Doubly recursive generic types
@@ -1275,12 +1263,14 @@ def test_eval_getarg_custom_07():
     t = ABTree[int, str]
     assert eval_typing(GetArg[t, ABTree, Literal[0]]) is int
     assert eval_typing(GetArg[t, ABTree, Literal[1]]) is str
-    assert eval_typing(GetArg[t, ABTree, Literal[2]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, ABTree, Literal[2]])
 
     t = ABTree
     assert eval_typing(GetArg[t, ABTree, Literal[0]]) is Any
     assert eval_typing(GetArg[t, ABTree, Literal[1]]) is Any
-    assert eval_typing(GetArg[t, ABTree, Literal[2]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, ABTree, Literal[2]])
 
 
 T = TypeVar("T")
@@ -1302,12 +1292,14 @@ def test_eval_getarg_custom_08():
     t = Container[int]
     assert eval_typing(GetArg[t, Container, Literal[0]]) is int
     assert eval_typing(GetArg[t, Container, Literal[-1]]) is int
-    assert eval_typing(GetArg[t, Container, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, Container, Literal[1]])
 
     t = Container
     assert eval_typing(GetArg[t, Container, Literal[0]]) is Any
     assert eval_typing(GetArg[t, Container, Literal[-1]]) is Any
-    assert eval_typing(GetArg[t, Container, Literal[1]]) == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(GetArg[t, Container, Literal[1]])
 
 
 def test_eval_getargs_generic_callable_01():
@@ -1796,10 +1788,10 @@ def test_eval_slice_02():
 
 
 def test_eval_slice_03():
-    d = eval_typing(Slice[int, Literal[1], Literal[2]])
-    assert d == Never
-    d = eval_typing(Slice[dict[int, str], Literal[1], Literal[2]])
-    assert d == Never
+    with pytest.raises(TypeMapError):
+        eval_typing(Slice[int, Literal[1], Literal[2]])
+    with pytest.raises(TypeMapError):
+        eval_typing(Slice[dict[int, str], Literal[1], Literal[2]])
 
 
 def test_eval_literal_idempotent_01():
@@ -2679,7 +2671,6 @@ def test_type_eval_annotated_04():
 # RaiseError tests
 
 from typemap_extensions import RaiseError
-from typemap.type_eval import TypeMapError
 
 
 def test_raise_error_basic():
