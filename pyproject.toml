@@ -75,3 +75,6 @@ include = ["pyproject.toml", "typemap/**/*.py", "typemap_extensions/**/*.py", "t
 
 [tool.ruff.format]
 quote-style = "preserve"
+
+[tool.mypy]
+warn_unused_ignores = true

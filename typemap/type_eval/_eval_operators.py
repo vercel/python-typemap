@@ -357,7 +357,7 @@ def _create_updated_class(
     bases = tuple(
         b.alias_type()
         if b.cls is not typing.Generic
-        else typing.Generic[t.__type_params__]  # type: ignore[index]
+        else typing.Generic[t.__type_params__]
         for b in box.bases
     )
 
@@ -696,9 +696,9 @@ def _callable_type_to_method(name, typ, ctx):
         # Override the receiver type with type[Self].
         if name == "__init_subclass__" and isinstance(cls, typing.TypeVar):
             # For __init_subclass__ generic on cls: T, keep type[T]
-            cls_typ = type[cls]  # type: ignore[name-defined]
+            cls_typ = type[cls]
         else:
-            cls_typ = type[typing.Self]  # type: ignore[name-defined]
+            cls_typ = type[typing.Self]
         cls_param = Param[typing.Literal["cls"], cls_typ, quals]
         typ = typing.Callable[Params[cls_param, *param_list], ret]
     elif head is staticmethod:

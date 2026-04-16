@@ -35,7 +35,7 @@ def is_special_form(t: Any, form: Any) -> bool:
     Returns:
         True if t is the special form or a generic alias with that origin
     """
-    return t is form or (is_generic_alias(t) and get_origin(t) is form)  # type: ignore [comparison-overlap]
+    return t is form or (is_generic_alias(t) and get_origin(t) is form)
 
 
 def is_generic_alias(t: Any) -> TypeGuard[GenericAlias]:
@@ -44,7 +44,7 @@ def is_generic_alias(t: Any) -> TypeGuard[GenericAlias]:
 
 def is_valid_type_arg(t: Any) -> bool:
     return isinstance(t, type) or (
-        is_generic_alias(t) and get_origin(t) is not Unpack  # type: ignore [comparison-overlap]
+        is_generic_alias(t) and get_origin(t) is not Unpack
     )
 
 
@@ -84,7 +84,7 @@ else:
 def is_type_var_tuple_unpack(t: Any) -> TypeGuard[GenericAlias]:
     return (
         is_generic_alias(t)
-        and get_origin(t) is Unpack  # type: ignore [comparison-overlap]
+        and get_origin(t) is Unpack
         and is_type_var_tuple(get_args(t)[0])
     )
 
@@ -98,7 +98,7 @@ def is_generic_type_alias(t: Any) -> TypeGuard[GenericAlias]:
 
 
 def is_annotated(t: Any) -> TypeGuard[Annotated[Any, ...]]:
-    return is_generic_alias(t) and get_origin(t) is Annotated  # type: ignore [comparison-overlap]
+    return is_generic_alias(t) and get_origin(t) is Annotated
 
 
 def is_forward_ref(t: Any) -> TypeGuard[ForwardRef]:
@@ -121,9 +121,8 @@ def contains_forward_refs(t: Any) -> bool:
 
 
 def is_union_type(t: Any) -> TypeGuard[UnionType]:
-    return (
-        (is_generic_alias(t) and get_origin(t) is Union)  # type: ignore [comparison-overlap]
-        or isinstance(t, UnionType)
+    return (is_generic_alias(t) and get_origin(t) is Union) or isinstance(
+        t, UnionType
     )
 
 
@@ -132,7 +131,7 @@ def is_optional_type(t: Any) -> TypeGuard[UnionType]:
 
 
 def is_literal(t: Any) -> bool:
-    return is_generic_alias(t) and get_origin(t) is Literal  # type: ignore [comparison-overlap]
+    return is_generic_alias(t) and get_origin(t) is Literal
 
 
 def get_head(t: Any) -> type | None:

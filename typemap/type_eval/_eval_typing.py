@@ -460,7 +460,7 @@ def _eval_callable(obj: typing_CallableGenericAlias, ctx: EvalContext):
 
 
 @_eval_types_impl.register
-def _eval_union(obj: typing.Union, ctx: EvalContext):  # type: ignore
+def _eval_union(obj: typing.Union, ctx: EvalContext):
     args: typing.Sequence[typing.Any] = obj.__args__
     new_args = tuple(_eval_types(arg, ctx) for arg in args)
     return typing.Union[new_args]

@@ -87,7 +87,7 @@ def _get_bound_type_args_from_bound_args(
             and tv.__bound__
             and typing_extensions.is_typeddict(tv.__bound__)
         ):
-            tp = typing.TypedDict(f"**{param.name}", bound.kwargs)  # type: ignore[misc, operator]
+            tp = typing.TypedDict(f"**{param.name}", bound.kwargs)  # type: ignore[misc]
             vars[tv] = tp
         # trivial type[T] bindings
         elif (
