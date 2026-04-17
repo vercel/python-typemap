@@ -36,7 +36,6 @@ from typemap.typing import (
     IsAssignable,
     IsEquivalent,
     Iter,
-    IterAnyError,
     Length,
     Lowercase,
     Member,
@@ -1223,6 +1222,12 @@ _string_literal_op(Concat, op=lambda s, t: s + t)
 
 class TypeMapError(TypeError):
     """Exception raised when RaiseError is evaluated."""
+
+    pass
+
+
+class IterAnyError(TypeMapError):
+    """Raised when Iter[Any] is iterated; caught inside _eval_args."""
 
     pass
 

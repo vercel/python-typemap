@@ -327,21 +327,41 @@ class RaiseError[S: str, *Ts]:
     pass
 
 
-class IterAnyError(TypeError):
-    """Raised by Iter[Any]; caught by Map.__iter__ to yield _UnpackAny."""
-
-    pass
-
-
 class _UnpackAnyMarker:
     def __repr__(self):
         return "_UnpackAny"
 
 
-# Sentinel yielded by Map when its generator iterates Iter[Any].
-# When seen as an argument to a type operator during evaluation, the
-# surrounding type is collapsed to typing.Any.
+# Sentinel emitted by the evaluator when a Map's genexpr raises
+# IterAnyError (e.g. for Iter[Any]). When seen as an argument to a type
+# operator during evaluation, the surrounding type is collapsed to Any.
 _UnpackAny = _UnpackAnyMarker()
+
+
+class _UnpackedMap:
+    """Wrapper yielded by Map.__iter__ so the evaluator drives iteration."""
+
+    __slots__ = ('map',)
+
+    def __init__(self, map_inst):
+        self.map = map_inst
+
+    def __repr__(self):
+        return f"_UnpackedMap({self.map!r})"
+
+
+class _UnpackedMapEndMarker:
+    __slots__ = ()
+
+    def __repr__(self):
+        return "_UnpackedMapEnd"
+
+
+# Paired with _UnpackedMap in Map.__iter__'s output so that
+# `Union[*Map(...)]` -- which Python would otherwise collapse
+# (Union[X] == X) -- keeps at least two args and reaches _eval_union
+# intact. Stripped by _eval_args.
+_UnpackedMapEnd = _UnpackedMapEndMarker()
 
 
 class Map:
@@ -349,10 +369,11 @@ class Map:
         self._gen = gen
 
     def __iter__(self):
-        try:
-            yield from self._gen
-        except IterAnyError:
-            yield _UnpackAny
+        # Iteration of the underlying generator is deferred to the
+        # evaluator so that Iter[Any] (and any other type-level errors
+        # raised from the body) can be handled in one place.
+        yield _UnpackedMap(self)
+        yield _UnpackedMapEnd
 
 
 ##################################################################

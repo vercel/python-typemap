@@ -15,7 +15,12 @@ from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
     _UnpackGenericAlias as typing_UnpackGenericAlias,
 )
 
-from typemap.typing import _AssociatedTypeGenericAlias, _UnpackAny
+from typemap.typing import (
+    _AssociatedTypeGenericAlias,
+    _UnpackAny,
+    _UnpackedMap,
+    _UnpackedMapEnd,
+)
 
 
 if typing.TYPE_CHECKING:
@@ -333,9 +338,37 @@ def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
     return _eval_types(unpacked, ctx)
 
 
-def _eval_args(args: Sequence[Any], ctx: EvalContext) -> tuple[Any]:
+def _eval_args(args: Sequence[Any], ctx: EvalContext) -> tuple[Any, ...]:
+    from typemap.type_eval._eval_operators import IterAnyError
+
     evaled = []
     for arg in args:
+        if arg is _UnpackedMapEnd:
+            continue
+        if isinstance(arg, _UnpackedMap):
+            # Drive the Map's generator one value at a time, evaluating
+            # each before pulling the next. Collecting all values up
+            # front would advance the generator's iteration variable to
+            # its final value before nested genexprs (which close over
+            # that variable) get a chance to run.
+            gen = arg.map._gen
+            while True:
+                try:
+                    v = next(gen)
+                except StopIteration:
+                    break
+                except IterAnyError:
+                    evaled.append(_UnpackAny)
+                    break
+                ev = _eval_types(v, ctx)
+                if isinstance(ev, typing_UnpackGenericAlias):
+                    if (sub := ev.__typing_unpacked_tuple_args__) is not None:
+                        evaled.extend(sub)
+                    else:
+                        evaled.append(ev)
+                else:
+                    evaled.append(ev)
+            continue
         ev = _eval_types(arg, ctx)
         if isinstance(ev, typing_UnpackGenericAlias):
             if (args := ev.__typing_unpacked_tuple_args__) is not None:
@@ -469,6 +502,7 @@ def _eval_callable(obj: typing_CallableGenericAlias, ctx: EvalContext):
 
 @_eval_types_impl.register
 def _eval_union(obj: typing.Union, ctx: EvalContext):
-    args: typing.Sequence[typing.Any] = obj.__args__
-    new_args = tuple(_eval_types(arg, ctx) for arg in args)
+    new_args = _eval_args(obj.__args__, ctx)
+    if _has_unpack_any(new_args):
+        return typing.Any
     return typing.Union[new_args]
