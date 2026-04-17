@@ -15,7 +15,7 @@ from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
     _UnpackGenericAlias as typing_UnpackGenericAlias,
 )
 
-from typemap.typing import _AssociatedTypeGenericAlias
+from typemap.typing import _AssociatedTypeGenericAlias, _UnpackAny
 
 
 if typing.TYPE_CHECKING:
@@ -347,6 +347,10 @@ def _eval_args(args: Sequence[Any], ctx: EvalContext) -> tuple[Any]:
     return tuple(evaled)
 
 
+def _has_unpack_any(args: typing.Iterable[Any]) -> bool:
+    return any(a is _UnpackAny for a in args)
+
+
 @_eval_types_impl.register
 def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
     """Eval a types.GenericAlias -- typically an applied type alias
@@ -365,6 +369,8 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
         return typing.Unpack[_eval_types(stripped, ctx)]
 
     new_args = _eval_args(obj.__args__, ctx)
+    if _has_unpack_any(new_args):
+        return typing.Any
 
     new_obj = _apply_type(obj.__origin__, new_args)
     if isinstance(obj.__origin__, type):
@@ -428,6 +434,8 @@ def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
     # generic *classes* are typing._GenericAlias while generic type
     # aliases are types.GenericAlias? Why in the world.
     new_args = _eval_args(typing.get_args(obj), ctx)
+    if _has_unpack_any(new_args):
+        return typing.Any
 
     if func := _eval_funcs.get(obj.__origin__):
         _tvars = (

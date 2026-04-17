@@ -327,9 +327,32 @@ class RaiseError[S: str, *Ts]:
     pass
 
 
+class IterAnyError(TypeError):
+    """Raised by Iter[Any]; caught by Map.__iter__ to yield _UnpackAny."""
+
+    pass
+
+
+class _UnpackAnyMarker:
+    def __repr__(self):
+        return "_UnpackAny"
+
+
+# Sentinel yielded by Map when its generator iterates Iter[Any].
+# When seen as an argument to a type operator during evaluation, the
+# surrounding type is collapsed to typing.Any.
+_UnpackAny = _UnpackAnyMarker()
+
+
 class Map:
-    def __new__(cls, gen):
-        return tuple(gen)
+    def __init__(self, gen):
+        self._gen = gen
+
+    def __iter__(self):
+        try:
+            yield from self._gen
+        except IterAnyError:
+            yield _UnpackAny
 
 
 ##################################################################

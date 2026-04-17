@@ -1548,6 +1548,28 @@ def test_eval_iter_02():
     assert d == tuple[int, str, int, str]
 
 
+type TupleFromIter[T] = tuple[*Map(x for x in Iter[T])]
+type TupleAroundIter[T] = tuple[int, *Map(x for x in Iter[T]), str]
+type ProtoFromIter[T] = NewProtocol[*Map(Member[m.name, int] for m in Iter[T])]
+
+
+def test_eval_iter_any_01():
+    # tuple[*Map(... Iter[Any])] collapses to Any
+    assert eval_typing(TupleFromIter[Any]) is Any
+    assert eval_typing(TupleFromIter[tuple[int, str]]) == tuple[int, str]
+
+
+def test_eval_iter_any_02():
+    # _UnpackAny propagates out of mixed positional args
+    assert eval_typing(TupleAroundIter[Any]) is Any
+    assert eval_typing(TupleAroundIter[tuple[float]]) == tuple[int, float, str]
+
+
+def test_eval_iter_any_03():
+    # Works through NewProtocol when Map's body references m attributes
+    assert eval_typing(ProtoFromIter[Any]) is Any
+
+
 type NotLiteralGeneric[T] = not T
 type AndLiteralGeneric[L, R] = L and R
 type OrLiteralGeneric[L, R] = L or R
