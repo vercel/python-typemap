@@ -434,10 +434,24 @@ def _lift_over_unions(func):
 ##################################################################
 
 
+def _iter_any_raiser():
+    """Iterator whose first __next__ raises IterAnyError.
+
+    Raising from __next__ (rather than from Iter's __iter__) lets Map's
+    __iter__ catch the exception: CPython evaluates the outermost
+    iterable of a generator expression eagerly at construction time, so
+    raising from __iter__ would escape before Map ever sees it.
+    """
+    raise IterAnyError("Iter[Any] cannot be iterated")
+    yield  # unreachable; makes this a generator
+
+
 @type_eval.register_evaluator(Iter)
 @_lift_evaluated
 def _eval_Iter(tp, *, ctx):
     tp = _eval_types(tp, ctx)
+    if tp is typing.Any:
+        return _iter_any_raiser()
     if (
         _typing_inspect.is_generic_alias(tp)
         and tp.__origin__ is tuple
@@ -1208,6 +1222,12 @@ _string_literal_op(Concat, op=lambda s, t: s + t)
 
 class TypeMapError(TypeError):
     """Exception raised when RaiseError is evaluated."""
+
+    pass
+
+
+class IterAnyError(TypeMapError):
+    """Raised when Iter[Any] is iterated; caught inside _eval_args."""
 
     pass
 

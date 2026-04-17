@@ -10,6 +10,7 @@ from typemap_extensions import (
     GetArg,
     IsAssignable,
     Iter,
+    Map,
     Members,
     Param,
     Params,
@@ -287,7 +288,7 @@ def test_eval_call_with_types_bind_error_05():
 
 type GetCallableMember[T, N: str] = GetArg[
     tuple[
-        *[
+        *Map(
             m.type
             for m in Iter[Members[T]]
             if (
@@ -295,7 +296,7 @@ type GetCallableMember[T, N: str] = GetArg[
                 or IsAssignable[m.type, GenericCallable]
             )
             and IsAssignable[m.name, N]
-        ]
+        )
     ],
     tuple,
     Literal[0],

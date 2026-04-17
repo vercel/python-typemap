@@ -58,13 +58,13 @@ def select[ModelT, K: typing.BaseTypedDict](
     **kwargs: Unpack[K],
 ) -> list[
     typing.NewProtocol[
-        *[
+        *typing.Map(
             typing.Member[
                 c.name,
                 ConvertField[typing.GetMemberType[ModelT, c.name]],
             ]
             for c in typing.Iter[typing.Attrs[K]]
-        ]
+        )
     ]
 ]:
     raise NotImplementedError
@@ -112,11 +112,11 @@ contains all the ``Property`` attributes of ``T``.
 
 """
 type PropsOnly[T] = typing.NewProtocol[
-    *[
+    *typing.Map(
         typing.Member[p.name, PointerArg[p.type]]
         for p in typing.Iter[typing.Attrs[T]]
         if typing.IsAssignable[p.type, Property]
-    ]
+    )
 ]
 
 """

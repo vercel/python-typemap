@@ -37,11 +37,11 @@ type GetFieldItem[T, K] = typing.GetMemberType[
 # Strip `| None` from a type by iterating over its union components
 # and filtering
 type NotOptional[T] = Union[
-    *[
+    *typing.Map(
         x
         for x in typing.Iter[typing.FromUnion[T]]
         if not typing.IsAssignable[x, None]
-    ]
+    )
 ]
 
 # Adjust an attribute type for use in Public below by dropping | None for
@@ -58,7 +58,7 @@ type FixPublicType[T, Init] = (
 # Drop all the annotations, since this is for data getting returned to users
 # from the DB, so we don't need default values.
 type Public[T] = typing.NewProtocol[
-    *[
+    *typing.Map(
         typing.Member[
             p.name,
             FixPublicType[p.type, p.init],
@@ -68,7 +68,7 @@ type Public[T] = typing.NewProtocol[
         if not typing.IsAssignable[
             Literal[True], GetFieldItem[p.init, Literal["hidden"]]
         ]
-    ]
+    )
 ]
 
 # Begin PEP section: Automatically deriving FastAPI CRUD models
@@ -88,7 +88,7 @@ type GetDefault[Init] = (
 
 # Create takes everything but the primary key and preserves defaults
 type Create[T] = typing.NewProtocol[
-    *[
+    *typing.Map(
         typing.Member[
             p.name,
             p.type,
@@ -100,7 +100,7 @@ type Create[T] = typing.NewProtocol[
             Literal[True],
             GetFieldItem[p.init, Literal["primary_key"]],
         ]
-    ]
+    )
 ]
 
 """
@@ -122,7 +122,7 @@ initializer).
 # Update takes everything but the primary key, but makes them all have
 # None defaults
 type Update[T] = typing.NewProtocol[
-    *[
+    *typing.Map(
         typing.Member[
             p.name,
             p.type | None,
@@ -134,7 +134,7 @@ type Update[T] = typing.NewProtocol[
             Literal[True],
             GetFieldItem[p.init, Literal["primary_key"]],
         ]
-    ]
+    )
 ]
 
 ##
@@ -145,7 +145,7 @@ type InitFnType[T] = typing.Member[
     Callable[
         typing.Params[
             typing.Param[Literal["self"], Self],  # type: ignore[misc]
-            *[
+            *typing.Map(
                 typing.Param[
                     p.name,
                     p.type,
@@ -159,7 +159,7 @@ type InitFnType[T] = typing.Member[
                     else Literal["keyword", "default"],
                 ]
                 for p in typing.Iter[typing.Attrs[T]]
-            ],
+            ),
         ],
         None,
     ],
@@ -167,7 +167,7 @@ type InitFnType[T] = typing.Member[
 ]
 type AddInit[T] = typing.NewProtocol[
     InitFnType[T],
-    *[x for x in typing.Iter[typing.Members[T]]],
+    *typing.Map(x for x in typing.Iter[typing.Members[T]]),
 ]
 
 

@@ -14,6 +14,7 @@ from typemap.type_eval import eval_typing
 from typemap_extensions import (
     NewProtocol,
     Iter,
+    Map,
     Attrs,
     IsAssignable,
     GetAnnotations,
@@ -53,7 +54,7 @@ type InitFnType[T] = Member[
     Callable[
         Params[
             Param[Literal["self"], Self],
-            *[
+            *Map(
                 Param[
                     p.name,
                     DropAnnotations[p.type],
@@ -65,7 +66,7 @@ type InitFnType[T] = Member[
                     else Literal["keyword"],
                 ]
                 for p in Iter[Attrs[T]]
-            ],
+            ),
         ],
         None,
     ],
@@ -76,13 +77,13 @@ type AddInit[T] = NewProtocol[
     InitFnType[T],
     # TODO: mypy rejects this -- should it work?
     # *Members[T],
-    *[t for t in Iter[Members[T]]],
+    *Map(t for t in Iter[Members[T]]),
 ]
 
 # Strip `| None` from a type by iterating over its union components
 # and filtering
 type NotOptional[T] = Union[
-    *[x for x in Iter[FromUnion[T]] if not IsAssignable[x, None]]
+    *Map(x for x in Iter[FromUnion[T]] if not IsAssignable[x, None])
 ]
 
 # Adjust an attribute type for use in Public below by dropping | None for
@@ -97,27 +98,27 @@ type FixPublicType[T] = DropAnnotations[
 # Drop all the annotations, since this is for data getting returned to users
 # from the DB, so we don't need default values.
 type Public[T] = NewProtocol[
-    *[
+    *Map(
         Member[p.name, FixPublicType[p.type], p.quals]
         for p in Iter[Attrs[T]]
         if not IsAssignable[Literal[PropQuals.HIDDEN], GetAnnotations[p.type]]
-    ]
+    )
 ]
 
 # Create takes everything but the primary key and preserves defaults
 type Create[T] = NewProtocol[
-    *[
+    *Map(
         Member[p.name, p.type, p.quals]
         for p in Iter[Attrs[T]]
         if not IsAssignable[Literal[PropQuals.PRIMARY], GetAnnotations[p.type]]
-    ]
+    )
 ]
 
 
 # Update takes everything but the primary key, but makes them all have
 # None defaults
 type Update[T] = NewProtocol[
-    *[
+    *Map(
         Member[
             p.name,
             HasDefault[DropAnnotations[p.type] | None, None],
@@ -125,7 +126,7 @@ type Update[T] = NewProtocol[
         ]
         for p in Iter[Attrs[T]]
         if not IsAssignable[Literal[PropQuals.PRIMARY], GetAnnotations[p.type]]
-    ]
+    )
 ]
 
 

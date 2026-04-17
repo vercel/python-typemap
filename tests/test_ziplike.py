@@ -20,7 +20,7 @@ type ElemOf[T] = typing.GetArg[T, Iterable, Literal[0]]
 
 def zip[*Ts](
     *args: *Ts, strict: bool = False
-) -> Iterator[tuple[*[ElemOf[t] for t in typing.Iter[tuple[*Ts]]]]]:
+) -> Iterator[tuple[*typing.Map(ElemOf[t] for t in typing.Iter[tuple[*Ts]])]]:
     return builtins.zip(*args, strict=strict)  # type: ignore[call-overload]
 
 
@@ -74,10 +74,10 @@ type Zip[T, S] = (
 # single Literal iff they agree.
 
 type First[T] = typing.GetArg[T, tuple, Literal[0]]
-type DropLastEach[T] = tuple[*[DropLast[t] for t in typing.Iter[T]]]
-type LastEach[T] = tuple[*[Last[t] for t in typing.Iter[T]]]
+type DropLastEach[T] = tuple[*typing.Map(DropLast[t] for t in typing.Iter[T])]
+type LastEach[T] = tuple[*typing.Map(Last[t] for t in typing.Iter[T])]
 type AllSameLength[T] = typing.IsEquivalent[
-    Union[*[typing.Length[t] for t in typing.Iter[T]]],
+    Union[*typing.Map(typing.Length[t] for t in typing.Iter[T])],
     typing.Length[First[T]],
 ]
 
