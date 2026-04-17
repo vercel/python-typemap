@@ -12,8 +12,8 @@ scripts/py2rst.py tests/test_dataclass_like.py --start "Begin PEP section: datac
 scripts/py2rst.py tests/test_fastapilike_2.py --start "Begin PEP section: Automatically deriving FastAPI CRUD models" --end "End PEP section" \
   | scripts/rst_replace_section.py "$PEP" pep827-fastapi-impl -i
 
-scripts/py2rst.py tests/test_nplike.py --start "Begin PEP section" --end "End PEP section" \
-  | scripts/rst_replace_section.py "$PEP" pep827-numpy-impl -i
+scripts/py2rst.py tests/test_ziplike.py --start "Begin PEP section" --end "End PEP section" \
+  | scripts/rst_replace_section.py "$PEP" pep827-zip-impl -i
 
 scripts/py2rst.py tests/test_ts_utility.py --start "Begin PEP section" --end "End PEP section" \
   | scripts/rst_replace_section.py "$PEP" pep827-ts-utils -i
