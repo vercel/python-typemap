@@ -338,45 +338,36 @@ def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
     return _eval_types(unpacked, ctx)
 
 
+def _eval_and_append(evaled: list, arg: Any, ctx: EvalContext) -> None:
+    ev = _eval_types(arg, ctx)
+    if isinstance(ev, typing_UnpackGenericAlias):
+        if (sub := ev.__typing_unpacked_tuple_args__) is not None:
+            evaled.extend(sub)
+        else:
+            evaled.append(ev)
+    else:
+        evaled.append(ev)
+
+
 def _eval_args(args: Sequence[Any], ctx: EvalContext) -> tuple[Any, ...]:
     from typemap.type_eval._eval_operators import IterAnyError
 
-    evaled = []
+    evaled: list[Any] = []
     for arg in args:
         if arg is _UnpackedMapEnd:
             continue
         if isinstance(arg, _UnpackedMap):
-            # Drive the Map's generator one value at a time, evaluating
-            # each before pulling the next. Collecting all values up
-            # front would advance the generator's iteration variable to
-            # its final value before nested genexprs (which close over
-            # that variable) get a chance to run.
-            gen = arg.map._gen
-            while True:
-                try:
-                    v = next(gen)
-                except StopIteration:
-                    break
-                except IterAnyError:
-                    evaled.append(_UnpackAny)
-                    break
-                ev = _eval_types(v, ctx)
-                if isinstance(ev, typing_UnpackGenericAlias):
-                    if (sub := ev.__typing_unpacked_tuple_args__) is not None:
-                        evaled.extend(sub)
-                    else:
-                        evaled.append(ev)
-                else:
-                    evaled.append(ev)
+            # We need to evaluate the inner arguments as we iterate,
+            # rather than converting to a list first, since there
+            # might be inner iterators that depend on the outer
+            # variables.
+            try:
+                for v in arg.map._gen:
+                    _eval_and_append(evaled, v, ctx)
+            except IterAnyError:
+                evaled.append(_UnpackAny)
             continue
-        ev = _eval_types(arg, ctx)
-        if isinstance(ev, typing_UnpackGenericAlias):
-            if (args := ev.__typing_unpacked_tuple_args__) is not None:
-                evaled.extend(args)
-            else:
-                evaled.append(ev)
-        else:
-            evaled.append(ev)
+        _eval_and_append(evaled, arg, ctx)
     return tuple(evaled)
 
 
