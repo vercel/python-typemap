@@ -42,6 +42,7 @@ from typemap_extensions import (
     Iter,
     Length,
     IsEquivalent,
+    Map,
     Member,
     Members,
     NewProtocol,
@@ -72,19 +73,19 @@ class F_int(F[int]):
 
 
 type ConcatTuples[A, B] = tuple[
-    *[x for x in Iter[A]],
-    *[x for x in Iter[B]],
+    *Map(x for x in Iter[A]),
+    *Map(x for x in Iter[B]),
 ]
 
 type MapRecursive[A] = NewProtocol[
-    *[
+    *Map(
         (
             Member[p.name, OrGotcha[p.type]]
             if not IsAssignable[p.type, A]
             else Member[p.name, OrGotcha[MapRecursive[A]]]
         )
         for p in Iter[tuple[*Attrs[A], *Attrs[F_int]]]
-    ],
+    ),
     Member[Literal["control"], float],
 ]
 
@@ -658,13 +659,13 @@ def test_getmember_09():
         def f[T](
             self: T,
         ) -> tuple[
-            *[
+            *Map(
                 m.type
                 for m in Iter[Attrs[T]]
                 if not IsAssignable[
                     Slice[m.name, None, Literal[1]], Literal["_"]
                 ]
-            ]
+            )
         ]: ...
 
     class B(A):
@@ -698,13 +699,13 @@ def test_getmember_10():
         def f[T](
             cls: type[T],
         ) -> tuple[
-            *[
+            *Map(
                 m.type
                 for m in Iter[Attrs[T]]
                 if not IsAssignable[
                     Slice[m.name, None, Literal[1]], Literal["_"]
                 ]
-            ]
+            )
         ]: ...
 
     class B(A):
@@ -855,10 +856,10 @@ def test_eval_getarg_callable_02():
         eval_typing(GetArg[gc, GenericCallable, Literal[1]])
 
 
-type IndirectProtocol[T] = NewProtocol[*[m for m in Iter[Members[T]]],]
+type IndirectProtocol[T] = NewProtocol[*Map(m for m in Iter[Members[T]]),]
 type GetMethodLike[T, Name] = GetArg[
     tuple[
-        *[
+        *Map(
             p.type
             for p in Iter[Members[T]]
             if (
@@ -868,7 +869,7 @@ type GetMethodLike[T, Name] = GetArg[
                 or IsAssignable[p.type, GenericCallable]
             )
             and IsAssignable[Name, p.name]
-        ],
+        ),
     ],
     tuple,
     Literal[0],
@@ -1529,7 +1530,9 @@ def test_eval_iter_01():
     assert tuple(d) == ()
 
 
-type DuplicateTuple[T] = tuple[*[x for x in Iter[T]], *[x for x in Iter[T]]]
+type DuplicateTuple[T] = tuple[
+    *Map(x for x in Iter[T]), *Map(x for x in Iter[T])
+]
 type ConcatTupleWithSelf[T] = ConcatTuples[T, T]
 
 
@@ -1993,11 +1996,11 @@ def test_update_class_members_01():
 
 
 type MembersExceptInitSubclass[T] = tuple[
-    *[
+    *Map(
         m
         for m in Iter[Members[T]]
         if not IsAssignable[m.name, Literal["__init_subclass__"]]
-    ]
+    )
 ]
 
 
@@ -2080,7 +2083,7 @@ def test_update_class_members_02():
 
 
 type AttrsAsSets[T] = UpdateClass[
-    *[Member[m.name, set[m.type]] for m in Iter[Attrs[T]]]
+    *Map(Member[m.name, set[m.type]] for m in Iter[Attrs[T]])
 ]
 
 
@@ -2511,7 +2514,7 @@ def test_update_class_inheritance_02():
         def __init_subclass__[T](
             cls: type[T],
         ) -> UpdateClass[
-            *[Member[m.name, list[m.type]] for m in Iter[Attrs[T]]]
+            *Map(Member[m.name, list[m.type]] for m in Iter[Attrs[T]])
         ]:
             super().__init_subclass__()
 
@@ -2521,7 +2524,7 @@ def test_update_class_inheritance_02():
         def __init_subclass__[T](
             cls: type[T],
         ) -> UpdateClass[
-            *[Member[m.name, tuple[m.type]] for m in Iter[Attrs[T]]]
+            *Map(Member[m.name, tuple[m.type]] for m in Iter[Attrs[T]])
         ]:
             super().__init_subclass__()
 

@@ -327,6 +327,11 @@ class RaiseError[S: str, *Ts]:
     pass
 
 
+class Map:
+    def __new__(cls, gen):
+        return tuple(gen)
+
+
 ##################################################################
 
 # TODO: type better

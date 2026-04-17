@@ -14,6 +14,7 @@ from typemap_extensions import (
     IsAssignable,
     Iter,
     IsEquivalent,
+    Map,
     Member,
     NewProtocol,
     RaiseError,
@@ -46,7 +47,7 @@ type VarArgType[V: VarArg] = GetArg[V, tuple, typing.Literal[1]]
 
 
 type CombineVarArgs[Ls: tuple[VarArg], Rs: tuple[VarArg]] = tuple[
-    *[
+    *Map(
         VarArg[
             VarArgName[x],
             (
@@ -56,7 +57,7 @@ type CombineVarArgs[Ls: tuple[VarArg], Rs: tuple[VarArg]] = tuple[
                 )
                 else GetArg[  # Common to both Ls and Rs
                     tuple[
-                        *[
+                        *Map(
                             (
                                 VarArgType[x]
                                 if IsAssignable[VarArgType[x], VarArgType[y]]
@@ -73,7 +74,7 @@ type CombineVarArgs[Ls: tuple[VarArg], Rs: tuple[VarArg]] = tuple[
                             )
                             for y in Iter[Rs]
                             if IsEquivalent[VarArgName[x], VarArgName[y]]
-                        ]
+                        )
                     ],
                     tuple,
                     typing.Literal[0],
@@ -81,14 +82,14 @@ type CombineVarArgs[Ls: tuple[VarArg], Rs: tuple[VarArg]] = tuple[
             ),
         ]
         for x in Iter[Ls]
-    ],
-    *[  # Unique to Rs
+    ),
+    *Map(  # Unique to Rs
         x
         for x in Iter[Rs]
         if not any(  # Unique to Rs
             IsEquivalent[VarArgName[x], VarArgName[y]] for y in Iter[Ls]
         )
-    ],
+    ),
 ]
 
 

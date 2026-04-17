@@ -27,6 +27,7 @@ from typemap_extensions import (
     IsAssignable,
     Iter,
     IsEquivalent,
+    Map,
     Member,
     Members,
     NewProtocol,
@@ -139,7 +140,7 @@ class Table[name: str]:
     def __init_subclass__[T](
         cls: type[T],
     ) -> UpdateClass[
-        *[
+        *Map(
             Member[
                 m.name,
                 _Field[
@@ -152,8 +153,8 @@ class Table[name: str]:
             ]
             for m in Iter[Members[T]]
             if IsAssignable[m.type, Field]
-        ],
-        *[m for m in Iter[Members[T]] if not IsAssignable[m.type, Field]],
+        ),
+        *Map(m for m in Iter[Members[T]] if not IsAssignable[m.type, Field]),
     ]:
         super().__init_subclass__()
 
@@ -241,11 +242,11 @@ type EntryTable[E: QueryEntry] = GetArg[E, tuple, Literal[0]]
 type EntryFields[E: QueryEntry] = GetArg[E, tuple, Literal[1]]
 
 type EntryFieldMembers[T: Table, FieldNames: tuple[Literal[str], ...]] = tuple[
-    *[
+    *Map(
         m
         for m in Iter[Attrs[T]]
         if any(IsAssignable[m.name, f] for f in Iter[FieldNames])
-    ]
+    )
 ]
 
 type EntryIsTable[E: QueryEntry, T: Table] = IsEquivalent[EntryTable[E], T]
@@ -255,7 +256,9 @@ type EntriesHasTable[Es: tuple[QueryEntry, ...], T: Table] = any(
 
 type MakeQueryEntryAllFields[T: Table] = QueryEntry[
     T,
-    tuple[*[m.name for m in Iter[Attrs[T]] if IsAssignable[m.type, _Field]],],
+    tuple[
+        *Map(m.name for m in Iter[Attrs[T]] if IsAssignable[m.type, _Field]),
+    ],
 ]
 type MakeQueryEntryNamedFields[
     T: Table,
@@ -263,22 +266,22 @@ type MakeQueryEntryNamedFields[
 ] = QueryEntry[
     T,
     tuple[
-        *[
+        *Map(
             m.name
             for m in Iter[Attrs[T]]
             if IsAssignable[m.type, _Field]
             and any(
                 IsAssignable[FieldName[m.type], f] for f in Iter[FieldNames]
             )
-        ],
+        ),
     ],
 ]
 
 type AddTable[Entries, New: Table] = tuple[
-    *[  # Existing entries
+    *Map(  # Existing entries
         (e if not Bool[EntryIsTable[e, New]] else MakeQueryEntryAllFields[New])
         for e in Iter[Entries]
-    ],
+    ),
     *(  # Add entries if not present
         []
         if Bool[EntriesHasTable[Entries, New]]
@@ -286,17 +289,17 @@ type AddTable[Entries, New: Table] = tuple[
     ),
 ]
 type AddField[Entries, New: _Field] = tuple[
-    *[  # Existing entries
+    *Map(  # Existing entries
         (
             e  # Non-matching entry
             if not Bool[EntryIsTable[e, FieldTable[New]]]
             else MakeQueryEntryNamedFields[
                 EntryTable[e],
-                tuple[*[f for f in Iter[EntryFields[e]]], FieldName[New]],
+                tuple[*Map(f for f in Iter[EntryFields[e]]), FieldName[New]],
             ]
         )
         for e in Iter[Entries]
-    ],
+    ),
     *(  # Add entries if not present
         e
         for e in Iter[tuple[QueryEntry[FieldTable[New], tuple[FieldName[New]]]]]
@@ -326,7 +329,7 @@ class Query[Es: tuple[QueryEntry[Table, tuple[Member]], ...]]:
 
 
 type Select[T: Table, FieldNames: tuple[Literal[str], ...]] = NewProtocol[
-    *[
+    *Map(
         Member[
             m.name,
             (
@@ -336,7 +339,7 @@ type Select[T: Table, FieldNames: tuple[Literal[str], ...]] = NewProtocol[
             ),
         ]
         for m in Iter[EntryFieldMembers[T, FieldNames]]
-    ],
+    ),
 ]
 
 
@@ -347,13 +350,13 @@ type QueryRow[Es: tuple[QueryEntry[Table, tuple[Member]], ...]] = (
     ]
     if IsAssignable[Literal[1], Length[Es]]
     else NewProtocol[
-        *[
+        *Map(
             Member[
                 GetSpecialAttr[EntryTable[e], Literal["__name__"]],
                 Select[EntryTable[e], EntryFields[e]],
             ]
             for e in Iter[Es]
-        ]
+        )
     ]
 )
 
@@ -413,7 +416,7 @@ class Comment(Table[Literal["comments"]]):
 # Tests
 
 
-type AttrNames[T] = tuple[*[f.name for f in Iter[Attrs[T]]]]
+type AttrNames[T] = tuple[*Map(f.name for f in Iter[Attrs[T]])]
 
 
 def test_qblike_3_select_01():
