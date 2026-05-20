@@ -1847,6 +1847,19 @@ def test_callable_to_signature_01():
     )
 
 
+def test_callable_to_signature_multi_kind_error():
+    from typemap.type_eval._eval_operators import _callable_type_to_signature
+
+    # Param can carry at most one kind; combining "positional" with
+    # "keyword" is nonsense and should be rejected.
+    callable_type = Callable[
+        Params[Param[Literal["x"], int, Literal["positional", "keyword"]]],
+        int,
+    ]
+    with pytest.raises(TypeError, match="at most one"):
+        _callable_type_to_signature(callable_type)
+
+
 def test_new_protocol_with_methods_01():
     class C:
         def member_method(self, x: int) -> int: ...

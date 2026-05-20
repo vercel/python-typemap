@@ -494,13 +494,19 @@ def _eval_Bool(tp, *, ctx):
 ##################################################################
 
 
-def _get_quals(quals_type):
-    # Extract qualifiers from Literal["*", "**", ...] or Never
-    if _typing_inspect.is_literal(quals_type):
-        qual_args = typing.get_args(quals_type)
-        return set(qual_args)
-    else:
-        return set()
+def _get_kind(kind_type) -> str | None:
+    # Extract the single kind from Literal["*"|"**"|"keyword"|"positional"]
+    # or Never. Multiple kinds in one Literal are an error.
+    if kind_type is typing.Never:
+        return None
+    if not _typing_inspect.is_literal(kind_type):
+        return None
+    kind_args = typing.get_args(kind_type)
+    if len(kind_args) > 1:
+        raise TypeError(
+            f"Param kind must have at most one value, got {kind_type}"
+        )
+    return kind_args[0] if kind_args else None
 
 
 class _DummyDefault:
@@ -563,7 +569,7 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
     saw_keyword_only = False
 
     for param_type in param_types:
-        # Extract Param arguments: Param[name, type, quals]
+        # Extract Param arguments: Param[name, type, kind]
         origin = typing.get_origin(param_type)
         if origin is not Param:
             raise TypeError(f"Expected Param type, got {param_type}")
@@ -576,34 +582,27 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
 
         name_type = param_args[0]
         annotation = param_args[1]
-        quals_type = param_args[2] if len(param_args) > 2 else typing.Never
+        kind_type = param_args[2] if len(param_args) > 2 else typing.Never
 
         # Extract name from Literal[name] or None
         name = _from_literal(name_type)
 
-        # Extract qualifiers from Literal["*", "**", ...] or Never
-        quals: set[str] = set()
-        if quals_type is not typing.Never:
-            if _typing_inspect.is_literal(quals_type):
-                qual_args = typing.get_args(quals_type)
-                quals = set(qual_args)
-            else:
-                quals = set()
+        param_kind = _get_kind(kind_type)
 
         # Determine parameter kind and default
         kind: inspect._ParameterKind
-        if "**" in quals:
+        if param_kind == "**":
             kind = inspect.Parameter.VAR_KEYWORD
             name = name or "kwargs"
-        elif "*" in quals:
+        elif param_kind == "*":
             kind = inspect.Parameter.VAR_POSITIONAL
             name = name or "args"
             # XXX: not sure we need this
             saw_keyword_only = True
-        elif "keyword" in quals:
+        elif param_kind == "keyword":
             kind = inspect.Parameter.KEYWORD_ONLY
             saw_keyword_only = True
-        elif "positional" in quals or name is None:
+        elif param_kind == "positional" or name is None:
             kind = inspect.Parameter.POSITIONAL_ONLY
         elif saw_keyword_only:
             kind = inspect.Parameter.KEYWORD_ONLY
@@ -669,11 +668,9 @@ def _signature_to_function(name: str, sig: inspect.Signature):
 
 def _is_pos_only(param):
     args = typing.get_args(param)
-    name, _, quals = args[0], args[1], args[2]
-    qual_set = _get_quals(quals)
-    return "positional" in qual_set or (
-        name is None and not (qual_set & {"*", "**"})
-    )
+    name, _, kind_type = args[0], args[1], args[2]
+    kind = _get_kind(kind_type)
+    return kind == "positional" or (name is None and kind not in ("*", "**"))
 
 
 def _callable_type_to_method(name, typ, ctx):
@@ -700,14 +697,14 @@ def _callable_type_to_method(name, typ, ctx):
         # We have to make class positional only if there is some other
         # positional only argument. Annoying!
         has_pos_only = any(_is_pos_only(p) for p in param_list)
-        quals = typing.Literal["positional"] if has_pos_only else typing.Never
+        kind = typing.Literal["positional"] if has_pos_only else typing.Never
         # Override the receiver type with type[Self].
         if name == "__init_subclass__" and isinstance(cls, typing.TypeVar):
             # For __init_subclass__ generic on cls: T, keep type[T]
             cls_typ = type[cls]
         else:
             cls_typ = type[typing.Self]
-        cls_param = Param[typing.Literal["cls"], cls_typ, quals]
+        cls_param = Param[typing.Literal["cls"], cls_typ, kind]
         typ = typing.Callable[Params[cls_param, *param_list], ret]
     elif head is staticmethod:
         raw_params, ret = typing.get_args(typ)
@@ -770,15 +767,15 @@ def _function_type_from_sig(sig, func, *, receiver_type):
                 else:
                     specified_receiver = ann
 
-        quals = []
+        kinds = []
         if p.kind == inspect.Parameter.VAR_POSITIONAL:
-            quals.append("*")
+            kinds.append("*")
         if p.kind == inspect.Parameter.VAR_KEYWORD:
-            quals.append("**")
+            kinds.append("**")
         if p.kind == inspect.Parameter.KEYWORD_ONLY:
-            quals.append("keyword")
+            kinds.append("keyword")
         if p.kind == inspect.Parameter.POSITIONAL_ONLY:
-            quals.append("positional")
+            kinds.append("positional")
         ann_type = _ann(ann)
         has_default = p.default is not empty
         if has_default:
@@ -793,7 +790,7 @@ def _function_type_from_sig(sig, func, *, receiver_type):
             Param[
                 typing.Literal[p.name],
                 ann_type,
-                typing.Literal[*quals] if quals else typing.Never,
+                typing.Literal[*kinds] if kinds else typing.Never,
                 default_type,
             ]
         )

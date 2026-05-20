@@ -198,14 +198,14 @@ class Member[
     type definer = D
 
 
-ParamQuals = Literal["*", "**", "keyword", "positional"]
+ParamKind = Literal["*", "**", "keyword", "positional"]
 
 
 @has_associated_types
-class Param[N: str | None, T, Q: ParamQuals = typing.Never, D = typing.Never]:
+class Param[N: str | None, T, K: ParamKind = typing.Never, D = typing.Never]:
     type name = N
     type type = T
-    type quals = Q
+    type kind = K
     type default = D
 
 
@@ -234,7 +234,8 @@ class Params:
 
 type GetName[T: Member | Param] = T.name
 type GetType[T: Member | Param] = T.type
-type GetQuals[T: Member | Param] = T.quals
+type GetQuals[T: Member] = T.quals
+type GetKind[T: Param] = T.kind
 type GetDefault[T: Param] = T.default
 type GetInit[T: Member] = T.init
 type GetDefiner[T: Member] = T.definer
