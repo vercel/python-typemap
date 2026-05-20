@@ -209,13 +209,13 @@ class Param[N: str | None, T, K: ParamKind = typing.Never, D = typing.Never]:
     type default = D
 
 
-type PosParam[N: str | None, T] = Param[N, T, Literal["positional"]]
-type PosDefaultParam[N: str | None, T] = Param[N, T, Literal["positional"], T]
+type PosParam[T] = Param[None, T, Literal["positional"]]
+type PosDefaultParam[T] = Param[None, T, Literal["positional"], T]
 type DefaultParam[N: str, T] = Param[N, T, typing.Never, T]
 type NamedParam[N: str, T] = Param[N, T, Literal["keyword"]]
 type NamedDefaultParam[N: str, T] = Param[N, T, Literal["keyword"], T]
-type ArgsParam[T] = Param[Literal[None], T, Literal["*"]]
-type KwargsParam[T] = Param[Literal[None], T, Literal["**"]]
+type ArgsParam[T] = Param[None, T, Literal["*"]]
+type KwargsParam[T] = Param[None, T, Literal["**"]]
 
 
 class Params:
