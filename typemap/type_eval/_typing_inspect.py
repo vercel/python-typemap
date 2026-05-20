@@ -130,7 +130,7 @@ def is_optional_type(t: Any) -> TypeGuard[UnionType]:
     return is_union_type(t) and type(None) in get_args(t)
 
 
-def is_literal(t: Any) -> bool:
+def is_literal(t: Any) -> TypeGuard[GenericAlias]:
     return is_generic_alias(t) and get_origin(t) is Literal
 
 

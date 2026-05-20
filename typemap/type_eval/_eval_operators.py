@@ -612,16 +612,15 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
         # Handle default value from the 4th Param arg (D)
         default_type = param_args[3] if len(param_args) > 3 else typing.Never
         default: typing.Any
-        if default_type is not typing.Never:
-            if (
-                _typing_inspect.is_literal(default_type)
-                and len(default_type.__args__) == 1  # type: ignore[union-attr]
-            ):
-                default = default_type.__args__[0]  # type: ignore[union-attr]
-            else:
-                default = _DUMMY_DEFAULT
-        else:
+        if default_type is typing.Never:
             default = inspect.Parameter.empty
+        elif (
+            _typing_inspect.is_literal(default_type)
+            and len(default_type.__args__) == 1
+        ):
+            default = default_type.__args__[0]
+        else:
+            default = _DUMMY_DEFAULT
 
         # Generate a name for positional-only params if needed
         if name is None:
