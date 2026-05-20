@@ -20,6 +20,7 @@ test = [
 required-version = ">=0.8.0"
 default-groups = ["test"]
 package = true
+exclude-newer = "2 days"
 
 [tool.pytest.ini_options]
 addopts = [
