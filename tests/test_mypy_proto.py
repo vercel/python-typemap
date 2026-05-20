@@ -14,11 +14,6 @@ _mypy_source = os.environ.get("MYPY_SOURCE_DIR")
 MYPY_SOURCE_DIR = pathlib.Path(_mypy_source).resolve() if _mypy_source else None
 
 
-# Files that depend on the 4-arg Param shape, which the pinned
-# mypy-typemap stub fork hasn't been updated for yet.
-_XFAIL_PARAM_D = {"test_dataclass_like", "test_fastapilike_2"}
-
-
 def _collect_mypy_test_files():
     """Collect test files that don't have # SKIP MYPY."""
     tests_dir = pathlib.Path(__file__).parent
@@ -27,15 +22,7 @@ def _collect_mypy_test_files():
             continue
         text = path.read_text()
         if "# SKIP MYPY" not in text:
-            marks = []
-            if path.stem in _XFAIL_PARAM_D:
-                marks.append(
-                    pytest.mark.xfail(
-                        reason="mypy-typemap stubs still have 3-arg Param",
-                        strict=True,
-                    )
-                )
-            yield pytest.param(path, id=path.stem, marks=marks)
+            yield pytest.param(path, id=path.stem)
 
 
 @pytest.mark.parametrize("test_file", _collect_mypy_test_files())
