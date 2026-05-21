@@ -11,6 +11,7 @@ from typemap_extensions import (
     BaseTypedDict,
     NewProtocol,
     Iter,
+    Map,
     Attrs,
     IsAssignable,
     Member,
@@ -30,7 +31,7 @@ class Link[T]:
 
 
 type PropsOnly[T] = NewProtocol[
-    *[p for p in Iter[Attrs[T]] if IsAssignable[p.type, Property]]
+    *Map(p for p in Iter[Attrs[T]] if IsAssignable[p.type, Property])
 ]
 
 # Conditional type alias!
@@ -44,13 +45,13 @@ def select[K: BaseTypedDict](
     /,
     **kwargs: Unpack[K],
 ) -> NewProtocol[
-    *[
+    *Map(
         Member[
             c.name,
             FilterLinks[GetMemberType[A, c.name]],
         ]
         for c in Iter[Attrs[K]]
-    ]
+    )
 ]:
     raise NotImplementedError
 

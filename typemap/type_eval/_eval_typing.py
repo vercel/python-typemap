@@ -15,7 +15,12 @@ from typing import (  # type: ignore [attr-defined]  # noqa: PLC2701
     _UnpackGenericAlias as typing_UnpackGenericAlias,
 )
 
-from typemap.typing import _AssociatedTypeGenericAlias
+from typemap.typing import (
+    _AssociatedTypeGenericAlias,
+    _UnpackAny,
+    _UnpackedMap,
+    _UnpackedMapEnd,
+)
 
 
 if typing.TYPE_CHECKING:
@@ -333,18 +338,41 @@ def _eval_type_alias(obj: typing.TypeAliasType, ctx: EvalContext):
     return _eval_types(unpacked, ctx)
 
 
-def _eval_args(args: Sequence[Any], ctx: EvalContext) -> tuple[Any]:
-    evaled = []
-    for arg in args:
-        ev = _eval_types(arg, ctx)
-        if isinstance(ev, typing_UnpackGenericAlias):
-            if (args := ev.__typing_unpacked_tuple_args__) is not None:
-                evaled.extend(args)
-            else:
-                evaled.append(ev)
+def _eval_and_append(evaled: list, arg: Any, ctx: EvalContext) -> None:
+    ev = _eval_types(arg, ctx)
+    if isinstance(ev, typing_UnpackGenericAlias):
+        if (sub := ev.__typing_unpacked_tuple_args__) is not None:
+            evaled.extend(sub)
         else:
             evaled.append(ev)
+    else:
+        evaled.append(ev)
+
+
+def _eval_args(args: Sequence[Any], ctx: EvalContext) -> tuple[Any, ...]:
+    from typemap.type_eval._eval_operators import IterAnyError
+
+    evaled: list[Any] = []
+    for arg in args:
+        if arg is _UnpackedMapEnd:
+            continue
+        if isinstance(arg, _UnpackedMap):
+            # We need to evaluate the inner arguments as we iterate,
+            # rather than converting to a list first, since there
+            # might be inner iterators that depend on the outer
+            # variables.
+            try:
+                for v in arg.map._gen:
+                    _eval_and_append(evaled, v, ctx)
+            except IterAnyError:
+                evaled.append(_UnpackAny)
+            continue
+        _eval_and_append(evaled, arg, ctx)
     return tuple(evaled)
+
+
+def _has_unpack_any(args: typing.Iterable[Any]) -> bool:
+    return any(a is _UnpackAny for a in args)
 
 
 @_eval_types_impl.register
@@ -365,6 +393,8 @@ def _eval_applied_type_alias(obj: types.GenericAlias, ctx: EvalContext):
         return typing.Unpack[_eval_types(stripped, ctx)]
 
     new_args = _eval_args(obj.__args__, ctx)
+    if _has_unpack_any(new_args):
+        return typing.Any
 
     new_obj = _apply_type(obj.__origin__, new_args)
     if isinstance(obj.__origin__, type):
@@ -428,6 +458,8 @@ def _eval_applied_class(obj: typing_GenericAlias, ctx: EvalContext):
     # generic *classes* are typing._GenericAlias while generic type
     # aliases are types.GenericAlias? Why in the world.
     new_args = _eval_args(typing.get_args(obj), ctx)
+    if _has_unpack_any(new_args):
+        return typing.Any
 
     if func := _eval_funcs.get(obj.__origin__):
         _tvars = (
@@ -461,6 +493,7 @@ def _eval_callable(obj: typing_CallableGenericAlias, ctx: EvalContext):
 
 @_eval_types_impl.register
 def _eval_union(obj: typing.Union, ctx: EvalContext):
-    args: typing.Sequence[typing.Any] = obj.__args__
-    new_args = tuple(_eval_types(arg, ctx) for arg in args)
+    new_args = _eval_args(obj.__args__, ctx)
+    if _has_unpack_any(new_args):
+        return typing.Any
     return typing.Union[new_args]

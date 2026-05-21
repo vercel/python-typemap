@@ -65,7 +65,7 @@ type InitFnType[T] = typing.Member[
     Callable[
         typing.Params[
             typing.Param[Literal["self"], T],
-            *[
+            *typing.Map(
                 typing.Param[
                     p.name,
                     p.type,
@@ -79,7 +79,7 @@ type InitFnType[T] = typing.Member[
                     else Literal["keyword", "default"],
                 ]
                 for p in typing.Iter[typing.Attrs[T]]
-            ],
+            ),
         ],
         None,
     ],
@@ -87,7 +87,7 @@ type InitFnType[T] = typing.Member[
 ]
 type AddInit[T] = typing.NewProtocol[
     InitFnType[T],
-    *[x for x in typing.Iter[typing.Members[T]]],
+    *typing.Map(x for x in typing.Iter[typing.Members[T]]),
 ]
 
 """

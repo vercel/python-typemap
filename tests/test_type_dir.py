@@ -13,6 +13,7 @@ from typemap_extensions import (
     InitField,
     IsAssignable,
     Iter,
+    Map,
     Member,
     Members,
     NewProtocol,
@@ -86,37 +87,37 @@ type BaseArg[T] = (
 
 
 type AllOptional[T] = NewProtocol[
-    *[Member[p.name, p.type | None, p.quals] for p in Iter[Attrs[T]]]
+    *Map(Member[p.name, p.type | None, p.quals] for p in Iter[Attrs[T]])
 ]
 
 type OptionalFinal = AllOptional[Final]
 
 
 type Capitalize[T] = NewProtocol[
-    *[Member[Uppercase[p.name], p.type, p.quals] for p in Iter[Attrs[T]]]
+    *Map(Member[Uppercase[p.name], p.type, p.quals] for p in Iter[Attrs[T]])
 ]
 
 type Prims[T] = NewProtocol[
-    *[p for p in Iter[Attrs[T]] if IsAssignable[p.type, int | str]]
+    *Map(p for p in Iter[Attrs[T]] if IsAssignable[p.type, int | str])
 ]
 
 type NoLiterals1[T] = NewProtocol[
-    *[
+    *Map(
         Member[
             p.name,
             Union[
-                *[
+                *Map(
                     t
                     for t in Iter[FromUnion[p.type]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     if not IsAssignable[t, Literal]
-                ]
+                )
             ],
             p.quals,
         ]
         for p in Iter[Attrs[T]]
-    ]
+    )
 ]
 
 
@@ -136,23 +137,23 @@ type IsLiteral[T] = (
 )
 
 type NoLiterals2[T] = NewProtocol[
-    *[
+    *Map(
         Member[
             p.name,
             Union[
-                *[
+                *Map(
                     t
                     for t in Iter[FromUnion[p.type]]
                     # XXX: 'typing.Literal' is not *really* a type...
                     # Maybe we can't do this, which maybe is fine.
                     # if not IsAssignabletype[t, Literal]
                     if not IsAssignable[IsLiteral[t], Literal[True]]
-                ]
+                )
             ],
             p.quals,
         ]
         for p in Iter[Attrs[T]]
-    ]
+    )
 ]
 
 

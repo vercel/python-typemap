@@ -48,66 +48,68 @@ We present implementations of a selection of them::
 # Pick<T, Keys>
 # Constructs a type by picking the set of properties Keys from T.
 type Pick[T, Keys] = typing.NewProtocol[
-    *[
+    *typing.Map(
         p
         for p in typing.Iter[typing.Members[T]]
         if typing.IsAssignable[p.name, Keys]
-    ]
+    )
 ]
 
 # Omit<T, Keys>
 # Constructs a type by picking all properties from T and then removing Keys.
 # Note that unlike in TS, our Omit does not depend on Exclude.
 type Omit[T, Keys] = typing.NewProtocol[
-    *[
+    *typing.Map(
         p
         for p in typing.Iter[typing.Members[T]]
         if not typing.IsAssignable[p.name, Keys]
-    ]
+    )
 ]
 
 # KeyOf[T]
 # Constructs a union of the names of every member of T.
-type KeyOf[T] = Union[*[p.name for p in typing.Iter[typing.Members[T]]]]
+type KeyOf[T] = Union[
+    *typing.Map(p.name for p in typing.Iter[typing.Members[T]])
+]
 
 # Exclude<T, U>
 # Constructs a type by excluding from T all union members assignable to U.
 type Exclude[T, U] = Union[
-    *[
+    *typing.Map(
         x
         for x in typing.Iter[typing.FromUnion[T]]
         if not typing.IsAssignable[x, U]
-    ]
+    )
 ]
 
 # Extract<T, U>
 # Constructs a type by extracting from T all union members assignable to U.
 type Extract[T, U] = Union[
-    *[
+    *typing.Map(
         x
         for x in typing.Iter[typing.FromUnion[T]]
         # Just the inverse of Exclude, really
         if typing.IsAssignable[x, U]
-    ]
+    )
 ]
 
 # Partial<T>
 # Constructs a type with all properties of T set to optional (T | None).
 type Partial[T] = typing.NewProtocol[
-    *[
+    *typing.Map(
         typing.Member[p.name, p.type | None, p.quals]
         for p in typing.Iter[typing.Attrs[T]]
-    ]
+    )
 ]
 
 # PartialTD<T>
 # Like Partial, but for TypedDicts: wraps all fields in NotRequired
 # rather than making them T | None.
 type PartialTD[T] = typing.NewTypedDict[
-    *[
+    *typing.Map(
         typing.Member[p.name, p.type, p.quals | Literal["NotRequired"]]
         for p in typing.Iter[typing.Attrs[T]]
-    ]
+    )
 ]
 # End PEP section: Utility types
 
