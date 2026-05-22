@@ -385,8 +385,8 @@ def test_type_members_func_1():
         str(typ)
         == "\
 typing.Callable[\
-typemap.typing.Params[typemap.typing.Param[typing.Literal['self'], tests.test_type_dir.Base[int], typing.Never, typing.Never], \
-typemap.typing.Param[typing.Literal['a'], int | None, typing.Never, typing.Never], \
+typemap.typing.Params[typemap.typing.Param[typing.Literal['self'], tests.test_type_dir.Base[int], typing.Literal['positional_or_keyword'], typing.Never], \
+typemap.typing.Param[typing.Literal['a'], int | None, typing.Literal['positional_or_keyword'], typing.Never], \
 typemap.typing.Param[typing.Literal['b'], int, typing.Literal['keyword'], typing.Literal[0]]], \
 dict[str, int]]"
     )
@@ -405,7 +405,7 @@ def test_type_members_func_2():
     assert (
         str(typ)
         == "\
-classmethod[tests.test_type_dir.Base[int], typemap.typing.Params[typemap.typing.Param[typing.Literal['a'], int | None, typing.Never, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never, typing.Never]], dict[str, int]]"
+classmethod[tests.test_type_dir.Base[int], typemap.typing.Params[typemap.typing.Param[typing.Literal['a'], int | None, typing.Literal['positional_or_keyword'], typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Literal['positional_or_keyword'], typing.Never]], dict[str, int]]"
     )
 
 
@@ -424,7 +424,7 @@ def test_type_members_func_3():
     )
     assert (
         str(evaled)
-        == "staticmethod[typemap.typing.Params[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Never, typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Never, typing.Never]], dict[str, int | Z]]"
+        == "staticmethod[typemap.typing.Params[typemap.typing.Param[typing.Literal['a'], int | typing.Literal['gotcha!'] | Z | None, typing.Literal['positional_or_keyword'], typing.Never], typemap.typing.Param[typing.Literal['b'], ~K, typing.Literal['positional_or_keyword'], typing.Never]], dict[str, int | Z]]"
     )
 
 

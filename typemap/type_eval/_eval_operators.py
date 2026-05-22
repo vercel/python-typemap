@@ -604,6 +604,8 @@ def _callable_type_to_signature(callable_type: object) -> inspect.Signature:
             saw_keyword_only = True
         elif param_kind == "positional" or name is None:
             kind = inspect.Parameter.POSITIONAL_ONLY
+        elif param_kind == "positional_or_keyword":
+            kind = inspect.Parameter.POSITIONAL_OR_KEYWORD
         elif saw_keyword_only:
             kind = inspect.Parameter.KEYWORD_ONLY
         else:
@@ -775,6 +777,8 @@ def _function_type_from_sig(sig, func, *, receiver_type):
             kinds.append("keyword")
         if p.kind == inspect.Parameter.POSITIONAL_ONLY:
             kinds.append("positional")
+        if p.kind == inspect.Parameter.POSITIONAL_OR_KEYWORD:
+            kinds.append("positional_or_keyword")
         ann_type = _ann(ann)
         has_default = p.default is not empty
         if has_default:

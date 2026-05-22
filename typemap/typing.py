@@ -198,11 +198,16 @@ class Member[
     type definer = D
 
 
-ParamKind = Literal["*", "**", "keyword", "positional"]
+ParamKind = Literal["*", "**", "keyword", "positional", "positional_or_keyword"]
 
 
 @has_associated_types
-class Param[N: str | None, T, K: ParamKind = typing.Never, D = typing.Never]:
+class Param[
+    N: str | None,
+    T,
+    K: ParamKind = Literal["positional_or_keyword"],
+    D = typing.Never,
+]:
     type name = N
     type type = T
     type kind = K
@@ -211,7 +216,7 @@ class Param[N: str | None, T, K: ParamKind = typing.Never, D = typing.Never]:
 
 type PosParam[T] = Param[None, T, Literal["positional"]]
 type PosDefaultParam[T] = Param[None, T, Literal["positional"], T]
-type DefaultParam[N: str, T] = Param[N, T, typing.Never, T]
+type DefaultParam[N: str, T] = Param[N, T, Literal["positional_or_keyword"], T]
 type NamedParam[N: str, T] = Param[N, T, Literal["keyword"]]
 type NamedDefaultParam[N: str, T] = Param[N, T, Literal["keyword"], T]
 type ArgsParam[T] = Param[None, T, Literal["*"]]
