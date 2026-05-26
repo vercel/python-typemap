@@ -144,9 +144,9 @@ def _update_bound_typevar(
 
 
 def eval_call_with_types(
-    func: types.FunctionType | typing.Callable,
-    *arg_types: tuple[RtType, ...],
-    **kwarg_types: dict[str, RtType],
+    func: types.FunctionType | typing.Callable[..., Any],
+    *arg_types: RtType,
+    **kwarg_types: RtType,
 ) -> RtType:
     if isinstance(func, types.FunctionType):
         vars: dict[str, Any] = _get_bound_type_args(
